@@ -4,6 +4,7 @@ from ggsolver.decoy_alloc.models import ReachabilityGame
 import networkx as nx
 from networkx.readwrite import json_graph
 
+
 class CBSGame(ReachabilityGame):
     """
     CyberBattleSim game

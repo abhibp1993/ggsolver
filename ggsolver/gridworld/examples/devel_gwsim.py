@@ -75,7 +75,7 @@ if __name__ == '__main__':
         position=(50, 50),
         size=(20, 20),
         backcolor=colors.GREEN,
-        anchor=AnchorStyle.CENTER,
+        anchor=DockStyle.CENTER,
         on_key_down=control2_on_key_down
 
     )
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         size=(200, 200),
         grid_size=(2, 2),
         backcolor=colors.BEIGE,
-        anchor=AnchorStyle.CENTER,
+        anchor=DockStyle.CENTER,
     )
 
     sim = GWSim(graph, window)

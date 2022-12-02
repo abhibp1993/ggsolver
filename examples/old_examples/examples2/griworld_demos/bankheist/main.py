@@ -1,21 +1,23 @@
+import json
+
 import numpy as np
 import ggsolver.mdp as mdp
 import ggsolver.gridworld as gw
 from collections import namedtuple
 
 
-GAME_CONFIG = {
-    "maze": np.random.randint(low=0, high=2, dtype=int, size=(15, 15))
-}
-
-
 class BankHeistWindow(gw.Window):
     def __init__(self, name, size, game_config, **kwargs):
         super(BankHeistWindow, self).__init__(name, size, **kwargs)
-        self._game_config = game_config
+        with open(game_config, "r") as file:
+            self._game_config = json.load(file)
+
+        if self._game_config["game"] != "Bank Heist":
+            raise ValueError("The game is not Bank Heist.")
 
         # Construct grid
-        grid_size = self._game_config["maze"].shape
+        self._terrain = np.array(self._game_config["terrain"])
+        grid_size = self._terrain.shape
         self.grid = gw.Grid(
             name="grid1",
             parent=self,
@@ -28,13 +30,15 @@ class BankHeistWindow(gw.Window):
 
         for x in range(grid_size[0]):
             for y in range(grid_size[1]):
-                if self._game_config["maze"][x, y] == 0:
-                    self.grid[x, y].backcolor = gw.COLOR_BLACK
+                if self._terrain[x, y] == 0:
+                    self.grid[x, y].backcolor = gw.COLOR_GRAY51
 
     def sm_update(self, event_args):
         print(f"sm_update: {event_args}")
 
 
 if __name__ == '__main__':
-    window = BankHeistWindow(name="Bank Heist", size=(600, 600), game_config=GAME_CONFIG)
+    # conf = f"saved_games/game_2022_11_21_20_05.conf"
+    conf = f"E:/Github-Repositories/ggsolver/examples/apps/bankheist/saved_games/game_2022_11_21_20_05.conf"
+    window = BankHeistWindow(name="Bank Heist", size=(600, 600), game_config=conf)
     window.run()

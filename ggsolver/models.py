@@ -127,7 +127,7 @@ class GraphicalModel:
         Programmer's notes:
         1. Caches states (returned by `self.states()`) in self.__states variable.
         2. Assumes all states to be hashable.
-        3.
+        3. (in v0.1.7) Handles `enabled_acts` optional function.
         """
         # Get states
         states = getattr(self, "states")
@@ -162,21 +162,50 @@ class GraphicalModel:
         ep_input = EdgePropertyMap(graph=graph)
         ep_prob = EdgePropertyMap(graph=graph, default=None)
 
+        # Process enabled actions function, if provided.
+        enabled_acts = getattr(self, "enabled_acts", None)
+        if enabled_acts is not None:
+            try:
+                # Check if enabled_acts is implemented by user.
+                arbitrary_key, st = list(self.__states.items())[0]
+                enabled_acts(st)
+            except NotImplementedError:
+                enabled_acts = None
+
+        # If enabled_acts is defined and implemented, then define and store the property.
+        if enabled_acts is not None:
+            np_enabled_acts = NodePropertyMap(graph=graph, default=inputs)
+            for state in tqdm(self.__states.keys(), desc="Generating state: enabled actions map"):
+                np_enabled_acts[self.__states[state]] = enabled_acts(state)
+            graph["enabled_acts"] = np_enabled_acts
+            logging.info(util.ColoredMsg.ok(f"[INFO] Processed node property: enabled_acts. [OK]"))
+
         # Generate edges
         delta = getattr(self, "delta")
-        for state, inp in tqdm(itertools.product(self.__states.keys(), inputs),
-                               total=len(self.__states) * len(inputs),
-                               desc="Unpointed graphify adding edges"):
 
-            new_edges = self._gen_edges(delta, state, inp)
+        # for state, inp in tqdm(itertools.product(self.__states.keys(), inputs),
+        #                        total=len(self.__states) * len(inputs),
+        #                        desc="Unpointed graphify adding edges"):
 
-            # Update graph edges
-            uid = self.__states[state]
-            for _, t, _, prob in new_edges:
-                vid = self.__states[t]
-                key = graph.add_edge(uid, vid)
-                ep_input[uid, vid, key] = inp
-                ep_prob[uid, vid, key] = prob
+        for state in tqdm(self.__states.keys(), desc="Unpointed graphify adding edges"):
+            # Get the enabled inputs at the state. If enabled_acts is not defined, then use entire inputs set.
+            if enabled_acts is not None:
+                inputs_at_state = np_enabled_acts[self.__states[state]]
+            else:
+                inputs_at_state = inputs
+
+            # Apply inputs to state to generate out edges
+            for inp in inputs_at_state:
+                # Generate edges from state
+                new_edges = self._gen_edges(delta, state, inp)
+
+                # Update graph edges
+                uid = self.__states[state]
+                for _, t, _, prob in new_edges:
+                    vid = self.__states[t]
+                    key = graph.add_edge(uid, vid)
+                    ep_input[uid, vid, key] = inp
+                    ep_prob[uid, vid, key] = prob
 
         # Add edge properties to graph
         graph["input"] = ep_input
@@ -205,8 +234,27 @@ class GraphicalModel:
         ep_input = EdgePropertyMap(graph=graph)
         ep_prob = EdgePropertyMap(graph=graph, default=None)
 
-        # BFS traversal until all reachable states are visited.
+        # Get initial state
         s0 = self.init_state()
+
+        # Process enabled actions function, if provided.
+        enabled_acts = getattr(self, "enabled_acts", None)
+        if enabled_acts is not None:
+            try:
+                # Check if enabled_acts is implemented by user.
+                enabled_acts(s0)
+            except NotImplementedError:
+                enabled_acts = None
+
+        # If enabled_acts is defined and implemented, then define and store the property.
+        if enabled_acts is not None:
+            np_enabled_acts = NodePropertyMap(graph=graph, default=inputs)
+            # for state in tqdm(self.__states.keys(), desc="Generating state: enabled actions map"):
+            #     np_enabled_acts[state] = enabled_acts(state)
+            # graph["enabled_acts"] = np_enabled_acts
+            # logging.info(util.ColoredMsg.ok(f"[INFO] Processed node property: enabled_acts. [OK]"))
+
+        # BFS traversal until all reachable states are visited.
         uid = graph.add_node()
         self.__states[s0] = uid
         np_state[uid] = s0
@@ -229,7 +277,13 @@ class GraphicalModel:
                 np_state[uid] = state
 
                 # Apply all inputs to state
-                for inp in inputs:
+                if enabled_acts is not None:
+                    inputs_at_state = enabled_acts(state)
+                    np_enabled_acts[uid] = inputs_at_state
+                else:
+                    inputs_at_state = inputs
+
+                for inp in inputs_at_state:
                     # Get successors: set of (from_st, to_st, inp, prob)
                     new_edges = self._gen_edges(delta, state, inp)
 
@@ -253,6 +307,8 @@ class GraphicalModel:
 
         # Add node properties to graph
         graph["state"] = np_state
+        if enabled_acts is not None:
+            graph["enabled_acts"] = np_enabled_acts
 
         # Add edge properties to graph
         graph["input"] = ep_input
@@ -803,6 +859,16 @@ class TSys(GraphicalModel):
         :return: (list/tuple of str). A list/tuple of atomic propositions that are true in the given state.
         """
         raise NotImplementedError(f"{self.__class__.__name__}.label() is not implemented.")
+
+    @register_property(NODE_PROPERTY)
+    def enabled_acts(self, state):
+        """
+        Defines the enabled actions at the given state.
+
+        :param state: (object) A valid state.
+        :return: (list/tuple of str). A list/tuple of actions enabled in the given state.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.enabled_acts() is not implemented.")
 
 
 class Game(TSys):

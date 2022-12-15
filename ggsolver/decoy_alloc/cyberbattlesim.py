@@ -174,7 +174,7 @@ if __name__ == '__main__':
     print(f"{len(game.states())=}")
     print(f"{len(game.actions())=}")
     # print(game.actions())
-    state = ('0', (0, 0, 0), (1, 1, 1, 1, 1), 1, (1, 0, 0, 0, 0, 0))
+    state = ('0', (0, 0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
     # print(game.delta(state, "move_to_node_0"))
     graph = game.graphify(pointed=True)
     print(f"{graph.number_of_nodes()=}")

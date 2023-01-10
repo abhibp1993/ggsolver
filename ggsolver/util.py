@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 from itertools import chain, combinations
 
@@ -53,8 +54,6 @@ class Distribution:
 
     def pmf(self, element):
         return self.prob[self.domain.index(element)]
-
-
 def apply_atoms_limit(atoms):
     if len(atoms) > 16:
         raise ValueError("ggsolver supports atoms set up to size 16.")

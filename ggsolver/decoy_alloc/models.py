@@ -132,7 +132,6 @@ class ReachabilityGameOfP1(Game):
 
 
     def final(self, state):
-        #TODO Final states are the traps. Do we need to pass the traps to this game?
         return self._traps
 
     def turn(self, state):

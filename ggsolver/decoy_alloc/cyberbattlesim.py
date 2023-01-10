@@ -2,7 +2,9 @@ import json
 import itertools
 from ggsolver.decoy_alloc.models import ReachabilityGame
 import networkx as nx
+from ggsolver.decoy_alloc.solvers import greedy_max
 from networkx.readwrite import json_graph
+from ggsolver.dtptb import SWinReach
 
 class CBSGame(ReachabilityGame):
     """
@@ -143,8 +145,12 @@ class CBSGame(ReachabilityGame):
                     # Where i is the agent's location, k is the number of credentials, and n is the
                     # number of firewalls (connections between computers in the network, edges in the network graph)
                     for owned_nodes in possible_owned_nodes_configuration:
-                        states.append((node_name, obtained_credentials, firewall_state, 1, owned_nodes))
-                        states.append((node_name, obtained_credentials, firewall_state, 2, owned_nodes))
+                        state1 = (node_name, obtained_credentials, firewall_state, 1, owned_nodes)
+                        state2 = (node_name, obtained_credentials, firewall_state, 2, owned_nodes)
+
+                        states.append(state1)
+                        states.append(state2)
+
                         if node_name == self._final_node:
                             final_states.append((node_name, obtained_credentials, firewall_state, 1, owned_nodes))
                             final_states.append((node_name, obtained_credentials, firewall_state, 2, owned_nodes))
@@ -180,6 +186,38 @@ if __name__ == '__main__':
     print(f"{graph.number_of_nodes()=}")
     print(f"{graph.number_of_edges()=}")
     print(game.enabled_acts(state))
+
+    ## trap_subsets is a dict with each network node and the graph nodes that become traps if that network node is a trap ##
+    trap_subsets = {}
+    for node in graph.nodes():
+        # source_node is the name of the "computer" in the network that this state occurs in
+        source_node = graph["state"][node][0]
+        if source_node not in trap_subsets:
+            trap_subsets[source_node] = []
+        trap_subsets[source_node].append(node)
+
+    final_states = trap_subsets["0"]
+    solver = SWinReach(graph, final=final_states)
+    solver.solve()
+
+    # why is this state not in p1's winning region?
+    # It's because the attacker can just stay at node 2,
+    # TODO We might get more interesting results if the attacker has to move?
+    state = ('2', (0, 0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
+    # state2 = ('2', (0, 0, 0), (0, 0, 0, 0, 0), 1, (1, 0, 0, 0, 0, 0))
+    print(game.enabled_acts(state))
+    print(state in solver.win_region(1))
+    print(game.delta(state, "move_to_node_0"))
+    print(game.delta(state, "move_to_node_0") in solver.win_region(1))
+    # sanity check trap_subsets
+    print(trap_subsets.keys())
+    for key in trap_subsets.keys():
+        print(f"num states with node {key}: {len(trap_subsets[key])}")
+        # for state in trap_subsets[key]:
+        #     assert state[0] == key, f"Error trap_subset[{key}] contains state not at node {key}"
+    arena_traps, covered_states = greedy_max(graph, trap_subsets=trap_subsets, fake_subsets=None, max_traps=2)
+    print(arena_traps)
+
     # for every state1
         # for each incoming edge state2
             # for each incoming edge state3

@@ -195,6 +195,7 @@ if __name__ == '__main__':
         if source_node not in trap_subsets:
             trap_subsets[source_node] = []
         trap_subsets[source_node].append(node)
+    fake_subsets = trap_subsets
 
     final_states = trap_subsets["0"]
     solver = SWinReach(graph, final=final_states)
@@ -215,8 +216,8 @@ if __name__ == '__main__':
         print(f"num states with node {key}: {len(trap_subsets[key])}")
         # for state in trap_subsets[key]:
         #     assert state[0] == key, f"Error trap_subset[{key}] contains state not at node {key}"
-    arena_traps, covered_states = greedy_max(graph, trap_subsets=trap_subsets, fake_subsets=None, max_traps=2)
-    print(arena_traps)
+    arena_traps, arena_fakes, covered_states = greedy_max(graph, trap_subsets=trap_subsets, fake_subsets=None, max_traps=2)
+    print(arena_traps, arena_fakes)
 
     # for every state1
         # for each incoming edge state2

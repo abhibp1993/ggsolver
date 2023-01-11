@@ -61,7 +61,6 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
 
             updated_winning_regions.append(pair)
 
-        # TODO what to do if two traps give the same number of winning states? does it matter which we pick?
         next_trap = max(updated_winning_regions, key=lambda x: len(x["winning_states"]))
         arena_traps.add(next_trap["arena_point"])
         trap_states.update(trap_subsets[next_trap["arena_point"]])
@@ -71,6 +70,7 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
         print(f"\tNew total trap states: {len(trap_states)}")
         print(f"\tNew total winning states: {len(covered_states)}")
 
+    # TODO Change graph for fake allocation here
     # Allocate fakes
     while len(states - covered_states) > 0 and len(arena_fakes) < max_fakes:
         iter_count += 1
@@ -85,13 +85,13 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
             # the list of final states if this arena point is made into a fake (we must include states made winning by traps)
             final_states = list(fake_states) + list(trap_states) + fake_subsets[arena_point]
 
+            # TODO replace with positive winning
             solver = SWinReach(graph, final=final_states)
             solver.solve()
             pair = { "arena_point": arena_point, "winning_states": solver.win_region(1) }
 
             updated_winning_regions.append(pair)
 
-        # TODO what to do if two traps/fakes give the same number of winning states? does it matter which we pick?
         next_fake = max(updated_winning_regions, key=lambda x: len(x["winning_states"]))
         arena_fakes.add(next_fake["arena_point"])
         fake_states.update(fake_subsets[next_fake["arena_point"]])

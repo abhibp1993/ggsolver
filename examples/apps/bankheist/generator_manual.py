@@ -52,7 +52,7 @@ import json
 
 
 # In this example, I will assume 9x6 world.
-#   In bank heist game, the borders are always walls.
+#   In cheese heist game, the borders are always walls.
 GW_DIM = (11, 8)
 METRIC = 'cityblock'        # Metric from scipy.spatial.distance
 TERRAIN = np.array([
@@ -133,14 +133,14 @@ GAME_CONFIG = {
     },
     "banks": {
         "sprites": {
-            "front": "sprites/bank/bank.jpg",
+            "front": "sprites/cheese/cheese.jpg",
         },
         "banks.1": [3, 4],
         "banks.2": [7, 7],
     },
     "gas": {
         "sprites": {
-            "front": "sprites/bank/gas.png",
+            "front": "sprites/cheese/gas.png",
         },
         "gas.1": [4, 3]
     },

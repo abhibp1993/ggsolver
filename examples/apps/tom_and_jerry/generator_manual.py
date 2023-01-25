@@ -1,11 +1,11 @@
 """
-Description: The file provides an interface to define a Bank Heist game
+Description: The file provides an interface to define a Tom and Jerry game
     (https://en.wikipedia.org/wiki/Bank_Heist_%28Atari_2600%29). The output is a
     game configuration file (.conf) with following structure.
 
     ```json
     {
-        "game": "Bank Heist",
+        "game": "Tom and Jerry",
         "metric": "manhattan",
         "terrain": <List of Lists (serialized np.array)>,
         "p1": {
@@ -29,9 +29,9 @@ Description: The file provides an interface to define a Bank Heist game
                 "active": <bool>,
             },
         },
-        "banks": {
-            "banks.1": [x, y],
-            "banks.2": [x, y],
+        "cheese": {
+            "cheese.1": [x, y],
+            "cheese.2": [x, y],
         },
         "metadata": {
             "author": <string>,
@@ -52,7 +52,7 @@ import json
 
 
 # In this example, I will assume 9x6 world.
-#   In bank heist game, the borders are always walls.
+#   In cheese heist game, the borders are always walls.
 GW_DIM = (11, 8)
 METRIC = 'cityblock'        # Metric from scipy.spatial.distance
 TERRAIN = np.array([
@@ -87,7 +87,7 @@ P1_2_ACCESSIBLE = np.array([
 ]).tolist()
 
 GAME_CONFIG = {
-    "game": "Bank Heist",
+    "game": "Tom and Jerry",
     "metric": "manhattan",
     "terrain": TERRAIN,
     "p1": {
@@ -125,22 +125,17 @@ GAME_CONFIG = {
             "init_pos": None,
             "active": True,
         },
-        "p2.2": {
-            "accessible region": P1_2_ACCESSIBLE,
-            "init_pos": None,
-            "active": True,
-        },
     },
-    "banks": {
+    "cheese": {
         "sprites": {
-            "front": "sprites/bank/bank.jpg",
+            "front": "sprites/cheese/cheese.jpg",
         },
-        "banks.1": [3, 4],
-        "banks.2": [7, 7],
+        "cheese.1": [3, 4],
+        "cheese.2": [7, 7],
     },
     "gas": {
         "sprites": {
-            "front": "sprites/bank/gas.png",
+            "front": "sprites/cheese/gas.png",
         },
         "gas.1": [4, 3]
     },

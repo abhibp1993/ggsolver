@@ -20,14 +20,14 @@ from collections import namedtuple
 curr_file_path = pathlib.Path(__file__).parent.resolve()
 
 
-class BankHeistWindow(gw.Window):
+class TomJerryWindow(gw.Window):
     def __init__(self, name, size, game_config, **kwargs):
-        super(BankHeistWindow, self).__init__(name, size, **kwargs)
+        super(TomJerryWindow, self).__init__(name, size, **kwargs)
         with open(game_config, "r") as file:
             self._game_config = json.load(file)
 
-        if self._game_config["game"] != "Bank Heist":
-            raise ValueError("The game is not Bank Heist.")
+        if self._game_config["game"] != "Tom and Jerry":
+            raise ValueError("The game is not Tom and Jerry.")
 
         # Construct grid
         self._terrain = np.array(self._game_config["terrain"])
@@ -62,7 +62,6 @@ class BankHeistWindow(gw.Window):
         )
 
         # Police cars
-        # PATCH: Hard coded to two for now.
         self._police1 = Character(
             name="police1",
             parent=self.grid[3, 1],
@@ -74,39 +73,28 @@ class BankHeistWindow(gw.Window):
             # visible=False,
             init_sprite="N",
         )
-        self._police2 = Character(
-            name="police2",
-            parent=self.grid[4, 1],
-            position=(0, 0),
-            size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
-            dockstyle=gw.DockStyle.CENTER,
-            sprites=self._game_config["p2"]["sprites"],
-            backcolor=gw.COLOR_TRANSPARENT,
-            # visible=False,
-            init_sprite="N",
-        )
 
-        # Banks
-        bank1_pos = self._game_config["banks"]["banks.1"]
-        bank2_pos = self._game_config["banks"]["banks.2"]
+        # cheese
+        cheese1_pos = self._game_config["cheese"]["cheese.1"]
+        cheese2_pos = self._game_config["cheese"]["cheese.2"]
         self._bank1 = Character(
             name="bank1",
-            parent=self.grid[bank1_pos[0], bank1_pos[1]],
+            parent=self.grid[cheese1_pos[0], cheese1_pos[1]],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
-            sprites=self._game_config["banks"]["sprites"],
+            sprites=self._game_config["cheese"]["sprites"],
             backcolor=gw.COLOR_TRANSPARENT,
             visible=True,
             init_sprite="front",
         )
         self._bank2 = Character(
             name="bank2",
-            parent=self.grid[bank2_pos[0], bank2_pos[1]],
+            parent=self.grid[cheese2_pos[0], cheese2_pos[1]],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
-            sprites=self._game_config["banks"]["sprites"],
+            sprites=self._game_config["cheese"]["sprites"],
             backcolor=gw.COLOR_TRANSPARENT,
             visible=True,
             init_sprite="front",
@@ -228,31 +216,29 @@ class Character(gw.Control):
             self.visible = not self.visible
 
 
-class BankHeistMDP(mdp.QualitativeMDP):
+class TomJerryMDP(mdp.QualitativeMDP):
     def __init__(self, game_config):
-        super(BankHeistMDP, self).__init__()
+        super(TomJerryMDP, self).__init__()
         with open(game_config, "r") as file:
             self._game_config = json.load(file)
 
         self._terrain = self._orient_terrain(np.array(self._game_config["terrain"]))
         self._p2_1_accessible = self._orient_terrain(np.array(self._game_config["p2"]["p2.1"]["accessible region"]))
-        self._p2_2_accessible = self._orient_terrain(np.array(self._game_config["p2"]["p2.2"]["accessible region"]))
         self._grid_size = self._terrain.shape
 
     def states(self):
         """
-        State representation: (p1.cell, p2.1.cell, p2.2.cell, p1.gas)
+        State representation: (p1.cell, p2.1.cell, p1.gas)
         :return:
         """
         x_max, y_max = self._grid_size
         p1_walkable_cells = [(x, y) for x in range(x_max) for y in range(y_max) if self._terrain[x, y] == 1]
         p1_gas = self._game_config["p1"]["gas capacity"]
         p2_1_walkable_cells = [(x, y) for x in range(x_max) for y in range(y_max) if self._p2_1_accessible[x, y] == 1]
-        p2_2_walkable_cells = [(x, y) for x in range(x_max) for y in range(y_max) if self._p2_2_accessible[x, y] == 1]
 
         return list(
             filter(self._is_state_valid,
-                   itertools.product(p1_walkable_cells, p2_1_walkable_cells, p2_2_walkable_cells, range(p1_gas)))
+                   itertools.product(p1_walkable_cells, p2_1_walkable_cells, range(p1_gas)))
         )
 
     def actions(self):
@@ -265,7 +251,7 @@ class BankHeistMDP(mdp.QualitativeMDP):
 
     def delta(self, state, act):
         # Decouple state
-        p1_cell, p2_1_cell, p2_2_cell, p1_gas = state
+        p1_cell, p2_1_cell, p1_gas = state
 
         # Base case
         if p1_gas == 0:
@@ -276,28 +262,25 @@ class BankHeistMDP(mdp.QualitativeMDP):
         next_p1_cell = gw_utils.move(p1_cell, act)
         for act1, act2 in itertools.product(self.actions(), self.actions()):
             next_p2_1_cell = gw_utils.move(p2_1_cell, act1)
-            next_p2_2_cell = gw_utils.move(p2_2_cell, act2)
-            next_states.add((next_p1_cell, next_p2_1_cell, next_p2_2_cell, p1_gas - 1))
+            next_states.add((next_p1_cell, next_p2_1_cell, p1_gas - 1))
 
         # Filter unacceptable states
         filter_states = set()
         for next_state in next_states:
-            next_p1_cell, next_p2_1_cell, next_p2_2_cell, _ = next_state
+            next_p1_cell, next_p2_1_cell, _ = next_state
 
             if self._terrain[next_p1_cell[0], next_p1_cell[1]] == 0 or \
-                    self._terrain[next_p2_1_cell[0], next_p2_1_cell[1]] == 0 or \
-                    self._terrain[next_p2_2_cell[0], next_p2_2_cell[1]] == 0:
+                    self._terrain[next_p2_1_cell[0], next_p2_1_cell[1]] == 0:
                 filter_states.add(next_state)
 
         # Return
         return list(next_states - filter_states)
 
     def _is_state_valid(self, state):
-        p1_cell, p2_1_cell, p2_2_cell, p1_gas = state
+        p1_cell, p2_1_cell, p1_gas = state
 
         if self._terrain[p1_cell[0], p1_cell[1]] == 0 or \
                 self._p2_1_accessible[p2_1_cell[0], p2_1_cell[1]] == 0 or \
-                self._p2_2_accessible[p2_2_cell[0], p2_2_cell[1]] == 0 or \
                 self._game_config["p1"]["gas capacity"] <= p1_gas:
             return False
 
@@ -319,12 +302,12 @@ class BankHeistMDP(mdp.QualitativeMDP):
 
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2022_11_22_23_29.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_01_25_22_52.conf")
     print(f"Using configuration file: {conf=}")
 
-    game = BankHeistMDP(game_config=conf)
+    game = TomJerryMDP(game_config=conf)
     arbitrary_state = random.choice(game.states())
-    print("Executing: game = BankHeistMDP(game_config=conf)")
+    print("Executing: game = TomJerryMDP(game_config=conf)")
     print(f"Executing: random.choice(game.states())={arbitrary_state}")
 
     game.initialize(arbitrary_state)
@@ -332,5 +315,5 @@ if __name__ == '__main__':
     print("Executing: graph = game.graphify(pointed=True)")
 
 
-    window = BankHeistWindow(name="Bank Heist", size=(660, 480), game_config=conf)
+    window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
     window.run()

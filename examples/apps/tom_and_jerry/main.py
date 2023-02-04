@@ -50,8 +50,8 @@ class TomJerryWindow(gw.Window):
                     self.grid[x, y].backcolor = gw.COLOR_GRAY51
 
         # Create character
-        self._robber = Character(
-            name="robber",
+        self._jerry = Character(
+            name="jerry",
             parent=self.grid[0, 7],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
@@ -61,9 +61,9 @@ class TomJerryWindow(gw.Window):
             init_sprite="N",
         )
 
-        # Police cars
-        self._police1 = Character(
-            name="police1",
+        # Create cat (tom)
+        self._cat = Character(
+            name="cat",
             parent=self.grid[3, 1],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
@@ -74,11 +74,11 @@ class TomJerryWindow(gw.Window):
             init_sprite="N",
         )
 
-        # cheese
+        # Create cheese
         cheese1_pos = self._game_config["cheese"]["cheese.1"]
         cheese2_pos = self._game_config["cheese"]["cheese.2"]
-        self._bank1 = Character(
-            name="bank1",
+        self._cheese1 = Character(
+            name="cheese1",
             parent=self.grid[cheese1_pos[0], cheese1_pos[1]],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
@@ -88,8 +88,8 @@ class TomJerryWindow(gw.Window):
             visible=True,
             init_sprite="front",
         )
-        self._bank2 = Character(
-            name="bank2",
+        self._cheese2 = Character(
+            name="cheese2",
             parent=self.grid[cheese2_pos[0], cheese2_pos[1]],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
@@ -187,7 +187,7 @@ class Character(gw.Control):
             self._backimage = self._sprites[self._curr_sprite]
 
     def on_key_down(self, sender, event_args):
-        if self.name == "robber":
+        if self.name == "jerry":
             if event_args.key == pygame.K_RIGHT:
                 self._curr_sprite = "E"
                 (x, y) = self.parent.name
@@ -243,6 +243,7 @@ class TomJerryMDP(mdp.QualitativeMDP):
 
     def actions(self):
         return [
+            # TODO may need to define new actions for moving n tiles in a direction in gw_utils
             gw_utils.GW_ACT_N,
             gw_utils.GW_ACT_S,
             gw_utils.GW_ACT_E,

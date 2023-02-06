@@ -534,7 +534,7 @@ class Graph(IGraph):
         # Return constructed object
         return obj
 
-    def save(self, fpath, overwrite=False, protocol="json"):
+    def save(self, fpath, overwrite=False, protocol="json", delimiter=";", remove_commas=False):
         """
         Saves the graph to file.
 
@@ -555,15 +555,14 @@ class Graph(IGraph):
             with open(fpath, "wb") as file:
                 pickle.dump(graph_dict, file)
         elif protocol == "adjacency_csv":
-            # saves graph in a adjacency list csv format for support with gephi
-            # https://gephi.org/users/supported-graph-formats/csv-format/
+            # saves graph in an adjacency list csv format
             edge_dict = graph_dict["graph"]["edges"]
             with open(fpath, "w") as file:
                 for uid in edge_dict:
-                    file.write(str(uid))
+                    file.write(f"{uid}")
                     vid_list = edge_dict[uid]
                     for vid in vid_list:
-                        file.write(";"+str(vid))
+                        file.write(f"{delimiter}{vid}")
                     file.write("\n")
         elif protocol == "edgelist_csv":
             # save graph in an edge list csv format for support with cuGRAPH
@@ -571,13 +570,24 @@ class Graph(IGraph):
             # https: // docs.rapids.ai / api / cudf / stable / api_docs / api / cudf.read_csv.html
             edge_dict = graph_dict["graph"]["edges"]
             with open(fpath, "w") as file:
-                file.write("source;destination\n")
+                file.write(f"source{delimiter}destination\n")
                 for uid in edge_dict:
                     vid_list = edge_dict[uid]
                     for vid in vid_list:
-                        file.write(f"{uid};{vid}\n")
-
-
+                        file.write(f"{uid}{delimiter}{vid}\n")
+        elif protocol == "metadata_csv":
+            # save graph in a metadata format for use with cosmograph https://cosmograph.app/
+            # user needs to add headers to the csv manually afterwards since the state can be in any format
+            with open(fpath, "w") as file:
+                for node in self.nodes():
+                    file.write(f"{node}{delimiter}")
+                    for state_variable in self._node_properties["state"][node]:
+                        if remove_commas:
+                            state_variable_cleaned = str(state_variable).replace(',', '')
+                            file.write(f"{state_variable_cleaned}{delimiter}")
+                        else:
+                            file.write(f"{state_variable}{delimiter}")
+                    file.write("\n")
         else:
             raise ValueError(f"Graph.save() does not support '{protocol}' protocol. One of ['json', 'pickle'] expected")
 

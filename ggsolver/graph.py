@@ -554,6 +554,30 @@ class Graph(IGraph):
         elif protocol == "pickle":
             with open(fpath, "wb") as file:
                 pickle.dump(graph_dict, file)
+        elif protocol == "adjacency_csv":
+            # saves graph in a adjacency list csv format for support with gephi
+            # https://gephi.org/users/supported-graph-formats/csv-format/
+            edge_dict = graph_dict["graph"]["edges"]
+            with open(fpath, "w") as file:
+                for uid in edge_dict:
+                    file.write(str(uid))
+                    vid_list = edge_dict[uid]
+                    for vid in vid_list:
+                        file.write(";"+str(vid))
+                    file.write("\n")
+        elif protocol == "edgelist_csv":
+            # save graph in an edge list csv format for support with cuGRAPH
+            # https://medium.com/rapids-ai/large-graph-visualization-with-rapids-cugraph-590d07edce33
+            # https: // docs.rapids.ai / api / cudf / stable / api_docs / api / cudf.read_csv.html
+            edge_dict = graph_dict["graph"]["edges"]
+            with open(fpath, "w") as file:
+                file.write("source;destination\n")
+                for uid in edge_dict:
+                    vid_list = edge_dict[uid]
+                    for vid in vid_list:
+                        file.write(f"{uid};{vid}\n")
+
+
         else:
             raise ValueError(f"Graph.save() does not support '{protocol}' protocol. One of ['json', 'pickle'] expected")
 

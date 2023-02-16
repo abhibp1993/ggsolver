@@ -12,7 +12,11 @@ class CBSGame(ReachabilityGame):
     """
     def __init__(self, json_fname, final_node):
         super(ReachabilityGame, self).__init__()
-        self._init_state = ("0", (0, 0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
+        ### state is of form (int source_node, bool[] obtained_credentials, bool[] firewall_state, int turn, bool[] owned nodes) ###
+        # self._init_state = ("0", (0, 0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
+
+        # init state for pretty_network
+        self._init_state = ("0", (0, 0), (1, 1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0, 0))
 
         self._json_fname = json_fname
         self._final_node = final_node
@@ -176,48 +180,46 @@ class CBSGame(ReachabilityGame):
         return actions
 
 if __name__ == '__main__':
-    game = CBSGame("network.json", final_node="5")
+    game = CBSGame("pretty_network.json", final_node="7")
     print(f"{len(game.states())=}")
     print(f"{len(game.actions())=}")
     # print(game.actions())
-    state = ('0', (0, 0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
+    state = ('0', (0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
     # print(game.delta(state, "move_to_node_0"))
     graph = game.graphify(pointed=True)
+    graph.save("game_graph_metadata.csv", overwrite=True, protocol="metadata_csv", delimiter=",", remove_commas=True)
     print(f"{graph.number_of_nodes()=}")
     print(f"{graph.number_of_edges()=}")
     print(game.enabled_acts(state))
 
     ## trap_subsets is a dict with each network node and the graph nodes that become traps if that network node is a trap ##
-    trap_subsets = {}
-    for node in graph.nodes():
-        # source_node is the name of the "computer" in the network that this state occurs in
-        source_node = graph["state"][node][0]
-        if source_node not in trap_subsets:
-            trap_subsets[source_node] = []
-        trap_subsets[source_node].append(node)
-    fake_subsets = trap_subsets
-
-    final_states = trap_subsets["0"]
-    solver = SWinReach(graph, final=final_states)
-    solver.solve()
-
-    # why is this state not in p1's winning region?
-    # It's because the attacker can just stay at node 2,
-    # TODO We might get more interesting results if the attacker has to move?
-    state = ('2', (0, 0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
-    # state2 = ('2', (0, 0, 0), (0, 0, 0, 0, 0), 1, (1, 0, 0, 0, 0, 0))
-    print(game.enabled_acts(state))
-    print(state in solver.win_region(1))
-    print(game.delta(state, "move_to_node_0"))
-    print(game.delta(state, "move_to_node_0") in solver.win_region(1))
-    # sanity check trap_subsets
-    print(trap_subsets.keys())
-    for key in trap_subsets.keys():
-        print(f"num states with node {key}: {len(trap_subsets[key])}")
-        # for state in trap_subsets[key]:
-        #     assert state[0] == key, f"Error trap_subset[{key}] contains state not at node {key}"
-    arena_traps, arena_fakes, covered_states = greedy_max(graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=1)
-    print(f"Selected Traps: {arena_traps}, Selected Fakes:{arena_fakes}")
+    # trap_subsets = {}
+    # for node in graph.nodes():
+    #     # source_node is the name of the "computer" in the network that this state occurs in
+    #     source = graph["state"][node][0]
+    #     if source not in trap_subsets:
+    #         trap_subsets[source] = []
+    #     trap_subsets[source].append(node)
+    # fake_subsets = trap_subsets
+    #
+    # final_states = trap_subsets["0"]
+    # solver = SWinReach(graph, final=final_states)
+    # solver.solve()
+    #
+    # state = ('2', (0, 0, 0), (1, 1, 1, 1, 1), 2, (1, 0, 0, 0, 0, 0))
+    # # state2 = ('2', (0, 0, 0), (0, 0, 0, 0, 0), 1, (1, 0, 0, 0, 0, 0))
+    # print(game.enabled_acts(state))
+    # print(state in solver.win_region(1))
+    # print(game.delta(state, "move_to_node_0"))
+    # print(game.delta(state, "move_to_node_0") in solver.win_region(1))
+    # # sanity check trap_subsets
+    # print(trap_subsets.keys())
+    # for key in trap_subsets.keys():
+    #     print(f"num states with node {key}: {len(trap_subsets[key])}")
+    #     # for state in trap_subsets[key]:
+    #     #     assert state[0] == key, f"Error trap_subset[{key}] contains state not at node {key}"
+    # arena_traps, arena_fakes, covered_states = greedy_max(graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=1)
+    # print(f"Selected Traps: {arena_traps}, Selected Fakes:{arena_fakes}")
 
     # for every state1
         # for each incoming edge state2

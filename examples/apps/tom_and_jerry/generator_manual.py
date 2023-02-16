@@ -58,31 +58,11 @@ METRIC = 'cityblock'        # Metric from scipy.spatial.distance
 TERRAIN = np.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
+    [0, 1, 1, 2, 1, 1, 2, 1, 1, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
+    [0, 1, 1, 2, 1, 1, 2, 1, 1, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-]).tolist()
-P1_1_ACCESSIBLE = np.array([
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-]).tolist()
-P1_2_ACCESSIBLE = np.array([
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0],
-    [0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ]).tolist()
 
@@ -90,7 +70,7 @@ GAME_CONFIG = {
     "game": "Tom and Jerry",
     "metric": "manhattan",
     "terrain": TERRAIN,
-    "p1": {
+    "jerry": {
         "sprites": {
             # Direction of facing
             "N": "sprites/cars/redcar/car01iso_0005.png",
@@ -102,13 +82,8 @@ GAME_CONFIG = {
             "NW": "sprites/cars/redcar/car01iso_0000.png",
             "SW": "sprites/cars/redcar/car01iso_0002.png",
         },
-        "gas capacity": 15,
-        "init_pos": None,
-        "gas": 15,
-        "actions": ["N", "E", "S", "W"],
-        "active": True,
     },
-    "p2": {
+    "tom": {
         "sprites": {
             # Direction of facing
             "N": "sprites/cars/police/policeiso_0005.png",
@@ -120,24 +95,12 @@ GAME_CONFIG = {
             "NW": "sprites/cars/police/policeiso_0000.png",
             "SW": "sprites/cars/police/policeiso_0002.png",
         },
-        "p2.1": {
-            "accessible region": P1_1_ACCESSIBLE,
-            "init_pos": None,
-            "active": True,
-        },
     },
     "cheese": {
         "sprites": {
             "front": "sprites/cheese/cheese.jpg",
         },
         "cheese.1": [3, 4],
-        "cheese.2": [7, 7],
-    },
-    "gas": {
-        "sprites": {
-            "front": "sprites/cheese/gas.png",
-        },
-        "gas.1": [4, 3]
     },
     "metadata": {
         "author": os.getenv('username'),

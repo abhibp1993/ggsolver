@@ -12,10 +12,11 @@ import pathlib
 import itertools
 import random
 
-import ggsolver.mdp as mdp
 import ggsolver.gridworld as gw
 import ggsolver.gridworld.util as gw_utils
 from collections import namedtuple
+
+from ggsolver import dtptb
 
 curr_file_path = pathlib.Path(__file__).parent.resolve()
 
@@ -56,7 +57,7 @@ class TomJerryWindow(gw.Window):
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
-            sprites=self._game_config["p1"]["sprites"],
+            sprites=self._game_config["jerry"]["sprites"],
             backcolor=gw.COLOR_TRANSPARENT,
             init_sprite="N",
         )
@@ -68,7 +69,7 @@ class TomJerryWindow(gw.Window):
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
-            sprites=self._game_config["p2"]["sprites"],
+            sprites=self._game_config["tom"]["sprites"],
             backcolor=gw.COLOR_TRANSPARENT,
             # visible=False,
             init_sprite="N",
@@ -76,7 +77,7 @@ class TomJerryWindow(gw.Window):
 
         # Create cheese
         cheese1_pos = self._game_config["cheese"]["cheese.1"]
-        cheese2_pos = self._game_config["cheese"]["cheese.2"]
+
         self._cheese1 = Character(
             name="cheese1",
             parent=self.grid[cheese1_pos[0], cheese1_pos[1]],
@@ -84,31 +85,6 @@ class TomJerryWindow(gw.Window):
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
             sprites=self._game_config["cheese"]["sprites"],
-            backcolor=gw.COLOR_TRANSPARENT,
-            visible=True,
-            init_sprite="front",
-        )
-        self._cheese2 = Character(
-            name="cheese2",
-            parent=self.grid[cheese2_pos[0], cheese2_pos[1]],
-            position=(0, 0),
-            size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
-            dockstyle=gw.DockStyle.CENTER,
-            sprites=self._game_config["cheese"]["sprites"],
-            backcolor=gw.COLOR_TRANSPARENT,
-            visible=True,
-            init_sprite="front",
-        )
-
-        # Gas station
-        gas1_pos = self._game_config["gas"]["gas.1"]
-        self._gas = Character(
-            name="gas",
-            parent=self.grid[gas1_pos[0], gas1_pos[1]],
-            position=(0, 0),
-            size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
-            dockstyle=gw.DockStyle.CENTER,
-            sprites=self._game_config["gas"]["sprites"],
             backcolor=gw.COLOR_TRANSPARENT,
             visible=True,
             init_sprite="front",
@@ -216,34 +192,35 @@ class Character(gw.Control):
             self.visible = not self.visible
 
 
-class TomJerryMDP(mdp.QualitativeMDP):
+class TomJerryGame(dtptb.DTPTBGame):
     def __init__(self, game_config):
-        super(TomJerryMDP, self).__init__()
+        super(TomJerryGame, self).__init__()
         with open(game_config, "r") as file:
             self._game_config = json.load(file)
 
         self._terrain = self._orient_terrain(np.array(self._game_config["terrain"]))
-        self._p2_1_accessible = self._orient_terrain(np.array(self._game_config["p2"]["p2.1"]["accessible region"]))
         self._grid_size = self._terrain.shape
+        self._x_max, self._y_max = self._grid_size
+        self._walkable_cells = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[x, y] == 1]
+        self._door_locations = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[x, y] == 2]
 
     def states(self):
         """
-        State representation: (p1.cell, p2.1.cell, p1.gas)
+        State representation: (tom.cell, jerry.cell, door_states, turn)
         :return:
         """
-        x_max, y_max = self._grid_size
-        p1_walkable_cells = [(x, y) for x in range(x_max) for y in range(y_max) if self._terrain[x, y] == 1]
-        p1_gas = self._game_config["p1"]["gas capacity"]
-        p2_1_walkable_cells = [(x, y) for x in range(x_max) for y in range(y_max) if self._p2_1_accessible[x, y] == 1]
-
+        unique, counts = np.unique(self._terrain, return_counts=True)
+        print(self._terrain)
+        number_of_doors = counts[2]
+        possible_door_states = list(itertools.product([0,1], repeat=number_of_doors))
         return list(
             filter(self._is_state_valid,
-                   itertools.product(p1_walkable_cells, p2_1_walkable_cells, range(p1_gas)))
+                   itertools.product(self._walkable_cells, self._walkable_cells, possible_door_states, [CheeseState.TOM_TURN, CheeseState.JERRY_TURN]))
         )
 
     def actions(self):
         return [
-            # TODO may need to define new actions for moving n tiles in a direction in gw_utils
+            # TODO may need to define new actions for moving n tiles in a direction in gw_utils if we want to allow jerry more movement options
             gw_utils.GW_ACT_N,
             gw_utils.GW_ACT_S,
             gw_utils.GW_ACT_E,
@@ -252,38 +229,53 @@ class TomJerryMDP(mdp.QualitativeMDP):
 
     def delta(self, state, act):
         # Decouple state
-        p1_cell, p2_1_cell, p1_gas = state
+        print(f" Passed in {state=}, {act=}")
+        tom_cell, jerry_cell, door_states, turn = state
+        cheese1_pos = tuple(self._game_config["cheese"]["cheese.1"])
 
-        # Base case
-        if p1_gas == 0:
-            return [state]
+        # Base case jerry is at the cheese
+        return_state = state
 
-        # Generate all possible next states
-        next_states = set()
-        next_p1_cell = gw_utils.move(p1_cell, act)
-        for act1, act2 in itertools.product(self.actions(), self.actions()):
-            next_p2_1_cell = gw_utils.move(p2_1_cell, act1)
-            next_states.add((next_p1_cell, next_p2_1_cell, p1_gas - 1))
+        # Jerry's turn to move
+        if turn == CheeseState.JERRY_TURN:
+            new_jerry_cell = gw_utils.move(jerry_cell, act)
+            new_state = (tom_cell, new_jerry_cell, door_states, CheeseState.TOM_TURN)
+            if self._is_state_valid(new_state):
+                return_state = new_state
+            else:
+                # return same state and change turn
+                return_state = (tom_cell, jerry_cell, door_states, CheeseState.TOM_TURN)
 
-        # Filter unacceptable states
-        filter_states = set()
-        for next_state in next_states:
-            next_p1_cell, next_p2_1_cell, _ = next_state
+        # Tom's turn to move
+        if turn == CheeseState.TOM_TURN:
+            new_tom_cell = gw_utils.move(tom_cell, act)
+            door_states_list = list(door_states)
+            # if tom moved into a door open it and move him there
+            for index, door in enumerate(self._door_locations):
+                if new_tom_cell == door:
+                    door_states_list[index] = CheeseState.DOOR_OPEN
 
-            if self._terrain[next_p1_cell[0], next_p1_cell[1]] == 0 or \
-                    self._terrain[next_p2_1_cell[0], next_p2_1_cell[1]] == 0:
-                filter_states.add(next_state)
+            new_state = (new_tom_cell, jerry_cell, tuple(door_states_list), CheeseState.JERRY_TURN)
+            if self._is_state_valid(new_state):
+                return_state = new_state
+            else:
+                # return same state and change turn
+                return_state = (tom_cell, jerry_cell, door_states, CheeseState.JERRY_TURN)
 
-        # Return
-        return list(next_states - filter_states)
+        print(f"Returned: {return_state}")
+        return return_state
 
     def _is_state_valid(self, state):
-        p1_cell, p2_1_cell, p1_gas = state
+        tom_cell, jerry_cell, door_states, turn = state
 
-        if self._terrain[p1_cell[0], p1_cell[1]] == 0 or \
-                self._p2_1_accessible[p2_1_cell[0], p2_1_cell[1]] == 0 or \
-                self._game_config["p1"]["gas capacity"] <= p1_gas:
+        # if tom or jerry are in a wall
+        if self._terrain[tom_cell[0], tom_cell[1]] == 0 or self._terrain[jerry_cell[0], jerry_cell[1]] == 0:
             return False
+
+        # if jerry or tom is in a CLOSED door
+        for index, door in enumerate(self._door_locations):
+            if jerry_cell == door and door_states[index] == CheeseState.DOOR_CLOSED or tom_cell == door and door_states[index] == CheeseState.DOOR_CLOSED:
+                return False
 
         return True
 
@@ -301,12 +293,22 @@ class TomJerryMDP(mdp.QualitativeMDP):
     def _orient_terrain(self, mat):
         return self._matrix_flip(np.transpose(mat), axis=0)
 
+class CheeseState:
+    TOM_TURN = 1
+    JERRY_TURN = 2
+    DOOR_CLOSED = 0
+    DOOR_OPEN = 1
+    def __init__(self, tom_cell, jerry_cell, door_array, turn):
+        self.tom_cell = tom_cell
+        self.jerry_cell = jerry_cell
+        self.door_array = door_array
+        self.turn = turn
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_01_25_22_52.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_16_19_11.conf")
     print(f"Using configuration file: {conf=}")
 
-    game = TomJerryMDP(game_config=conf)
+    game = TomJerryGame(game_config=conf)
     arbitrary_state = random.choice(game.states())
     print("Executing: game = TomJerryMDP(game_config=conf)")
     print(f"Executing: random.choice(game.states())={arbitrary_state}")

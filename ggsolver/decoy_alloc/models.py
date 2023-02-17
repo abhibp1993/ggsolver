@@ -109,7 +109,7 @@ class ReachabilityGameOfP1(Game):
         pass
 
     def final(self, state):
-        pass
+        return self._traps
 
     def turn(self, state):
         pass

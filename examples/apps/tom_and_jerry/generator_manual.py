@@ -73,27 +73,27 @@ GAME_CONFIG = {
     "jerry": {
         "sprites": {
             # Direction of facing
-            "N": "sprites/cars/redcar/car01iso_0005.png",
-            "E": "sprites/cars/redcar/car01iso_0007.png",
-            "S": "sprites/cars/redcar/car01iso_0001.png",
-            "W": "sprites/cars/redcar/car01iso_0003.png",
-            "NE": "sprites/cars/redcar/car01iso_0006.png",
-            "SE": "sprites/cars/redcar/car01iso_0004.png",
-            "NW": "sprites/cars/redcar/car01iso_0000.png",
-            "SW": "sprites/cars/redcar/car01iso_0002.png",
+            "N": "sprites/jerry/jerry2.png",
+            "E": "sprites/jerry/jerry2.png",
+            "S": "sprites/jerry/jerry2.png",
+            "W": "sprites/jerry/jerry2.png",
+            "NE": "sprites/jerry/jerry2.png",
+            "SE": "sprites/jerry/jerry2.png",
+            "NW": "sprites/jerry/jerry2.png",
+            "SW": "sprites/jerry/jerry2.png",
         },
     },
     "tom": {
         "sprites": {
             # Direction of facing
-            "N": "sprites/cars/police/policeiso_0005.png",
-            "E": "sprites/cars/police/policeiso_0007.png",
-            "S": "sprites/cars/police/policeiso_0001.png",
-            "W": "sprites/cars/police/policeiso_0003.png",
-            "NE": "sprites/cars/police/policeiso_0006.png",
-            "SE": "sprites/cars/police/policeiso_0004.png",
-            "NW": "sprites/cars/police/policeiso_0000.png",
-            "SW": "sprites/cars/police/policeiso_0002.png",
+            "N": "sprites/tom/tom.png",
+            "E": "sprites/tom/tom.png",
+            "S": "sprites/tom/tom.png",
+            "W": "sprites/tom/tom.png",
+            "NE": "sprites/tom/tom.png",
+            "SE": "sprites/tom/tom.png",
+            "NW": "sprites/tom/tom.png",
+            "SW": "sprites/tom/tom.png",
         },
     },
     "cheese": {

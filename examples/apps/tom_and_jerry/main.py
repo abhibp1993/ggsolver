@@ -305,7 +305,7 @@ class CheeseState:
         self.turn = turn
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_05_30.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_05_42.conf")
     print(f"Using configuration file: {conf=}")
 
     game = TomJerryGame(game_config=conf)

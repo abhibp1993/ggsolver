@@ -304,8 +304,9 @@ class CheeseState:
         self.door_array = door_array
         self.turn = turn
 
+
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_05_42.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_17_36.conf")
     print(f"Using configuration file: {conf=}")
 
     game = TomJerryGame(game_config=conf)
@@ -316,7 +317,6 @@ if __name__ == '__main__':
     game.initialize(arbitrary_state)
     graph = game.graphify(pointed=True)
     print("Executing: graph = game.graphify(pointed=True)")
-
 
     window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
     window.run()

@@ -49,11 +49,13 @@ class TomJerryWindow(gw.Window):
             for y in range(grid_size[1]):
                 if self._terrain[y, x] == 0:
                     self.grid[x, y].backcolor = gw.COLOR_GRAY51
+                if self._terrain[y, x] == 2:
+                    self.grid[x, y].backcolor = gw.COLOR_ROSYBROWN
 
         # Create character
         self._jerry = Character(
             name="jerry",
-            parent=self.grid[0, 7],
+            parent=self.grid[1, 6],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
@@ -65,7 +67,7 @@ class TomJerryWindow(gw.Window):
         # Create cat (tom)
         self._cat = Character(
             name="cat",
-            parent=self.grid[3, 1],
+            parent=self.grid[5, 1],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
@@ -229,7 +231,6 @@ class TomJerryGame(dtptb.DTPTBGame):
 
     def delta(self, state, act):
         # Decouple state
-        print(f" Passed in {state=}, {act=}")
         tom_cell, jerry_cell, door_states, turn = state
         cheese1_pos = tuple(self._game_config["cheese"]["cheese.1"])
 
@@ -262,7 +263,6 @@ class TomJerryGame(dtptb.DTPTBGame):
                 # return same state and change turn
                 return_state = (tom_cell, jerry_cell, door_states, CheeseState.JERRY_TURN)
 
-        print(f"Returned: {return_state}")
         return return_state
 
     def _is_state_valid(self, state):
@@ -305,7 +305,7 @@ class CheeseState:
         self.turn = turn
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_16_19_11.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_05_30.conf")
     print(f"Using configuration file: {conf=}")
 
     game = TomJerryGame(game_config=conf)

@@ -58,10 +58,10 @@ METRIC = 'cityblock'        # Metric from scipy.spatial.distance
 TERRAIN = np.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
-    [0, 1, 1, 2, 1, 1, 2, 1, 1, 0, 0],
+    [0, 1, 1, 2, 1, 1, 1, 1, 1, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
-    [0, 1, 1, 2, 1, 1, 2, 1, 1, 0, 0],
+    [0, 1, 1, 1, 1, 1, 2, 1, 1, 0, 0],
     [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ]).tolist()
@@ -100,7 +100,7 @@ GAME_CONFIG = {
         "sprites": {
             "front": "sprites/cheese/cheese.jpg",
         },
-        "cheese.1": [3, 4],
+        "cheese.1": [8, 4],
     },
     "metadata": {
         "author": os.getenv('username'),

@@ -57,6 +57,8 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
 
             solver = SWinReach(graph, final=final_states)
             solver.solve()
+            # TODO add different metrics to determine value of arena point as a trap
+            # pair = {"arena_point": arena_point, "value_of_trap": solver.win_region(1)}
             pair = { "arena_point": arena_point, "winning_states": solver.win_region(1) }
 
             updated_winning_regions.append(pair)

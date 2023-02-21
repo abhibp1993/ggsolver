@@ -283,6 +283,10 @@ class TomJerryGame(dtptb.DTPTBGame):
             return False
     def final(self):
         return self._final
+
+    def turn(self, state):
+        tom_cell, jerry_cell, door_states, turn = state
+        return turn
     def _is_state_valid(self, state):
         tom_cell, jerry_cell, door_states, turn = state
 

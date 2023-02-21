@@ -16,7 +16,7 @@ import ggsolver.gridworld as gw
 import ggsolver.gridworld.util as gw_utils
 import ggsolver.decoy_alloc.models as decoy_models
 import ggsolver.decoy_alloc.solvers as solvers
-
+import ggsolver.dtptb.reach as reach
 from collections import namedtuple
 
 from ggsolver import dtptb
@@ -286,6 +286,9 @@ class TomJerryGame(dtptb.DTPTBGame):
     def final(self, state):
         return state in self._final
 
+    def final_states(self):
+        return self._final
+
     def turn(self, state):
         tom_cell, jerry_cell, door_states, turn = state
         return turn
@@ -356,7 +359,17 @@ if __name__ == '__main__':
         graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
     ## Create Decoy Allocation Game ##
     decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    ## Create P2's Perceptual Game
+    ## Create P2's Perceptual Game ##
     p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    # window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
-    # window.run()
+    ## Solve p2's perceptual game ##
+    solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
+    ## Create Reachability Game of P1 ##
+    p1_reachability_game = decoy_models.ReachabilityGameOfP1(
+        p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
+    ## Create Hypergame ##
+    hypergame = decoy_models.Hypergame(
+        p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
+
+
+    window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
+    window.run()

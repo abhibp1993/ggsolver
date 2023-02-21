@@ -117,8 +117,6 @@ class ReachabilityGameOfP1(Game):
     def delta(self, state, act):
         # Delta is the same if rationalizable actions and undefined otherwise
         # Def. 3/10 or Def. 5 in other paper for definition of rationalizable action
-        # TODO should the action also reduce rank to be rationalizable?
-
         is_rationalizable = (state in self._solution_p2_game.win_region(1) and
                              self._p2_game.delta(state, act) in self._solution_p2_game.win_region(1)) \
                             or state in self._solution_p2_game.win_region(2)

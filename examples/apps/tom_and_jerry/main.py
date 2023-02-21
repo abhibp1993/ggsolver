@@ -15,6 +15,8 @@ import random
 import ggsolver.gridworld as gw
 import ggsolver.gridworld.util as gw_utils
 import ggsolver.decoy_alloc.models as decoy_models
+import ggsolver.decoy_alloc.solvers as solvers
+
 from collections import namedtuple
 
 from ggsolver import dtptb
@@ -281,8 +283,8 @@ class TomJerryGame(dtptb.DTPTBGame):
             return True
         else:
             return False
-    def final(self):
-        return self._final
+    def final(self, state):
+        return state in self._final
 
     def turn(self, state):
         tom_cell, jerry_cell, door_states, turn = state
@@ -331,15 +333,28 @@ if __name__ == '__main__':
     conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_17_36.conf")
     print(f"Using configuration file: {conf=}")
 
-    game = TomJerryGame(game_config=conf)
-    arbitrary_state = random.choice(game.states())
+    ## Create Reachability Game ##
+    tom_jerry_game = TomJerryGame(game_config=conf)
+    arbitrary_state = random.choice(tom_jerry_game.states())
     print("Executing: game = TomJerryMDP(game_config=conf)")
     print(f"Executing: random.choice(game.states())={arbitrary_state}")
 
-    game.initialize(arbitrary_state)
-    graph = game.graphify(pointed=True)
+    tom_jerry_game.initialize(arbitrary_state)
+    graph = tom_jerry_game.graphify(pointed=True)
     print("Executing: graph = game.graphify(pointed=True)")
 
-
+    ## Create mapping from arena points to game states ##
+    trap_subsets = {}
+    for node in graph.nodes():
+        tom_cell, jerry_cell, door_states, turn = graph["state"][node]
+        if jerry_cell not in trap_subsets:
+            trap_subsets[jerry_cell] = []
+        trap_subsets[jerry_cell].append(node)
+    fake_subsets = trap_subsets
+    ## Allocate traps and fakes ##
+    arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
+        graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
+    ## Create Decoy Allocation Game
+    decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
     # window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
     # window.run()

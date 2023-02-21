@@ -333,7 +333,7 @@ class CheeseState:
 
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_21_23_18.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_21_23_38.conf")
     print(f"Using configuration file: {conf=}")
 
     ## Create Reachability Game ##

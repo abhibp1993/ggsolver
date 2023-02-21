@@ -86,19 +86,19 @@ GAME_CONFIG = {
     "tom": {
         "sprites": {
             # Direction of facing
-            "N": "sprites/tom/tom.png",
-            "E": "sprites/tom/tom.png",
-            "S": "sprites/tom/tom.png",
-            "W": "sprites/tom/tom.png",
-            "NE": "sprites/tom/tom.png",
-            "SE": "sprites/tom/tom.png",
-            "NW": "sprites/tom/tom.png",
-            "SW": "sprites/tom/tom.png",
+            "N": "sprites/tom/tom_sprite.png",
+            "E": "sprites/tom/tom_sprite.png",
+            "S": "sprites/tom/tom_sprite.png",
+            "W": "sprites/tom/tom_sprite.png",
+            "NE": "sprites/tom/tom_sprite.png",
+            "SE": "sprites/tom/tom_sprite.png",
+            "NW": "sprites/tom/tom_sprite.png",
+            "SW": "sprites/tom/tom_sprite.png",
         },
     },
     "cheese": {
         "sprites": {
-            "front": "sprites/cheese/cheese.jpg",
+            "front": "sprites/cheese/cheese.png",
         },
         "cheese.1": [8, 4],
     },

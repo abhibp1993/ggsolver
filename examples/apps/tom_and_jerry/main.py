@@ -354,7 +354,9 @@ if __name__ == '__main__':
     ## Allocate traps and fakes ##
     arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
         graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
-    ## Create Decoy Allocation Game
+    ## Create Decoy Allocation Game ##
     decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    ## Create P2's Perceptual Game
+    p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
     # window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
     # window.run()

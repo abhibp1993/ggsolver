@@ -333,7 +333,7 @@ class CheeseState:
 
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_17_36.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_21_23_18.conf")
     print(f"Using configuration file: {conf=}")
 
     ## Create Reachability Game ##
@@ -347,28 +347,28 @@ if __name__ == '__main__':
     print("Executing: graph = game.graphify(pointed=True)")
 
     ## Create mapping from arena points to game states ##
-    trap_subsets = {}
-    for node in graph.nodes():
-        tom_cell, jerry_cell, door_states, turn = graph["state"][node]
-        if jerry_cell not in trap_subsets:
-            trap_subsets[jerry_cell] = []
-        trap_subsets[jerry_cell].append(node)
-    fake_subsets = trap_subsets
-    ## Allocate traps and fakes ##
-    arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
-        graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
-    ## Create Decoy Allocation Game ##
-    decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    ## Create P2's Perceptual Game ##
-    p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    ## Solve p2's perceptual game ##
-    solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
-    ## Create Reachability Game of P1 ##
-    p1_reachability_game = decoy_models.ReachabilityGameOfP1(
-        p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
-    ## Create Hypergame ##
-    hypergame = decoy_models.Hypergame(
-        p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
+    # trap_subsets = {}
+    # for node in graph.nodes():
+    #     tom_cell, jerry_cell, door_states, turn = graph["state"][node]
+    #     if jerry_cell not in trap_subsets:
+    #         trap_subsets[jerry_cell] = []
+    #     trap_subsets[jerry_cell].append(node)
+    # fake_subsets = trap_subsets
+    # ## Allocate traps and fakes ##
+    # arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
+    #     graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
+    # ## Create Decoy Allocation Game ##
+    # decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    # ## Create P2's Perceptual Game ##
+    # p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    # ## Solve p2's perceptual game ##
+    # solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
+    # ## Create Reachability Game of P1 ##
+    # p1_reachability_game = decoy_models.ReachabilityGameOfP1(
+    #     p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
+    # ## Create Hypergame ##
+    # hypergame = decoy_models.Hypergame(
+    #     p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
 
 
     window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)

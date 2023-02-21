@@ -73,14 +73,14 @@ GAME_CONFIG = {
     "jerry": {
         "sprites": {
             # Direction of facing
-            "N": "sprites/jerry/jerry2.png",
-            "E": "sprites/jerry/jerry2.png",
-            "S": "sprites/jerry/jerry2.png",
-            "W": "sprites/jerry/jerry2.png",
-            "NE": "sprites/jerry/jerry2.png",
-            "SE": "sprites/jerry/jerry2.png",
-            "NW": "sprites/jerry/jerry2.png",
-            "SW": "sprites/jerry/jerry2.png",
+            "N": "sprites/jerry/jerry_face_sprite.png",
+            "E": "sprites/jerry/jerry_face_sprite.png",
+            "S": "sprites/jerry/jerry_face_sprite.png",
+            "W": "sprites/jerry/jerry_face_sprite.png",
+            "NE": "sprites/jerry/jerry_face_sprite.png",
+            "SE": "sprites/jerry/jerry_face_sprite.png",
+            "NW": "sprites/jerry/jerry_face_sprite.png",
+            "SW": "sprites/jerry/jerry_face_sprite.png",
         },
     },
     "tom": {

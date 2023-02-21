@@ -14,6 +14,7 @@ import random
 
 import ggsolver.gridworld as gw
 import ggsolver.gridworld.util as gw_utils
+import ggsolver.decoy_alloc.models as decoy_models
 from collections import namedtuple
 
 from ggsolver import dtptb
@@ -203,10 +204,13 @@ class TomJerryGame(dtptb.DTPTBGame):
         self._terrain = self._orient_terrain(np.array(self._game_config["terrain"]))
         self._grid_size = self._terrain.shape
         self._x_max, self._y_max = self._grid_size
+        self._cheese_location = self._game_config["cheese"]["cheese.1"]
         self._walkable_cells = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[x, y] == 1]
         self._door_locations = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[x, y] == 2]
 
-    def states(self):
+        self._states = self._construct_states()
+        self._final = self._construct_final()
+    def _construct_states(self):
         """
         State representation: (tom.cell, jerry.cell, door_states, turn)
         :return:
@@ -220,9 +224,12 @@ class TomJerryGame(dtptb.DTPTBGame):
                    itertools.product(self._walkable_cells, self._walkable_cells, possible_door_states, [CheeseState.TOM_TURN, CheeseState.JERRY_TURN]))
         )
 
+    def states(self):
+        return self._states
+
     def actions(self):
         return [
-            # TODO may need to define new actions for moving n tiles in a direction in gw_utils if we want to allow jerry more movement options
+            # define new actions for moving n tiles in a direction in gw_utils if we want to allow jerry more movement options
             gw_utils.GW_ACT_N,
             gw_utils.GW_ACT_S,
             gw_utils.GW_ACT_E,
@@ -265,6 +272,17 @@ class TomJerryGame(dtptb.DTPTBGame):
 
         return return_state
 
+    def _construct_final(self):
+        return list(filter(self._is_final_state, self.states()))
+
+    def _is_final_state(self, state):
+        tom_cell, jerry_cell, door_states, turn = state
+        if jerry_cell[0] == self._cheese_location[0] and jerry_cell[1] == self._cheese_location[1]:
+            return True
+        else:
+            return False
+    def final(self):
+        return self._final
     def _is_state_valid(self, state):
         tom_cell, jerry_cell, door_states, turn = state
 
@@ -318,5 +336,6 @@ if __name__ == '__main__':
     graph = game.graphify(pointed=True)
     print("Executing: graph = game.graphify(pointed=True)")
 
-    window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
-    window.run()
+
+    # window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
+    # window.run()

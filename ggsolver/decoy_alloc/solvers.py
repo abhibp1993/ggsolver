@@ -103,4 +103,4 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
         print(f"\tNew total fake states: {len(fake_states)}")
         print(f"\tNew total winning states: {len(covered_states)}")
 
-    return arena_traps, arena_fakes, covered_states
+    return arena_traps, arena_fakes, covered_states, trap_states, fake_states

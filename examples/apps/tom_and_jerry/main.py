@@ -50,6 +50,7 @@ class TomJerryWindow(gw.Window):
 
         for x in range(grid_size[0]):
             for y in range(grid_size[1]):
+                # TODO Should this be y,x then x,y?
                 if self._terrain[y, x] == 0:
                     self.grid[x, y].backcolor = gw.COLOR_GRAY51
                 if self._terrain[y, x] == 2:
@@ -95,6 +96,30 @@ class TomJerryWindow(gw.Window):
             init_sprite="front",
         )
 
+    def add_trap(self, x, y):
+        self._trap = Character(
+            name="trap",
+            parent=self.grid[x, y],
+            position=(x, y),
+            size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
+            dockstyle=gw.DockStyle.CENTER,
+            sprites=self._game_config["trap"]["sprites"],
+            backcolor=gw.COLOR_TRANSPARENT,
+            visible=True,
+            init_sprite="front",
+        )
+    def add_fake(self, x, y):
+        self._fake = Character(
+            name="fake",
+            parent=self.grid[x, y],
+            position=(x, y),
+            size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
+            dockstyle=gw.DockStyle.CENTER,
+            sprites=self._game_config["fake_target"]["sprites"],
+            backcolor=gw.COLOR_TRANSPARENT,
+            visible=True,
+            init_sprite="front",
+        )
     def sm_update(self, sender, event_args):
         print(f"sm_update: {event_args}")
 
@@ -204,12 +229,14 @@ class TomJerryGame(dtptb.DTPTBGame):
             self._game_config = json.load(file)
 
         self._terrain = self._orient_terrain(np.array(self._game_config["terrain"]))
-        self._grid_size = self._terrain.shape
+        self._grid_size = tuple(reversed(self._terrain.shape))
         self._x_max, self._y_max = self._grid_size
         self._cheese_location = self._game_config["cheese"]["cheese.1"]
-        self._walkable_cells = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[x, y] == 1]
-        self._door_locations = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[x, y] == 2]
 
+        # TODO what should the order of x and y be here?
+        self._walkable_cells = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[y, x] == 1]
+        self._door_locations = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[y, x] == 2]
+        print(self._walkable_cells)
         self._states = self._construct_states()
         self._final = self._construct_final()
     def _construct_states(self):
@@ -218,7 +245,6 @@ class TomJerryGame(dtptb.DTPTBGame):
         :return:
         """
         unique, counts = np.unique(self._terrain, return_counts=True)
-        print(self._terrain)
         number_of_doors = counts[2]
         possible_door_states = list(itertools.product([0,1], repeat=number_of_doors))
         return list(
@@ -296,7 +322,8 @@ class TomJerryGame(dtptb.DTPTBGame):
         tom_cell, jerry_cell, door_states, turn = state
 
         # if tom or jerry are in a wall
-        if self._terrain[tom_cell[0], tom_cell[1]] == 0 or self._terrain[jerry_cell[0], jerry_cell[1]] == 0:
+        # TODO should the coordinates be [0][1] or [1][0]?
+        if self._terrain[tom_cell[1], tom_cell[0]] == 0 or self._terrain[jerry_cell[1], jerry_cell[0]] == 0:
             return False
 
         # if jerry or tom is in a CLOSED door
@@ -333,7 +360,7 @@ class CheeseState:
 
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_21_23_38.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_22_05_25.conf")
     print(f"Using configuration file: {conf=}")
 
     ## Create Reachability Game ##
@@ -347,29 +374,33 @@ if __name__ == '__main__':
     print("Executing: graph = game.graphify(pointed=True)")
 
     ## Create mapping from arena points to game states ##
-    # trap_subsets = {}
-    # for node in graph.nodes():
-    #     tom_cell, jerry_cell, door_states, turn = graph["state"][node]
-    #     if jerry_cell not in trap_subsets:
-    #         trap_subsets[jerry_cell] = []
-    #     trap_subsets[jerry_cell].append(node)
-    # fake_subsets = trap_subsets
-    # ## Allocate traps and fakes ##
-    # arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
-    #     graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
-    # ## Create Decoy Allocation Game ##
-    # decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    # ## Create P2's Perceptual Game ##
-    # p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    # ## Solve p2's perceptual game ##
-    # solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
-    # ## Create Reachability Game of P1 ##
-    # p1_reachability_game = decoy_models.ReachabilityGameOfP1(
-    #     p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
-    # ## Create Hypergame ##
-    # hypergame = decoy_models.Hypergame(
-    #     p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
+    trap_subsets = {}
+    for node in graph.nodes():
+        cell_tom, cell_jerry, states_door, player_turn = graph["state"][node]
+        if cell_jerry not in trap_subsets:
+            trap_subsets[cell_jerry] = []
+        trap_subsets[cell_jerry].append(node)
+    fake_subsets = trap_subsets
+    ## Allocate traps and fakes ##
+    arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
+        graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
+    ## Create Decoy Allocation Game ##
+    decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    ## Create P2's Perceptual Game ##
+    p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    ## Solve p2's perceptual game ##
+    solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
+    ## Create Reachability Game of P1 ##
+    p1_reachability_game = decoy_models.ReachabilityGameOfP1(
+        p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
+    ## Create Hypergame ##
+    hypergame = decoy_models.Hypergame(
+        p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
 
 
     window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
+    for trap in arena_traps:
+        window.add_trap(trap[0], trap[1])
+    for fake_target in arena_fakes:
+        window.add_fake(fake_target[0], fake_target[1])
     window.run()

@@ -102,6 +102,16 @@ GAME_CONFIG = {
         },
         "cheese.1": [8, 4],
     },
+    "trap": {
+        "sprites": {
+            "front" : "sprites/mouse_trap.png"
+        }
+    },
+    "fake_target": {
+            "sprites": {
+                "front" : "sprites/cheese/fake_cheese.png"
+            }
+        },
     "metadata": {
         "author": os.getenv('username'),
         "datetime": time.strftime("%Y-%m-%d %H:%M"),

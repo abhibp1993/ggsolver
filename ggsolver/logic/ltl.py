@@ -1,10 +1,12 @@
 from abc import ABC
 
 import spot
-import ggsolver.interfaces.i_spot as i_spot
+import ggsolver.logic.base as base
 from ggsolver.logic.formula import BaseFormula, ParsingError
-from ggsolver.util import apply_atoms_limit, powerset
-from ggsolver.automata import DFA
+from ggsolver.logic.automata import DFA
+# import ggsolver.interfaces.i_spot as i_spot
+# import ggsolver.logic.automata as automata
+# from ggsolver.util import apply_atoms_limit, powerset
 
 
 class LTL(BaseFormula):
@@ -44,7 +46,7 @@ class LTL(BaseFormula):
     # IMPLEMENTATION OF ABSTRACT METHODS
     # ==================================================================
     def translate(self):
-        return i_spot.SpotAutomaton(formula=self.f_str, atoms=self.atoms())
+        return base.SpotAutomaton(formula=self.f_str, atoms=self.atoms())
 
     def substitute(self, subs_map=None):
         raise NotImplementedError("To be implemented in future.")
@@ -94,6 +96,7 @@ class ScLTL(LTL):
     """
     ScLTL formula is internally represented as spot.formula instance.
     """
+
     __hash__ = LTL.__hash__
 
     def __init__(self, f_str, atoms=None):
@@ -113,3 +116,6 @@ class ScLTL(LTL):
         dfa = DFA()
         dfa.from_automaton(aut)
         return dfa
+
+    def substitute(self, subs_map=None):
+        raise NotImplementedError("Will be implemented in future. ")

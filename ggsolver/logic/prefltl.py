@@ -2,8 +2,8 @@ import itertools
 from ggsolver.graph import *
 from ggsolver.logic.formula import BaseFormula, PARSERS_DIR
 from ggsolver.logic.ltl import LTL, ScLTL
-from ggsolver.models import Automaton
-from ggsolver.automata import DFA
+from ggsolver.logic.base import Automaton
+from ggsolver.logic.automata import DFA
 from lark import Lark, Transformer
 from pathlib import Path
 

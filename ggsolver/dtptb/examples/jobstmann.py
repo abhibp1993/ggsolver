@@ -1,12 +1,13 @@
-from ggsolver.models import *
-from ggsolver.dtptb.reachability import *
-from pprint import pprint
 import logging
+import ggsolver.models as models
+from ggsolver.dtptb.reach import SWinReach, SWinSafe
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 
 
-class JobstmannGame(Game):
+class JobstmannGame(models.Game):
     def __init__(self, final):
         super(JobstmannGame, self).__init__()
         self.param_final = final

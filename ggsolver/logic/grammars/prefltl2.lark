@@ -1,0 +1,30 @@
+start: formula
+
+formula:  pref_formula
+
+pref_formula: pref_formula ">" pref_formula
+    | pref_formula ">=" pref_formula
+    | pref_formula "~" pref_formula
+    | pref_formula "<>" pref_formula
+    | pref_formula "&&" pref_formula
+    // | "(" formula ")"
+    | ltl_formula
+
+ltl_formula: "true"
+       | "false"
+       | AP_NAME
+       | "not" formula
+       | formula "and" formula
+       | formula "or" formula
+       | formula "=>" formula
+       | "X" formula
+       | "F" formula
+       | "G" formula
+       | "(" formula "U" formula ")"
+       | "(" formula ")"
+
+AP_NAME: /[a-z][A-Za-z0-9_]*/
+
+%ignore WS
+%import common.WS
+%import common.WORD

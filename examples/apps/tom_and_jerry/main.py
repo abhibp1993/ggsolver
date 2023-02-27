@@ -50,16 +50,15 @@ class TomJerryWindow(gw.Window):
 
         for x in range(grid_size[0]):
             for y in range(grid_size[1]):
-                # TODO Should this be y,x then x,y?
-                if self._terrain[y, x] == 0:
+                if self._terrain[grid_size[1] - 1 - y, x] == 0:
                     self.grid[x, y].backcolor = gw.COLOR_GRAY51
-                if self._terrain[y, x] == 2:
+                if self._terrain[grid_size[1] - 1 - y, x] == 2:
                     self.grid[x, y].backcolor = gw.COLOR_ROSYBROWN
 
         # Create character
         self._jerry = Character(
             name="jerry",
-            parent=self.grid[1, 6],
+            parent=self.grid[1, 2],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
@@ -71,7 +70,7 @@ class TomJerryWindow(gw.Window):
         # Create cat (tom)
         self._cat = Character(
             name="cat",
-            parent=self.grid[5, 1],
+            parent=self.grid[1, 6],
             position=(0, 0),
             size=(0.75 * self.grid[0, 0].width, 0.75 * self.grid[0, 0].height),
             dockstyle=gw.DockStyle.CENTER,
@@ -229,13 +228,14 @@ class TomJerryGame(dtptb.DTPTBGame):
             self._game_config = json.load(file)
 
         self._terrain = self._orient_terrain(np.array(self._game_config["terrain"]))
-        self._grid_size = tuple(reversed(self._terrain.shape))
-        self._x_max, self._y_max = self._grid_size
+        self._grid_size = (tuple(self._terrain.shape))
+        self._x_max = self._grid_size[0] - 1
+        self._y_max = self._grid_size[1] - 1
         self._cheese_location = self._game_config["cheese"]["cheese.1"]
 
         # TODO what should the order of x and y be here?
-        self._walkable_cells = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[y, x] == 1]
-        self._door_locations = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[y, x] == 2]
+        self._walkable_cells = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[self.grid_coordinates_to_terrain(x, y)] == 1]
+        self._door_locations = [(x, y) for x in range(self._x_max) for y in range(self._y_max) if self._terrain[self.grid_coordinates_to_terrain(x, y)] == 2]
         print(self._walkable_cells)
         self._states = self._construct_states()
         self._final = self._construct_final()
@@ -322,8 +322,7 @@ class TomJerryGame(dtptb.DTPTBGame):
         tom_cell, jerry_cell, door_states, turn = state
 
         # if tom or jerry are in a wall
-        # TODO should the coordinates be [0][1] or [1][0]?
-        if self._terrain[tom_cell[1], tom_cell[0]] == 0 or self._terrain[jerry_cell[1], jerry_cell[0]] == 0:
+        if self._terrain[self.grid_coordinates_to_terrain(tom_cell[0], tom_cell[1])] == 0 or self._terrain[self.grid_coordinates_to_terrain(jerry_cell[0], jerry_cell[1])] == 0:
             return False
 
         # if jerry or tom is in a CLOSED door
@@ -344,6 +343,9 @@ class TomJerryGame(dtptb.DTPTBGame):
                              % (axis, mat.ndim))
         return mat[tuple(indexer)]
 
+    def grid_coordinates_to_terrain(self, x, y):
+        # This function is needed because self._terrain is flipped in both axes
+        return self._x_max - x, self._y_max - y
     def _orient_terrain(self, mat):
         return self._matrix_flip(np.transpose(mat), axis=0)
 

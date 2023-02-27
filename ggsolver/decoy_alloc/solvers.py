@@ -23,7 +23,7 @@ def check_fact1(p1_game, p2_game):
 def check_lemma19(hypergame):
     pass
 
-def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fakes=float("inf")):
+def greedy_max(graph, trap_subsets, fake_subsets, defender_winning_states, max_traps=float("inf"), max_fakes=float("inf")):
     # trap_subsets is a mapping of an arena point to a list of states that are sure winning for p1 if that arena point is a trap
     # fake_subsets is a mapping of an arena point to a list of states that are sure winning for p1 if that arena point is a fake
 
@@ -53,7 +53,7 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
 
         for arena_point in nontraps:
             # the list of final states if this arena point is made into a trap
-            final_states = list(trap_states) + trap_subsets[arena_point]
+            final_states = list(trap_states) + trap_subsets[arena_point] + defender_winning_states
 
             solver = SWinReach(graph, final=final_states)
             solver.solve()
@@ -63,7 +63,6 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
 
             updated_winning_regions.append(pair)
 
-        # TODO what to do if two traps give the same number of winning states? does it matter which we pick?
         next_trap = max(updated_winning_regions, key=lambda x: len(x["winning_states"]))
         arena_traps.add(next_trap["arena_point"])
         trap_states.update(trap_subsets[next_trap["arena_point"]])

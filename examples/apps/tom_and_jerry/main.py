@@ -239,6 +239,7 @@ class TomJerryGame(dtptb.DTPTBGame):
         print(self._walkable_cells)
         self._states = self._construct_states()
         self._final = self._construct_final()
+        self._tom_winning_states = self._construct_tom_winning_states()
     def _construct_states(self):
         """
         State representation: (tom.cell, jerry.cell, door_states, turn)
@@ -270,7 +271,8 @@ class TomJerryGame(dtptb.DTPTBGame):
         cheese1_pos = tuple(self._game_config["cheese"]["cheese.1"])
 
         # Base case jerry is at the cheese
-        return_state = state
+        if jerry_cell[0] == cheese1_pos[0] and jerry_cell[1] == cheese1_pos[1]:
+            return_state = state
 
         # Jerry's turn to move
         if turn == CheeseState.JERRY_TURN:
@@ -329,9 +331,19 @@ class TomJerryGame(dtptb.DTPTBGame):
         for index, door in enumerate(self._door_locations):
             if jerry_cell == door and door_states[index] == CheeseState.DOOR_CLOSED or tom_cell == door and door_states[index] == CheeseState.DOOR_CLOSED:
                 return False
-
         return True
 
+    def tom_winning_states(self):
+        return self._tom_winning_states
+
+    def _construct_tom_winning_states(self):
+        return list(filter(self._tom_wins_state, self.states()))
+    def _tom_wins_state(self, state):
+        tom_cell, jerry_cell, door_states, turn = state
+        if tom_cell == jerry_cell:
+            return True
+        else:
+            return False
     def _matrix_flip(self, mat, axis):
         if not hasattr(mat, 'ndim'):
             mat = np.asarray(mat)
@@ -362,7 +374,7 @@ class CheeseState:
 
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_22_05_25.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_27_19_25.conf")
     print(f"Using configuration file: {conf=}")
 
     ## Create Reachability Game ##
@@ -383,21 +395,29 @@ if __name__ == '__main__':
             trap_subsets[cell_jerry] = []
         trap_subsets[cell_jerry].append(node)
     fake_subsets = trap_subsets
+    ## Create set of nodes where tom wins (reaches jerry) ##
+    tom_win_nodes = list()
+    for node in graph.nodes():
+        cell_tom, cell_jerry, states_door, player_turn = graph["state"][node]
+        if cell_jerry == cell_tom:
+            tom_win_nodes.append(node)
     ## Allocate traps and fakes ##
     arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
-        graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=2, max_fakes=2)
-    ## Create Decoy Allocation Game ##
-    decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    ## Create P2's Perceptual Game ##
-    p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    ## Solve p2's perceptual game ##
-    solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
-    ## Create Reachability Game of P1 ##
-    p1_reachability_game = decoy_models.ReachabilityGameOfP1(
-        p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
-    ## Create Hypergame ##
-    hypergame = decoy_models.Hypergame(
-        p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
+        graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets,
+        defender_winning_states=tom_win_nodes, max_traps=1, max_fakes=0)
+    # ## Create Decoy Allocation Game ##
+    # decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    # ## Create P2's Perceptual Game ##
+    # p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    # ## Solve p2's perceptual game ##
+    # solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
+    # # solution_p2_perceptual_game.solve() # P2's strategy
+    # ## Create Reachability Game of P1 ##
+    # p1_reachability_game = decoy_models.ReachabilityGameOfP1(
+    #     p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
+    # ## Create Hypergame ##
+    # hypergame = decoy_models.Hypergame( # P1's strategy
+    #     p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
 
 
     window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)

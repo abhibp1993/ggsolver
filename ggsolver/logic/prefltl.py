@@ -458,7 +458,6 @@ if __name__ == '__main__':
     aut_graph_ = aut_.graphify()
     aut_graph_.to_png("aut_graph.png", nlabel=["state"], elabel=["input"])
 
-
     # dfpa = formula_.translate()
     # print(f"{dfpa.states()=}")
     # print(f"{dfpa.atoms()=}")

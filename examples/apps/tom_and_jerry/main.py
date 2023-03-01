@@ -375,7 +375,7 @@ class CheeseState:
 
 
 if __name__ == '__main__':
-    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_27_19_25.conf")
+    conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_17_36.conf")
     print(f"Using configuration file: {conf=}")
 
     ## Create Base Reachability Game ##
@@ -384,9 +384,18 @@ if __name__ == '__main__':
     print("Executing: game = TomJerryMDP(game_config=conf)")
     print(f"Executing: random.choice(game.states())={arbitrary_state}")
     tom_jerry_game.initialize(arbitrary_state)
+<<<<<<< Updated upstream
     base_graph = tom_jerry_game.graphify(pointed=False)
     print("Executing: base_graph = game.graphify(pointed=False)")
     ## Create mapping from arena points to game states ##
+=======
+    graph = tom_jerry_game.graphify(pointed=True)
+    print("Executing: graph = game.graphify(pointed=True)")
+
+    # TODO. Ask MSC. The inputs to greedy_max expect trap_subset to be {s: DSWin_s}. The
+    #  I do not see the values to be winning!
+    # Create mapping from arena points to game states #
+>>>>>>> Stashed changes
     trap_subsets = {}
     for node in base_graph.nodes():
         cell_tom, cell_jerry, states_door, player_turn = base_graph["state"][node]
@@ -394,12 +403,23 @@ if __name__ == '__main__':
             trap_subsets[cell_jerry] = []
         trap_subsets[cell_jerry].append(node)
     fake_subsets = trap_subsets
+<<<<<<< Updated upstream
     ## Create a subgraph of the base game hiding P1's winning nodes and non-rationalizable edges ##
     base_solver = reach.SWinReach(base_graph, tom_jerry_game.final_states(), player=2)
     base_solver.solve()
     base_solver._solution
     # TODO create this subgraph
     tom_jerry_subgraph = gg_graph.SubGraph(base_graph, hidden_nodes=, hidden_edges=)
+=======
+
+    # Create set of nodes where tom wins (reaches jerry) ##
+    tom_win_nodes = list()
+    for node in graph.nodes():
+        cell_tom, cell_jerry, states_door, player_turn = graph["state"][node]
+        if cell_jerry == cell_tom:
+            tom_win_nodes.append(node)
+
+>>>>>>> Stashed changes
     ## Allocate traps and fakes ##
     arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
         tom_jerry_subgraph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=1, max_fakes=0)

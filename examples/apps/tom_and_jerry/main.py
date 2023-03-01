@@ -17,6 +17,7 @@ import ggsolver.gridworld.util as gw_utils
 import ggsolver.decoy_alloc.models as decoy_models
 import ggsolver.decoy_alloc.solvers as solvers
 import ggsolver.dtptb.reach as reach
+import ggsolver.graph as gg_graph
 from collections import namedtuple
 
 from ggsolver import dtptb
@@ -377,48 +378,44 @@ if __name__ == '__main__':
     conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_27_19_25.conf")
     print(f"Using configuration file: {conf=}")
 
-    ## Create Reachability Game ##
+    ## Create Base Reachability Game ##
     tom_jerry_game = TomJerryGame(game_config=conf)
     arbitrary_state = random.choice(tom_jerry_game.states())
     print("Executing: game = TomJerryMDP(game_config=conf)")
     print(f"Executing: random.choice(game.states())={arbitrary_state}")
-
     tom_jerry_game.initialize(arbitrary_state)
-    graph = tom_jerry_game.graphify(pointed=True)
-    print("Executing: graph = game.graphify(pointed=True)")
-
+    base_graph = tom_jerry_game.graphify(pointed=False)
+    print("Executing: base_graph = game.graphify(pointed=False)")
     ## Create mapping from arena points to game states ##
     trap_subsets = {}
-    for node in graph.nodes():
-        cell_tom, cell_jerry, states_door, player_turn = graph["state"][node]
+    for node in base_graph.nodes():
+        cell_tom, cell_jerry, states_door, player_turn = base_graph["state"][node]
         if cell_jerry not in trap_subsets:
             trap_subsets[cell_jerry] = []
         trap_subsets[cell_jerry].append(node)
     fake_subsets = trap_subsets
-    ## Create set of nodes where tom wins (reaches jerry) ##
-    tom_win_nodes = list()
-    for node in graph.nodes():
-        cell_tom, cell_jerry, states_door, player_turn = graph["state"][node]
-        if cell_jerry == cell_tom:
-            tom_win_nodes.append(node)
+    ## Create a subgraph of the base game hiding P1's winning nodes and non-rationalizable edges ##
+    base_solver = reach.SWinReach(base_graph, tom_jerry_game.final_states(), player=2)
+    base_solver.solve()
+    base_solver._solution
+
+    tom_jerry_subgraph = gg_graph.SubGraph(base_graph, hidden_nodes=, hidden_edges=)
     ## Allocate traps and fakes ##
     arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
-        graph, trap_subsets=trap_subsets, fake_subsets=fake_subsets,
-        defender_winning_states=tom_win_nodes, max_traps=1, max_fakes=0)
-    # ## Create Decoy Allocation Game ##
-    # decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    # ## Create P2's Perceptual Game ##
-    # p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
-    # ## Solve p2's perceptual game ##
-    # solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
-    # # solution_p2_perceptual_game.solve() # P2's strategy
-    # ## Create Reachability Game of P1 ##
-    # p1_reachability_game = decoy_models.ReachabilityGameOfP1(
-    #     p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
-    # ## Create Hypergame ##
-    # hypergame = decoy_models.Hypergame( # P1's strategy
-    #     p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
-
+        tom_jerry_subgraph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=1, max_fakes=0)
+    ## Create Decoy Allocation Game ##
+    decoy_alloc_game = decoy_models.DecoyAllocGame(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    ## Create P2's Perceptual Game ##
+    p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
+    ## Solve p2's perceptual game ##
+    solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
+    solution_p2_perceptual_game.solve() # P2's strategy
+    ## Create Reachability Game of P1 ##
+    p1_reachability_game = decoy_models.ReachabilityGameOfP1(
+        p2_game=p2_perceptual_game, traps=trap_states, solution_p2_game=solution_p2_perceptual_game)
+    ## Create Hypergame ##
+    hypergame = decoy_models.Hypergame( # P1's strategy
+        p2_game=p2_perceptual_game, solution_p2_game=solution_p2_perceptual_game, traps=trap_states, fakes=fake_states)
 
     window = TomJerryWindow(name="Tom and Jerry", size=(660, 480), game_config=conf)
     for trap in arena_traps:

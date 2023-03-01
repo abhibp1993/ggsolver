@@ -23,7 +23,7 @@ def check_fact1(p1_game, p2_game):
 def check_lemma19(hypergame):
     pass
 
-def greedy_max(graph, trap_subsets, fake_subsets, defender_winning_states, max_traps=float("inf"), max_fakes=float("inf")):
+def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fakes=float("inf")):
     # trap_subsets is a mapping of an arena point to a list of states that are sure winning for p1 if that arena point is a trap
     # fake_subsets is a mapping of an arena point to a list of states that are sure winning for p1 if that arena point is a fake
 
@@ -53,8 +53,9 @@ def greedy_max(graph, trap_subsets, fake_subsets, defender_winning_states, max_t
 
         for arena_point in nontraps:
             # the list of final states if this arena point is made into a trap
-            final_states = list(trap_states) + trap_subsets[arena_point] + defender_winning_states
+            final_states = list(trap_states) + trap_subsets[arena_point]
 
+            # TODO construct a new sub-graph based on the base graph where the final_states are sink states
             solver = SWinReach(graph, final=final_states)
             solver.solve()
             # TODO add different metrics to determine value of arena point as a trap

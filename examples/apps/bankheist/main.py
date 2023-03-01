@@ -332,5 +332,5 @@ if __name__ == '__main__':
     print("Executing: graph = game.graphify(pointed=True)")
 
 
-    # window = BankHeistWindow(name="Bank Heist", size=(660, 480), game_config=conf)
-    # window.run()
+    window = BankHeistWindow(name="Bank Heist", size=(660, 480), game_config=conf)
+    window.run()

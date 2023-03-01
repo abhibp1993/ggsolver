@@ -398,7 +398,7 @@ if __name__ == '__main__':
     base_solver = reach.SWinReach(base_graph, tom_jerry_game.final_states(), player=2)
     base_solver.solve()
     base_solver._solution
-
+    # TODO create this subgraph
     tom_jerry_subgraph = gg_graph.SubGraph(base_graph, hidden_nodes=, hidden_edges=)
     ## Allocate traps and fakes ##
     arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(

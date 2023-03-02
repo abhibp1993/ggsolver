@@ -150,53 +150,121 @@ class IGraph:
         pass
 
 
-class NodePropertyMap(dict):
+class PropertyMap(dict):
+    """ Base class for NodePropertyMap and EdgePropertyMap. """
+    def __init__(self, graph, default=None):
+        super(PropertyMap, self).__init__()
+        self.graph = graph
+        self.default = default
+
+    @property
+    def containment_func(self):
+        raise NotImplementedError("Abstract. To be specialized in NodePropertyMap, EdgePropertyMap class.")
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} of {repr(self.graph)}>"
+
+    def __missing__(self, obj):
+        if self.containment_func(obj):
+            return self.default
+        raise ValueError(f"[ERROR] {self.__class__.__name__}.__missing__:: {repr(self.graph)} does not contain {obj}.")
+
+    def __getitem__(self, obj):
+        if not self.containment_func(obj):
+            raise KeyError(f"[ERROR] {self.__class__.__name__}.__missing__:: {obj} is not in {self.graph}.")
+
+        try:
+            return super(PropertyMap, self).__getitem__(obj)
+        except KeyError:
+            return self.__missing__(obj)
+
+    def __setitem__(self, obj, value):
+        assert self.containment_func(obj), f"[ERROR] {self.__class__.__name__}.__missing__:: {obj} not in {self.graph}."
+        if value != self.default:
+            super(PropertyMap, self).__setitem__(obj, value)
+
+    def items(self):
+        # FIXME. Items should return all items. To access only non-default items, define another function.
+        return ((k, v) for k, v in super(PropertyMap, self).items() if self.containment_func(k))
+
+    def serialize(self):
+        # If NodePropertyMap, i.e. keys are integers, then serialization is straightforward.
+        serialized_dict = dict()
+        if isinstance(next(iter(self.keys())), int):
+            serialized_dict = self
+
+        # If EdgePropertyMap, i.e. keys are integers, then apply cantor mapping to keys.
+        else:
+            serialized_dict = {util.cantor_pairing([k[0], k[1], k[2]]): v for k, v in self.items()}
+
+        return {
+            "type": self.__class__.__name__,
+            "default": self.default,
+            "map": serialized_dict
+        }
+
+    def deserialize(self, obj_dict):
+        raise NotImplementedError("Abstract. To be specialized by derived classes.")
+
+
+class PMapView(dict):
+    """
+    MapView is a dictionary that stores key-value pairs of only those keys which have been modified
+    with respect to the PropertyMap viewed by MapView object.
+    """
+    def __init__(self, pmap: PropertyMap):
+        super(PMapView, self).__init__()
+        self._pmap = pmap
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} of {repr(self._pmap)}>"
+
+    def __getitem__(self, item):
+        """
+        The value of input key is searched as follows:
+        First, check if the key is in "self" dictionary? If yes, the key-value was modified w.r.t. base PropertyMap.
+        If not, check if the key is present in base PropertyMap. If not, raise KeyError. Else return the value.
+        """
+        if item in self.keys():
+            return super(PMapView, self).__getitem__(item)
+        return self._pmap[item]
+
+    def __setitem__(self, item, value):
+        """
+        Updating values of base PropertyMap is NOT allowed. Hence, check if item is valid.
+        If yes, update the "self" dictionary to store the modified value.
+
+        :param item:
+        :param value:
+        :return:
+        """
+        # Access current value of item
+        old_value = self._pmap[item]
+
+        # Update the value
+        if old_value != value:
+            super(PMapView, self).__setitem__(item, value)
+
+    def serialize(self):
+        pmap_dict = self._pmap.serialize()
+        pmap_dict["type"] = "PMapView"
+        pmap_dict["modified"] = self.items()
+        return pmap_dict
+
+    def deserialize(self, obj_dict):
+        raise NotImplementedError("Request feature when needed.")
+
+
+class NodePropertyMap(PropertyMap):
     """
     Implements a default dictionary that maps a node ID to its property value. To store data efficiently,
     only the non-default values are stored in the dictionary.
 
     Raises an error if the node ID is invalid.
     """
-    def __init__(self, graph, default=None):
-        super(NodePropertyMap, self).__init__()
-        self.graph = graph
-        self.default = default
-
-    def __repr__(self):
-        return f"<NodePropertyMap graph={repr(self.graph)}>"
-
-    def __missing__(self, node):
-        if self.graph.has_node(node):
-            return self.default
-        raise ValueError(f"[ERROR] NodePropertyMap.__missing__:: {repr(self.graph)} does not contain node {node}.")
-
-    def __getitem__(self, node):
-        if not self.graph.has_node(node):
-            raise KeyError(f"Node:{node} is not in graph:{self.graph}. Cannot access node property.")
-
-        try:
-            return super(NodePropertyMap, self).__getitem__(node)
-        except KeyError:
-            return self.__missing__(node)
-
-    def __setitem__(self, node, value):
-        assert self.graph.has_node(node), f"Node {node} not in {self.graph}."
-        if value != self.default:
-            super(NodePropertyMap, self).__setitem__(node, value)
-
-    def copy(self):
-        np = NodePropertyMap(graph=self.graph, default=self.default)
-        np.update(super(NodePropertyMap, self).copy())
-        return np
-
-    def items(self):
-        return ((k, v) for k, v in super(NodePropertyMap, self).items() if self.graph.has_node(k))
-
-    def serialize(self):
-        return {
-            "default": self.default,
-            "dict": {k: v for k, v in self.items()}
-        }
+    @property
+    def containment_func(self):
+        return self.graph.has_node
 
     def deserialize(self, obj_dict):
         self.clear()
@@ -206,80 +274,42 @@ class NodePropertyMap(dict):
             self[int(k)] = v
 
 
-class EdgePropertyMap(dict):
+class EdgePropertyMap(PropertyMap):
     """
     Implements a default dictionary that maps an edge (uid, vid, key) to its property value. To store data efficiently,
     only the non-default values are stored in the dictionary.
 
     Raises an error if the edge (uid, vid, key) is invalid.
     """
-    def __init__(self, graph, default=None):
-        super(EdgePropertyMap, self).__init__()
-        self.graph = graph
-        self.default = default
 
-    def __repr__(self):
-        return f"<EdgePropertyMap graph={repr(self.graph)}>"
-
-    def __missing__(self, edge):
-        if self.graph.has_edge(*edge):
-            return self.default
-        raise ValueError(f"[ERROR] EdgePropertyMap.__missing__:: {repr(self.graph)} does not contain node {edge}.")
-
-    def __getitem__(self, edge):
-        if not self.graph.has_edge(*edge):
-            raise KeyError(f"Edge:{edge} is not in graph:{self.graph}. Cannot access edge property.")
-
-        try:
-            return dict.__getitem__(self, edge)
-        except KeyError:
-            return self.__missing__(edge)
-
-    def __setitem__(self, node, value):
-        if value != self.default:
-            super(EdgePropertyMap, self).__setitem__(node, value)
-
-    def copy(self):
-        ep = EdgePropertyMap(graph=self.graph, default=self.default)
-        ep.update(super(EdgePropertyMap, self).copy())
-        return ep
-
-    def items(self):
-        return (
-            ((uid, vid, key), val) for (uid, vid, key), val in super(EdgePropertyMap, self).items()
-            if self.graph.has_edge(uid, vid, key)
-        )
-
-    def serialize(self):
-        return {
-            "default": self.default,
-            "dict": [{"edge": edge, "pvalue": pvalue} for edge, pvalue in self.items()]
-        }
+    @property
+    def containment_func(self):
+        return self.graph.has_node
 
     def deserialize(self, obj_dict):
         self.clear()
         self.default = obj_dict["default"]
-        # Explicitly deserialize to ensure all keys are valid edges.
-        for item in obj_dict["dict"]:
-            self[tuple(item["edge"])] = item["pvalue"]
+        # Explicitly deserialize to ensure all keys are valid nodes.
+        for k, v in obj_dict["dict"].items():
+            self[util.inverse_cantor_pairing(k, d=3)] = v
 
 
-class NPMapView(NodePropertyMap):
-    """
-    TODO. If input to constructor is NPMapView object, then can we simplify using copy constructor?
-    """
-    pass
-
-
-class EPMapView(NodePropertyMap):
-    """
-    TODO. If input to constructor is EPMapView object, then can we simplify using copy constructor?
-    """
-    pass
-
-
-class GPMapView(NodePropertyMap):
-    pass
+# class NPMapView(NodePropertyMap):
+#     """
+#     TODO. If input to constructor is NPMapView object, then can we simplify using copy constructor?
+#     """
+#     pass
+#
+#
+# class EPMapView(EdgePropertyMap):
+#     """
+#     TODO. If input to constructor is EPMapView object, then can we simplify using copy constructor?
+#     """
+#     pass
+#
+#
+# class GPMapView(NodePropertyMap):
+#     pass
 
 
 class Graph(IGraph):
@@ -822,19 +852,19 @@ class SubGraph(Graph):
             if copy_np == "all" or pname in copy_np:
                 self._node_properties[pname] = self._parent.node_properties[pname].copy()
             else:
-                self._node_properties[pname] = NPMapView(self._parent.node_properties[pname].copy())
+                self._node_properties[pname] = PMapView(self._parent.node_properties[pname].copy())
 
         for pname, ep_map in self._parent.edge_properties:
             if copy_ep == "all" or pname in copy_ep:
                 self._edge_properties[pname] = self._parent.edge_properties[pname].copy()
             else:
-                self._edge_properties[pname] = EPMapView(self._parent.edge_properties[pname].copy())
+                self._edge_properties[pname] = PMapView(self._parent.edge_properties[pname].copy())
 
         for pname, gp_map in self._parent.graph_properties:
             if copy_gp == "all" or pname in copy_gp:
                 self._graph_properties[pname] = self._parent.graph_properties[pname].copy()
             else:
-                self._graph_properties[pname] = GPMapView(self._parent.graph_properties[pname].copy())
+                self._graph_properties[pname] = PMapView(self._parent.graph_properties[pname].copy())
 
     # =====================================================================================
     # PROPERTIES

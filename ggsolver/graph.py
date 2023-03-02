@@ -264,6 +264,24 @@ class EdgePropertyMap(dict):
             self[tuple(item["edge"])] = item["pvalue"]
 
 
+class NPMapView(NodePropertyMap):
+    """
+    TODO. If input to constructor is NPMapView object, then can we simplify using copy constructor?
+    """
+    pass
+
+
+class EPMapView(NodePropertyMap):
+    """
+    TODO. If input to constructor is EPMapView object, then can we simplify using copy constructor?
+    """
+    pass
+
+
+class GPMapView(NodePropertyMap):
+    pass
+
+
 class Graph(IGraph):
     """
     A MultiDiGraph class represented as a 5-tuple (nodes, edges, node_properties, edge_properties, graph_properties).
@@ -710,26 +728,48 @@ class Graph(IGraph):
 
 class SubGraph(Graph):
     """
-    A MultiDiGraph class represented as a 5-tuple (nodes, edges, node_properties, edge_properties, graph_properties).
-    In addition, the graph implements a serialization protocol, save-load and drawing functionality.
+    * Memory management:
+        - A subgraph SG shares nodes and edges (memory-wise) as the base graph G.
+        - A subgraph SG shares node, edge, and graph properties (memory-wise) as the base graph G.
+    * Users cannot modify graph topology in the sub-graph.
+        That is, the addition or deletion of nodes and edges is prevented in SG.
+    * Users may modify node/edge/graph properties in SG. The modifications remain local to SG and do not affect property values in G.
+        - Create a PropertyView class that allows modification of properties.
+            When accessing a property value, it will check if the value has been modified.
+            If yes, it returns a modified value. If no, it returns the value of the property in G.
+        - Caution. Think about the behavior of the view class thoroughly.
+        - Should modifying a property in G enforce the changes to all its children subgraphs?
+            What if the property value was overwritten in SG?
+    * A subgraph SG2 can be constructed from another subgraph SG1.
+    * Several subgraphs SG1, SG2, ... may have the same base graph G.
+    * Each subgraph stores its parent graph/subgraph.
+    * A subgraph may filter/hide a subset of nodes and edges of its parent.
+        - This is stored in special private variable _hidden_nodes, _hidden_edges in the subgraph SG.
+
     """
-    def __init__(self, graph, hidden_nodes=None, hidden_edges=None):
+    def __init__(self, parent, hidden_nodes=None, hidden_edges=None, **kwargs):
+        """
+        Constructs a subgraph given a parent :class:`Graph` or :class:`SubGraph`.
+
+        :param parent: (:class:`Graph` or :class:`SubGraph`)
+        :param hidden_nodes: (Iterable[int]) Iterable of node ids in parent (sub-)graph.
+        :param hidden_edges: (Iterable[int, int, int]) Iterable of edge ids (uid, vid, key) in parent (sub-)graph.
+        :param copy_np: (Iterable[str] or "all") Iterable of node properties to be (shallow) copied.
+            The remaining properties will be shared. If "all" then all properties are copied.
+        :param copy_ep: (Iterable[str] or "all") Iterable of edge properties to be (shallow) copied.
+            The remaining properties will be shared. If "all" then all properties are copied.
+        :param copy_gp: (Iterable[str] or "all") Iterable of graph properties to be (shallow) copied.
+            The remaining properties will be shared. If "all" then all properties are copied.
+        """
         super(SubGraph, self).__init__()
 
-        # Representation: SubGraph shares the same nodes, edges as the graph.
-        #  The node/edge/graph properties are initialized with input graph's properties.
-        #  Any changes to properties will not reflect in graph.
-        self._base_graph = graph
-        self._graph = nx.subgraph_view(self._base_graph.base_graph(), self.is_node_visible, self.is_edge_visible)
-
-        # Copy node, edge and graph properties
-        self._node_properties = graph.node_properties.copy()
-        self._edge_properties = graph.edge_properties.copy()
-        self._graph_properties = graph.graph_properties.copy()
+        # Object representation
+        self._parent = parent
+        self._graph = nx.subgraph_view(self._parent.base_graph(), self.is_node_visible, self.is_edge_visible)
 
         # Special properties
-        self._hidden_nodes = self["hidden_nodes"] = NodePropertyMap(self._base_graph, default=False)
-        self._hidden_edges = self["hidden_edges"] = EdgePropertyMap(self._base_graph, default=False)
+        self._hidden_nodes = self["__hidden_nodes"] = NodePropertyMap(self, default=False)
+        self._hidden_edges = self["__hidden_edges"] = EdgePropertyMap(self, default=False)
 
         # Initialize hidden nodes and edges
         if hidden_nodes is not None:
@@ -737,26 +777,101 @@ class SubGraph(Graph):
                 self._hidden_nodes[uid] = True
 
         if hidden_edges is not None:
-            for edge in hidden_edges:
-                self._hidden_edges[edge] = True
+            for (uid, vid, key) in hidden_edges:
+                self._hidden_edges[uid, vid, key] = True
+
+        # Define node, edge and graph properties
+        self._node_properties = dict()      # parent.node_properties
+        self._edge_properties = dict()      # parent.edge_properties
+        self._graph_properties = dict()     # parent.graph_properties
+        self._initialize_properties(**kwargs)
 
     def __str__(self):
-        return f"<SubGraph of {self._graph}>"
+        return f"<SubGraph of {self._graph} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
 
+    def _initialize_properties(self, **kwargs):
+        # Extract values from kwargs
+        copy_np = kwargs.get('copy_np', None)
+        copy_ep = kwargs.get('copy_ep', None)
+        copy_gp = kwargs.get('copy_gp', None)
+
+        # Check if given values to copy_(np/ep/gp) are acceptable
+        if isinstance(copy_np, str) and not copy_np == "all":
+            raise AssertionError("When `copy_np` is string, it must be 'all'.")
+        elif copy_np is not None:
+            assert isinstance(copy_np, (list, tuple, set)), "When `copy_np` is iterable, it must be a list/tuple/set."
+        else:
+            raise AssertionError("Type of `copy_np` is unsupported.")
+
+        if isinstance(copy_ep, str) and not copy_ep == "all":
+            raise AssertionError("When `copy_ep` is string, it must be 'all'.")
+        elif copy_ep is not None:
+            assert isinstance(copy_ep, (list, tuple, set)), "When `copy_ep` is iterable, it must be a list/tuple/set."
+        else:
+            raise AssertionError("Type of `copy_ep` is unsupported.")
+
+        if isinstance(copy_gp, str) and not copy_np == "all":
+            raise AssertionError("When `copy_gp` is string, it must be 'all'.")
+        elif copy_gp is not None:
+            assert isinstance(copy_gp, (list, tuple, set)), "When `copy_np` is iterable, it must be a list/tuple/set."
+        else:
+            raise AssertionError("Type of `copy_gp` is unsupported.")
+
+        # Construct node/edge/graph properties of subgraph using parent
+        for pname, np_map in self._parent.node_properties:
+            if copy_np == "all" or pname in copy_np:
+                self._node_properties[pname] = self._parent.node_properties[pname].copy()
+            else:
+                self._node_properties[pname] = NPMapView(self._parent.node_properties[pname].copy())
+
+        for pname, ep_map in self._parent.edge_properties:
+            if copy_ep == "all" or pname in copy_ep:
+                self._edge_properties[pname] = self._parent.edge_properties[pname].copy()
+            else:
+                self._edge_properties[pname] = EPMapView(self._parent.edge_properties[pname].copy())
+
+        for pname, gp_map in self._parent.graph_properties:
+            if copy_gp == "all" or pname in copy_gp:
+                self._graph_properties[pname] = self._parent.graph_properties[pname].copy()
+            else:
+                self._graph_properties[pname] = GPMapView(self._parent.graph_properties[pname].copy())
+
+    # =====================================================================================
+    # PROPERTIES
+    # =====================================================================================
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
     def base_graph(self):
-        return self._base_graph
+        if isinstance(self.parent, Graph) and not issubclass(type(self.parent), Graph):
+            return self.parent
+        else:
+            return self.parent.base_graph
 
+    # =====================================================================================
+    # SUB-GRAPH SPECIAL METHODS: HIDE/SHOW NODES & EDGES
+    # =====================================================================================
     def is_node_visible(self, uid):
         """
         Is the node included in the subgraph?
+
+        If the subgraph is derived from another subgraph,
+        then the node is visible if it is included in the subgraph, and it is visible in the parent.
         """
-        return not self._hidden_nodes[uid]
+        # TODO. Subgraph.nodes() returns visible nodes only.
+        return not self._hidden_nodes[uid] and uid in self.parent.nodes()
 
     def is_edge_visible(self, uid, vid, key):
         """
-        Is the node included in the subgraph?
+        Is the edge included in the subgraph?
+
+        If the subgraph is derived from another subgraph,
+        then the edge is visible if it is included in the subgraph, and it is visible in the parent.
         """
-        return not self._hidden_edges[(uid, vid, key)]
+        # TODO. Subgraph.edges() returns visible nodes only.
+        return not self._hidden_edges[uid, vid, key] and (uid, vid, key) in self.parent.edges()
 
     def hide_node(self, uid):
         """
@@ -765,65 +880,119 @@ class SubGraph(Graph):
         If `uid` was hidden then no change is made.
         """
         self._hidden_nodes[uid] = True
+        # TODO. Hide in/out-going edges too.
 
     def show_node(self, uid):
         """
-        Adds the node back to subgraph.
+        Includes a hidden node into subgraph.
         Raises error if `uid` is not in base graph.
         If `uid` was already visible, then no change is made.
         """
         self._hidden_nodes[uid] = False
+        # TODO. Unhide in/out-going edges too.
 
     def hide_nodes(self, ulist):
         """
-        Removes multiples nodes from subgraph.
+        Hides multiple nodes from subgraph.
         """
         map(self.hide_node, ulist)
 
     def show_nodes(self, ulist):
-        """ Adds multiple nodes to subgraph. """
+        """
+        Shows multiple nodes to subgraph.
+        """
         map(self.show_node, ulist)
 
-    def hidden_nodes(self):
-        """ Gets the list of nodes in base graph that are not in subgraph. """
-        return [uid for uid, value in self._hidden_nodes.items() if value is True]
-
-    def visible_nodes(self):
-        # return [uid for uid, value in self._hidden_nodes.items() if value is False]
-        return list(set(self.nodes()) - set(self.hidden_nodes()))
-
-    def number_of_visible_nodes(self):
-        """ Gets the number of nodes in subgraph. """
-        return self.number_of_nodes() - len(self.hidden_nodes())
-
     def hide_edge(self, uid, vid, key):
-        """ Removes the edge from subgraph. No changes are made to base graph. """
+        """ Hides the edge from subgraph. No changes are made to base graph. """
         self._hidden_edges[(uid, vid, key)] = True
 
     def show_edge(self, uid, vid, key):
-        """ Adds the edge to subgraph. The edge must be a valid edge in base graph. """
+        """ Shows the edge to subgraph. The edge must be a valid edge in base graph. """
         self._hidden_edges[(uid, vid, key)] = False
 
     def hide_edges(self, elist):
-        """ Removes multiple edge from subgraph. No changes are made to base graph. """
+        """ Hides multiple edge from subgraph. No changes are made to base graph. """
         map(self.hide_edge, elist)
 
     def show_edges(self, elist):
-        """ Adds multiple edges to subgraph. The edge must be a valid edge in base graph. """
+        """ Shows  multiple edges to subgraph. The edge must be a valid edge in base graph. """
         map(self.show_edge, elist)
 
+    def hidden_nodes(self):
+        """
+        List of all hidden nodes in the **subgraph**.
+        """
+        return (uid for uid in self._hidden_nodes if self._hidden_nodes[uid] is True)
+
     def hidden_edges(self):
-        """ Gets the list of edges from base graph that are not in subgraph. """
-        return [edge for edge, value in self._hidden_edges.items() if value is True]
+        """
+        List of all hidden edges in the **subgraph**.
+        """
+        return (edge for edge in self._hidden_edges if self._hidden_edges[edge] is True)
 
-    def visible_edges(self):
-        # return [edge for edge, value in self._hidden_edges.items() if value is False]
-        return list(set(self.edges()) - set(self.hidden_edges()))
+    # =====================================================================================
+    # ACCESSING AND COUNTING NODES, EDGES
+    # =====================================================================================
+    def nodes(self):
+        """
+        List of all (visible) nodes in the **subgraph**.
+        """
+        return (uid for uid in self._hidden_nodes if self._hidden_nodes[uid] is False)
 
-    def number_of_visible_edges(self):
+    def edges(self):
+        """e
+        List of all (visible) edges in the **subgraph**.
+        """
+        return (edge for edge in self._hidden_edges if self._hidden_edges[edge] is False)
+
+    def nodes_in_parent(self):
+        """
+        List of all (visible) nodes in the **subgraph's parent**.
+        """
+        return self.parent.nodes()
+
+    def nodes_in_base_graph(self):
+        """
+        List of all nodes in the **base graph**.
+        """
+        return self.parent.nodes()
+
+    def number_of_nodes(self):
+        """ Gets the number of nodes in subgraph. """
+        return self.number_of_nodes() - sum(1 for _ in self.hidden_nodes())
+
+    def number_of_nodes_in_parent(self):
+        return self.parent.number_of_nodes()
+
+    def number_of_nodes_in_base_graph(self):
+        return self.base_graph.number_of_nodes()
+
+    def edges_in_parent(self):
+        """
+        List of all (visible) edges in the **subgraph's parent**.
+        """
+        return self.parent.edges()
+
+    def edges_in_base_graph(self):
+        """
+        List of all edges in the **base graph**.
+        """
+        return self.base_graph.nodes()
+
+    def number_of_edges(self):
         """ Gets the number of edges in subgraph. """
-        return self.number_of_edges() - len(self.hidden_edges())
+        return self.number_of_edges() - sum(1 for _ in self.hidden_edges())
 
+    def number_of_edges_in_parent(self):
+        return self.parent.number_of_edges()
+
+    def number_of_edges_in_base_graph(self):
+        return self.base_graph.number_of_edges()
+
+    # =====================================================================================
+    # INHERITED GRAPH METHODS: BLOCK TOPOLOGY MODIFICATION
+    # =====================================================================================
     def add_node(self):
         """
         Raises error. Nodes cannot be added to subgraph.
@@ -857,15 +1026,18 @@ class SubGraph(Graph):
         Raises error. Nodes cannot be removed to subgraph.
         See :meth:`SubGraph.hide_nodes` and :meth:`SubGraph.show_nodes`.
         """
-        raise NotImplementedError("Removal of nodes is not supported. Use SubGraph.hide_node() instead.")
+        raise PermissionError("Removal of nodes is not supported. Use SubGraph.hide_node() instead.")
 
     def rem_edge(self, uid, vid, key):
         """
         Raises error. Edges cannot be removed to subgraph.
         See :meth:`SubGraph.hide_edges` and :meth:`SubGraph.show_edges`.
         """
-        raise NotImplementedError("Removal of nodes is not supported. Use SubGraph instead.")
+        raise PermissionError("Removal of nodes is not supported. Use SubGraph instead.")
 
+    # =====================================================================================
+    # CONTAINMENT CHECKING
+    # =====================================================================================
     def has_node(self, uid):
         """
         Checks whether the subgraph has the given node or not. Checks whether the node exists and is visible.
@@ -873,7 +1045,9 @@ class SubGraph(Graph):
         :param uid: (int) Node ID to be checked for containment.
         :return: (bool) True if given node is in the graph, else False.
         """
-        return self._graph.has_node(uid)
+        if uid in self._hidden_nodes:
+            return not self._hidden_nodes[uid]
+        return False
 
     def has_edge(self, uid, vid, key=None):
         """
@@ -886,93 +1060,156 @@ class SubGraph(Graph):
         :type key: int, optional
         :return: (bool) True if given edge is in the graph, else False.
         """
-        return self._graph.has_edge(uid, vid, key)
+        # The first edge added to graph has key=0.
+        #   Hence, to check if there exists an edge between uid and vid, check if the edge (uid, vid, 0) is in graph.
+        if key is None:
+            key = 0
 
-    def nodes(self):
-        """
-        List of all nodes in the **subgraph**.
-        """
-        return list(self._graph.nodes())
+        if (uid, vid, key) in self._hidden_edges:
+            return not self._hidden_edges[(uid, vid, key)]
+        return False
 
-    def edges(self):
-        """
-        List of all edges in the **subgraph**. Each edge is represented as a 3-tuple (uid, vid, key).
-        """
-        return list(self._graph.edges(keys=True))
-
-    def successors(self, uid):
-        """
-        List of all successors of the node represented by uid.
-        Includes only visible nodes reachable via visible edges.
-        """
-        return list(self._graph.successors(uid))
-
-    def predecessors(self, uid):
-        """
-        List of all predecessors of the node represented by uid.
-        Includes only visible nodes reachable via visible edges.
-        """
-        return list(self._graph.predecessors(uid))
-
-    def neighbors(self, uid):
-        """
-        List of all (in and out) neighbors of the node represented by uid.
-        Includes only visible nodes reachable via visible edges.
-        """
-        return list(self._graph.neighbors(uid))
-
-    def ancestors(self, uid):
-        """
-        List of all nodes from which the node represented by uid is reachable.
-        Includes only visible nodes reachable via visible edges.
-        """
-        return list(nx.ancestors(self._graph, uid))
-
-    def descendants(self, uid):
-        """
-        List of all nodes that can be reached from  the node represented by uid.
-        Includes only visible nodes reachable via visible edges.
-        """
-        return list(nx.descendants(self._graph, uid))
-
+    # =====================================================================================
+    # NEIGHBORHOOD EXPLORATION
+    # =====================================================================================
     def in_edges(self, uid):
         """
         List of all in edges to the node represented by uid.
         Includes only visible edges.
         """
-        return self._graph.in_edges(uid, keys=True)
+        if not self.is_node_visible(uid):
+            return list()
+
+        in_edges = self.base_graph.in_edges(uid)
+        return ((uid, vid, key) for uid, vid, key in in_edges if self.is_edge_visible(uid, vid, key))
 
     def out_edges(self, uid):
         """
         List of all out edges from the node represented by uid.
         Includes only visible edges.
         """
-        return self._graph.out_edges(uid, keys=True)
+        if not self.is_node_visible(uid):
+            return list()
 
-    def number_of_nodes(self):
-        """
-        The number of nodes in the **base** graph.
-        """
-        return self._graph.number_of_nodes()
+        out_edges = self.base_graph.out_edges(uid)
+        return ((uid, vid, key) for uid, vid, key in out_edges if self.is_edge_visible(uid, vid, key))
 
-    def number_of_edges(self):
+    def successors(self, uid):
         """
-        The number of edges in the **base** graph.
+        List of all successors of the node represented by uid.
+        Includes only visible nodes reachable via visible edges.
         """
-        return self._graph.number_of_edges()
+        out_edges = self.out_edges(uid)
+        return (uid for uid, vid, key in out_edges if self.is_node_visible(uid))
 
+    def predecessors(self, uid):
+        """
+        List of all predecessors of the node represented by uid.
+        Includes only visible nodes reachable via visible edges.
+        """
+        in_edges = self.in_edges(uid)
+        return (uid for uid, vid, key in in_edges if self.is_node_visible(uid))
+
+    def neighbors(self, uid):
+        """
+        List of all (in and out) neighbors of the node represented by uid.
+        Includes only visible nodes reachable via visible edges.
+        """
+        yield from self.successors(uid)
+        yield from self.predecessors(uid)
+
+    def ancestors(self, uid):
+        """
+        List of all nodes from which the node represented by uid is reachable.
+        Includes only visible nodes reachable via visible edges.
+        """
+        if not self.is_node_visible(uid):
+            return list()
+
+        queue = [uid]
+        visited = {uid}
+        while queue:
+            node = queue.pop()
+            for neighbor in self.predecessors(node):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+        return visited
+
+    def descendants(self, uid):
+        """
+        List of all nodes that can be reached from the node represented by uid.
+        Includes only visible nodes reachable via visible edges.
+        """
+        if not self.is_node_visible(uid):
+            return list()
+
+        queue = [uid]
+        visited = {uid}
+        while queue:
+            node = queue.pop()
+            for neighbor in self.successors(node):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+        return visited
+
+    def bfs(self, sources, edges=False):
+        """
+        Traverse subgraph in breadth-first manner.
+
+        :param sources:
+        :param edges:
+        :return: (List[nodes], List[edges]).
+        """
+        raise NotImplementedError("Request feature.")
+
+    def dfs(self, sources, edges=False):
+        """
+        Traverse subgraph in breadth-first manner.
+
+        :param sources:
+        :param edges:
+        :return: (List[nodes], List[edges]).
+        """
+        raise NotImplementedError("Request feature.")
+
+    def is_isomorphic_to(self, other: 'Graph'):
+        """
+        Checks if the graph is isomorphic to the `other` graph.
+
+        :param other: (:class:`Graph` object) Graph to be checked for isomorphism with current graph.
+        :return: (bool) `True`, if graphs are isomorphic. Else, `False`.
+        """
+        raise NotImplementedError("Request feature")
+
+    # =====================================================================================
+    # MISCELLANEOUS METHODS
+    # =====================================================================================
     def clear(self):
         """
-        Clears all nodes, edges and the node, edge and graph properties.
+        Clears all the modified node, edge and graph properties.
 
         .. warning:: The function is untested.
-        # todo
         """
-        self._graph.clear()
-        self._node_properties = dict()
-        self._edge_properties = dict()
-        self._graph_properties = dict()
+        raise NotImplementedError("Request feature if needed.")
 
+    # =====================================================================================
+    # SERIALIZATION
+    # =====================================================================================
+    def serialize(self):
+        pass
+
+    @classmethod
+    def deserialize(cls, obj_dict):
+        pass
+
+
+class SubGraph1(Graph):
+    """
+    A MultiDiGraph class represented as a 5-tuple (nodes, edges, node_properties, edge_properties, graph_properties).
+    In addition, the graph implements a serialization protocol, save-load and drawing functionality.
+    """
     def serialize(self):
         """
         Serializes the graph into a dictionary with the following format::

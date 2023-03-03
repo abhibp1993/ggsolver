@@ -294,24 +294,6 @@ class EdgePropertyMap(PropertyMap):
             self[util.inverse_cantor_pairing(k, d=3)] = v
 
 
-# class NPMapView(NodePropertyMap):
-#     """
-#     TODO. If input to constructor is NPMapView object, then can we simplify using copy constructor?
-#     """
-#     pass
-#
-#
-# class EPMapView(EdgePropertyMap):
-#     """
-#     TODO. If input to constructor is EPMapView object, then can we simplify using copy constructor?
-#     """
-#     pass
-#
-#
-# class GPMapView(NodePropertyMap):
-#     pass
-
-
 class Graph(IGraph):
     """
     A MultiDiGraph class represented as a 5-tuple (nodes, edges, node_properties, edge_properties, graph_properties).
@@ -349,7 +331,7 @@ class Graph(IGraph):
         """
         return [self.add_node() for _ in range(num_nodes)]
 
-    def add_edge(self, uid, vid):
+    def add_edge(self, uid, vid, key=None):
         """
         Adds a new edge between the give nodes.
 
@@ -359,7 +341,7 @@ class Graph(IGraph):
         :return: (int) Key of the added edge. Key = 0 means the first edge was added between the given nodes.
             If Key = k, then (k+1)-th edge was added.
         """
-        return self._graph.add_edge(uid, vid)
+        return self._graph.add_edge(uid, vid, key=key)
 
     def add_edges(self, edges):
         """
@@ -371,7 +353,7 @@ class Graph(IGraph):
         :return: (int) Key of the added edge. Key = 0 means the first edge was added between the given nodes.
             If Key = k, then (k+1)-th edge was added.
         """
-        return [self.add_edge(uid, vid) for uid, vid in edges]
+        return [self.add_edge(*edge) for edge in edges]
 
     def rem_node(self, uid):
         """

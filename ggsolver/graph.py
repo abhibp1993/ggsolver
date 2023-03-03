@@ -7,9 +7,10 @@ import json
 import os
 import pickle
 from functools import reduce
-
 import networkx as nx
 from ggsolver import util
+import ggsolver.version as version
+from datetime import datetime, timezone
 
 
 class IGraph:
@@ -306,9 +307,6 @@ class Graph(IGraph):
     def __str__(self):
         return f"<Graph with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
 
-    def base_graph(self):
-        return self._graph
-
     def add_node(self):
         """
         Adds a new node to the graph.
@@ -437,15 +435,6 @@ class Graph(IGraph):
         """
         return self._graph.in_edges(uid, keys=True)
 
-    def is_isomorphic_to(self, other: 'Graph'):
-        """
-        Checks if the graph is isomorphic to the `other` graph.
-
-        :param other: (:class:`Graph` object) Graph to be checked for isomorphism with current graph.
-        :return: (bool) `True`, if graphs are isomorphic. Else, `False`.
-        """
-        return nx.is_isomorphic(self._graph, other._graph)
-
     def out_edges(self, uid):
         """
         List of all out edges from the node represented by uid.
@@ -477,82 +466,122 @@ class Graph(IGraph):
         """
         Serializes the graph into a dictionary with the following format::
 
-            {
-                "graph": {
-                    "nodes": <number of nodes>,
-                    "edges": {
-                        uid: {vid: key},
-                        ...
-                    }
-                    "node_properties": {
-                        "property_name": {
-                            "default": <value>,
-                            "dict": {
-                                "uid": <property value>,
-                                ...
-                            }
-                        },
-                        ...
-                    },
-                    "edge_properties": {
-                        "property_name": {
-                            "default": <value>,
-                            "dict": [{"edge": [uid, vid, key], "pvalue": <property value>} ...]
-                        },
-                        ...
-                    },
-                    "graph_properties": {
-                        "property_name": <value>,
-                        ...
-                    }
-                }
+        ```json
+        {
+          # Metadata
+          "type": <Graph or SubGraph>,
+
+          # Graph topology
+          "nodes": <int>,
+          "edges": <List[int]>, Use cantor mapping for (uid, vid, key) <-> eid
+
+          # Graph property metadata
+          "node_properties": <List[str]>,
+          "edge_properties": <List[str]>,
+          "graph_properties": <List[str]>,
+
+          # For each node property
+          "np.<pname>": {
+            "default": value,
+            "map": {uid: value}
+          },
+
+          # For each edgeproperty
+          "ep.<pname>": {
+            "default": value,
+            "map": {eid: value}
+          },
+
+          # For each graph property
+          "gp.<pname>": value,
+
+          # If type=subgraph then hierarchy information
+          "hierarchy": {
+            0: {    # The saved subgraph `SG`
+              "hidden_nodes": <List[int]>,
+              "hidden_edges": <List[int]>,
+              "modifiers.np": <List[str]: names of properties that are not in default state>,
+              "modifiers.ep": <List[str]: names of properties that are not in default state>,
+              "modifiers.gp": <List[str]: names of properties that are not in default state>,
+              "np.<pname>": {
+                "default": value,
+                "map": {uid: value}
+              },
+              "ep.<pname>": {
+                "default": value,
+                "map": {eid: value}
+              },
+              "gp.<pname>": value,
+            },
+
+            1: {    # `SG.parent`
+              "hidden_nodes": <List[int]>,
+              "hidden_edges": <List[int]>,
+              "modifiers.np": <List[str]: names of properties that are not in default state>,
+              "modifiers.ep": <List[str]: names of properties that are not in default state>,
+              "modifiers.gp": <List[str]: names of properties that are not in default state>,
+              "np.<pname>": {
+                "default": value,
+                "map": {uid: value}
+              },
+              "ep.<pname>": {
+                "default": value,
+                "map": {eid: value}
+              },
+              "gp.<pname>": value,
+            },
+
+            2: {    # `SG.parent.parent`
+              "hidden_nodes": <List[int]>,
+              "hidden_edges": <List[int]>,
+              "modifiers.np": <List[str]: names of properties that are not in default state>,
+              "modifiers.ep": <List[str]: names of properties that are not in default state>,
+              "modifiers.gp": <List[str]: names of properties that are not in default state>,
+              "np.<pname>": {
+                "default": value,
+                "map": {uid: value}
+              },
+              "ep.<pname>": {
+                "default": value,
+                "map": {eid: value}
+              },
+              "gp.<pname>": value,
             }
+          }
+        }
+        ```
 
         :return: (dict) Serialized graph
         """
         # Initialize a graph dictionary
         graph = dict()
 
-        # Add nodes
+        # Metadata
+        graph["type"] = "Graph"
+        graph["ggsolver.version"] = version.version()
+        graph["save_time"] = str(datetime.now(timezone.utc).astimezone())
+
+        # Topology
         graph["nodes"] = self.number_of_nodes()
+        graph["edges"] = [util.cantor_pairing(edge) for edge in self.edges()]
 
-        # Add edges
-        graph["edges"] = dict()
-        for uid in range(self.number_of_nodes()):
-            successors = list(self.successors(uid))
-            if len(list(successors)) == 0:
-                continue
+        # Property metadata
+        graph["node_properties"] = list(self.node_properties.keys())
+        graph["edge_properties"] = list(self.edge_properties.keys())
+        graph["graph_properties"] = list(self.graph_properties.keys())
 
-            graph["edges"][uid] = dict()
-            for vid in successors:
-                graph["edges"][uid].update({vid: self._graph.number_of_edges(uid, vid)})
+        # Store properties
+        for pname, pmap in self.node_properties.items():
+            graph["np." + pname] = pmap.serialize()
 
-        # Add node properties
-        # graph["node_properties"] = self._node_properties
-        # graph["edge_properties"] = {
-        #     prop_name: [
-        #         {
-        #             "edge": edge,
-        #             "pvalue": pvalue
-        #         }
-        #         for edge, pvalue in prop_value.items()
-        #     ]
-        #     for prop_name, prop_value in self._edge_properties.items()
-        # }
-        graph["node_properties"] = {p_name: prop.serialize() for p_name, prop in self._node_properties.items()}
-        graph["edge_properties"] = {p_name: prop.serialize() for p_name, prop in self._edge_properties.items()}
-        graph["graph_properties"] = self._graph_properties
+        for pname, pmap in self.edge_properties.items():
+            graph["ep." + pname] = pmap.serialize()
 
-        # # Warn about any properties that were ignored.
-        # ignored_attr = set(self.__dict__.keys()) - set(self._graph_properties.keys())
-        # print(util.BColors.WARNING, f"[WARN] Attributes {ignored_attr} were not serialized because they are not "
-        #                             f"node/edge/graph properties.", util.BColors.ENDC)
-
-        # TODO. Add metadata such as time of serialization, serializer version etc.
-        obj_dict = {"graph": graph}
+        for pname, pmap in self.graph_properties.items():
+            graph["gp." + pname] = pmap.serialize()
 
         # Return serialized object
-        return obj_dict
+        return graph
 
     @classmethod
     def deserialize(cls, obj_dict):
@@ -562,38 +591,46 @@ class Graph(IGraph):
         :return: (Graph) A new :class:`Graph` object..
         """
         # Instantiate new object
-        obj = cls()
+        graph = cls()
 
-        # Get serialized graph object
-        graph_dict = obj_dict["graph"]
+        # Process metadata
+        if obj_dict["type"] != "Graph":
+            raise ValueError(f"Cannot construct {cls.__name__} object from {obj_dict['type']}. ")
+
+        obj_version = graph["ggsolver.version"]
+        obj_version_minor = [int(part) for part in obj_version.split('.')][1]
+        curr_version_minor = [int(part) for part in version.version().split('.')][1]
+        if obj_version_minor < curr_version_minor:
+            raise ValueError(
+                f"Cannot deserialize Graph saved in {obj_version_minor} in ggsolver ver. {curr_version_minor}."
+            )
 
         # Add nodes
-        obj.add_nodes(num_nodes=int(graph_dict["nodes"]))
+        graph.add_nodes(num_nodes=int(obj_dict["nodes"]))
 
         # Add edges
-        edges = graph_dict["edges"]
-        for uid in edges:
-            for vid in edges[uid]:
-                for key in range(edges[uid][vid]):
-                    obj._graph.add_edge(int(uid), int(vid), key=int(key))
+        edges = (util.inverse_cantor_pairing(int(eid), d=3) for eid in obj_dict["edges"])
+        graph.add_edges(edges)
 
-        # Add properties
-        for node_prop, np_value in graph_dict["node_properties"].items():
-            np_map = NodePropertyMap(graph=obj)
-            # np_map.update({int(k): v for k, v in np_value.items()})
-            np_map.deserialize(np_value)
-            obj[node_prop] = np_map
+        # Property metadata
+        node_properties = obj_dict["node_properties"]
+        edge_properties = obj_dict["edge_properties"]
+        graph_properties = obj_dict["graph_properties"]
 
-        for graph_prop, gp_value in graph_dict["graph_properties"].items():
-            obj[graph_prop] = gp_value
+        # Deserialize properties
+        for pname in node_properties:
+            graph[pname] = NodePropertyMap(graph)
+            graph[pname].deserialize(obj_dict[pname])
 
-        for edge_prop, ep_value in graph_dict["edge_properties"].items():
-            ep_map = EdgePropertyMap(graph=obj)
-            ep_map.deserialize(ep_value)
-            obj[edge_prop] = ep_map
+        for pname in edge_properties:
+            graph[pname] = EdgePropertyMap(graph)
+            graph[pname].deserialize(obj_dict[pname])
+
+        for pname in graph_properties:
+            graph[pname] = obj_dict[pname]
 
         # Return constructed object
-        return obj
+        return graph
 
     def save(self, fpath, overwrite=False, protocol="json"):
         """
@@ -701,7 +738,7 @@ class Graph(IGraph):
         """
         return nx.is_isomorphic(self._graph, other._graph)
 
-    def base_graph(self):
+    def graph_repr(self):
         return self._graph
 
     def reverse(self):
@@ -777,7 +814,7 @@ class SubGraph(Graph):
 
         # Object representation
         self._parent = parent
-        self._graph = nx.subgraph_view(self._parent.base_graph(), self.is_node_visible, self.is_edge_visible)
+        # self._graph = nx.subgraph_view(self._parent.graph_repr(), self.is_node_visible, self.is_edge_visible)
 
         # Special properties
         self._hidden_nodes = self["__hidden_nodes"] = NodePropertyMap(self, default=False)
@@ -1019,7 +1056,7 @@ class SubGraph(Graph):
         """
         raise PermissionError("Cannot add nodes to a SubGraph.")
 
-    def add_edge(self, uid, vid):
+    def add_edge(self, uid, vid, key=None):
         """
         Raises error. Edges cannot be added to subgraph.
         See :meth:`SubGraph.hide_edges` and :meth:`SubGraph.show_edges`.
@@ -1210,234 +1247,12 @@ class SubGraph(Graph):
     # SERIALIZATION
     # =====================================================================================
     def serialize(self):
-        pass
+        graph = self.base_graph.serialize()
+
 
     @classmethod
     def deserialize(cls, obj_dict):
         pass
-
-
-class SubGraph1(Graph):
-    """
-    A MultiDiGraph class represented as a 5-tuple (nodes, edges, node_properties, edge_properties, graph_properties).
-    In addition, the graph implements a serialization protocol, save-load and drawing functionality.
-    """
-    def serialize(self):
-        """
-        Serializes the graph into a dictionary with the following format::
-
-            {
-                "graph": {
-                    "nodes": <number of nodes>,
-                    "edges": {
-                        uid: {vid: key},
-                        ...
-                    }
-                    "node_properties": {
-                        "property_name": {
-                            "default": <value>,
-                            "dict": {
-                                "uid": <property value>,
-                                ...
-                            }
-                        },
-                        ...
-                    },
-                    "edge_properties": {
-                        "property_name": {
-                            "default": <value>,
-                            "dict": [{"edge": [uid, vid, key], "pvalue": <property value>} ...]
-                        },
-                        ...
-                    },
-                    "graph_properties": {
-                        "property_name": <value>,
-                        ...
-                    }
-                }
-            }
-
-        :return: (dict) Serialized graph
-        """
-        obj_dict = self._base_graph.serialize()
-        return obj_dict
-
-    @classmethod
-    def deserialize(cls, obj_dict):
-        """
-        Constructs a graph from a serialized graph object. The format is described in :py:meth:`Graph.serialize`.
-
-        :return: (Graph) A new :class:`Graph` object..
-
-        .. warning:: The function is untested.
-        # todo
-        """
-        # Instantiate new object
-        obj = cls()
-
-        # Get serialized graph object
-        graph_dict = obj_dict["graph"]
-
-        # Add nodes
-        obj.add_nodes(num_nodes=int(graph_dict["nodes"]))
-
-        # Add edges
-        edges = graph_dict["edges"]
-        for uid in edges:
-            for vid in edges[uid]:
-                for key in range(edges[uid][vid]):
-                    obj._graph.add_edge(int(uid), int(vid), key=int(key))
-
-        # Add properties
-        for node_prop, np_value in graph_dict["node_properties"].items():
-            np_map = NodePropertyMap(graph=obj)
-            # np_map.update({int(k): v for k, v in np_value.items()})
-            np_map.deserialize(np_value)
-            obj[node_prop] = np_map
-
-        for graph_prop, gp_value in graph_dict["graph_properties"].items():
-            obj[graph_prop] = gp_value
-
-        for edge_prop, ep_value in graph_dict["edge_properties"].items():
-            ep_map = EdgePropertyMap(graph=obj)
-            ep_map.deserialize(ep_value)
-            obj[edge_prop] = ep_map
-
-        # Return constructed object
-        return obj
-
-    def save(self, fpath, overwrite=False, protocol="json"):
-        """
-        Saves the graph to file.
-
-        :param fpath: (str) Path to which the file should be saved. Must include an extension.
-        :param overwrite: (bool) Specifies whether to overwrite the file, if it exists. [Default: False]
-        :param protocol: (str) The protocol to use to save the file. Options: {"json" [Default], "pickle"}.
-
-        .. note:: Pickle protocol is not tested.
-        """
-        if not overwrite and os.path.exists(fpath):
-            raise FileExistsError("File already exists. To overwrite, call Graph.save(..., overwrite=True).")
-
-        graph_dict = self.serialize()
-        if protocol == "json":
-            with open(fpath, "w") as file:
-                json.dump(graph_dict, file, indent=2)
-        elif protocol == "pickle":
-            with open(fpath, "wb") as file:
-                pickle.dump(graph_dict, file)
-        else:
-            raise ValueError(f"Graph.save() does not support '{protocol}' protocol. One of ['json', 'pickle'] expected")
-
-    @classmethod
-    def load(cls, fpath, protocol="json"):
-        """
-        Loads the graph from file.
-
-        :param fpath: (str) Path to which the file should be saved. Must include an extension.
-        :param protocol: (str) The protocol to use to save the file. Options: {"json" [Default], "pickle"}.
-
-        .. note:: Pickle protocol is not tested.
-
-        .. warning:: The function is untested.
-        # todo
-        """
-        if not os.path.exists(fpath):
-            raise FileNotFoundError("File does not exist.")
-
-        if protocol == "json":
-            with open(fpath, "r") as file:
-                obj_dict = json.load(file)
-                graph = cls.deserialize(obj_dict)
-        elif protocol == "pickle":
-            with open(fpath, "rb") as file:
-                obj_dict = pickle.load(file)
-                graph = cls.deserialize(obj_dict)
-        else:
-            raise ValueError(f"Graph.load() does not support '{protocol}' protocol. One of ['json', 'pickle'] expected")
-
-        return graph
-
-    def to_png(self, fpath, nlabel=None, elabel=None):
-        """
-        Generates a PNG image of the graph.
-
-        :param fpath: (str) Path to which the file should be saved. Must include an extension.
-        :param nlabel: (list of str) Specifies the node properties to use to annotate a node in image.
-        :param elabel: (list of str) Specifies the edge properties to use to annotate an edge in image.
-
-        :warning: If the node labels are not unique, the generated figure may contain 0, 1, 2, ...
-            that avoid duplication.
-
-        .. warning:: The function is untested.
-        # todo
-        """
-        max_nodes = 500
-        if self._graph.number_of_nodes() > max_nodes:
-            raise ValueError(f"Cannot draw a graph with more than {max_nodes} nodes.")
-
-        g = self._graph
-
-        # If node properties to displayed are specified, process them.
-        if nlabel is not None:
-            g = nx.MultiDiGraph()
-
-            # If more than one property is selected, then display as tuple.
-            if len(nlabel) == 1:
-                node_state_map = {n: self[prop][n] for prop in nlabel for n in self._graph.nodes()}
-            else:
-                node_state_map = {n: tuple(self[prop][n] for prop in nlabel) for n in self._graph.nodes()}
-
-            # Add nodes to dummy graph
-            for n in node_state_map.values():
-                g.add_node(str(n))
-
-            # If edge labels to be displayed are specified, process them.
-            if elabel is not None:
-                for u, v, k in self._graph.edges(keys=True):
-                    if len(elabel) == 1:
-                        g.add_edge(str(node_state_map[u]), str(node_state_map[v]),
-                                   label=self[elabel[0]][(u, v, k)])
-                    else:
-                        g.add_edge(str(node_state_map[u]), str(node_state_map[v]),
-                                   label=tuple(self[prop][(u, v, k)] for prop in elabel))
-            else:
-                for u, v, k in self._graph.edges(keys=True):
-                    g.add_edge(str(node_state_map[u]), str(node_state_map[v]))
-
-        dot_graph = nx.nx_agraph.to_agraph(g)
-        dot_graph.layout("dot")
-        dot_graph.draw(fpath)
-
-    def is_isomorphic_to(self, other: 'Graph'):
-        """
-        Checks if the graph is isomorphic to the `other` graph.
-
-        :param other: (:class:`Graph` object) Graph to be checked for isomorphism with current graph.
-        :return: (bool) `True`, if graphs are isomorphic. Else, `False`.
-
-        .. warning:: The function is untested.
-        # todo
-        """
-        return nx.is_isomorphic(self._graph, other._graph)
-
-    def create_node_property(self, pname, default=None, overwrite=False):
-        if not overwrite:
-            assert pname not in self._node_properties, f"Node property: {pname} exists in graph:{self}. " \
-                                                       f"To overwrite pass parameter `overwrite=True` to this function."
-        # np = NodePropertyMap(graph=self.base_graph(), default=default)
-        np = NodePropertyMap(graph=self, default=default)
-        self[pname] = np
-        return np
-
-    def create_edge_property(self, pname, default=None, overwrite=False):
-        if not overwrite:
-            assert pname not in self._edge_properties, f"Edge property: {pname} exists in graph:{self}." \
-                                                       f"To overwrite pass parameter `overwrite=True` to this function."
-        # ep = EdgePropertyMap(graph=self.base_graph(), default=default)
-        ep = EdgePropertyMap(graph=self, default=default)
-        self[pname] = ep
-        return ep
 
 
 if __name__ == '__main__':

@@ -158,45 +158,65 @@ class PropertyMap(dict):
         self.graph = graph
         self.default = default
 
-    @property
-    def containment_func(self):
-        raise NotImplementedError("Abstract. To be specialized in NodePropertyMap, EdgePropertyMap class.")
-
     def __repr__(self):
         return f"<{self.__class__.__name__} of {repr(self.graph)}>"
 
-    def __missing__(self, obj):
-        if self.containment_func(obj):
-            return self.default
-        raise ValueError(f"[ERROR] {self.__class__.__name__}.__missing__:: {repr(self.graph)} does not contain {obj}.")
+    def __contains__(self, item):
+        raise NotImplementedError("Abstract.")
 
-    def __getitem__(self, obj):
-        if not self.containment_func(obj):
-            raise KeyError(f"[ERROR] {self.__class__.__name__}.__missing__:: {obj} is not in {self.graph}.")
+    def __missing__(self, item):
+        # if self.containment_func(item):
+        if self.__contains__(item):
+            return self.default
+        raise ValueError(f"[ERROR] {self.__class__.__name__}.__missing__:: {repr(self.graph)} does not contain {item}.")
+
+    def __getitem__(self, item):
+        # if not self.containment_func(item):
+        if not self.__contains__(item):
+            raise KeyError(f"[ERROR] {self.__class__.__name__}.__missing__:: {item} is not in {self.graph}.")
 
         try:
-            return super(PropertyMap, self).__getitem__(obj)
+            return super(PropertyMap, self).__getitem__(item)
         except KeyError:
-            return self.__missing__(obj)
+            return self.__missing__(item)
 
-    def __setitem__(self, obj, value):
-        assert self.containment_func(obj), f"[ERROR] {self.__class__.__name__}.__missing__:: {obj} not in {self.graph}."
+    def __setitem__(self, item, value):
+        # assert self.containment_func(item),
+        # f"[ERROR] {self.__class__.__name__}.__missing__:: {item} not in {self.graph}."
+        assert self.__contains__(item), f"[ERROR] {self.__class__.__name__}.__missing__:: {item} not in {self.graph}."
         if value != self.default:
-            super(PropertyMap, self).__setitem__(obj, value)
+            super(PropertyMap, self).__setitem__(item, value)
+
+    def keys(self):
+        raise NotImplementedError("Abstract.")
 
     def items(self):
-        # FIXME. Items should return all items. To access only non-default items, define another function.
-        return ((k, v) for k, v in super(PropertyMap, self).items() if self.containment_func(k))
+        return ((k, super(self.__class__, self).__getitem__(k)) for k in self.keys())
+
+    def local_keys(self):
+        return super(PropertyMap, self).keys()
+
+    def local_items(self):
+        return super(PropertyMap, self).items()
+
+    def update_default(self, new_default):
+        old_default = self.default
+        for k, v in self.items():
+            if v == old_default:
+                super(PropertyMap, self).__setitem__(k, v)
+
+            if v == new_default:
+                super(PropertyMap, self).pop(k)
 
     def serialize(self):
         # If NodePropertyMap, i.e. keys are integers, then serialization is straightforward.
         serialized_dict = dict()
-        if isinstance(next(iter(self.keys())), int):
+        if isinstance(next(iter(self.local_keys())), int):
             serialized_dict = self
 
         # If EdgePropertyMap, i.e. keys are integers, then apply cantor mapping to keys.
         else:
-            serialized_dict = {util.cantor_pairing([k[0], k[1], k[2]]): v for k, v in self.items()}
+            serialized_dict = {util.cantor_pairing([k[0], k[1], k[2]]): v for k, v in self.local_items()}
 
         return {
             "type": self.__class__.__name__,
@@ -263,9 +283,15 @@ class NodePropertyMap(PropertyMap):
 
     Raises an error if the node ID is invalid.
     """
-    @property
-    def containment_func(self):
-        return self.graph.has_node
+    def __contains__(self, item):
+        return self.graph.has_node(item)
+
+    # @property
+    # def containment_func(self):
+    #     return self.graph.has_node
+
+    def keys(self):
+        return self.graph.nodes()
 
     def deserialize(self, obj_dict):
         self.clear()
@@ -283,9 +309,15 @@ class EdgePropertyMap(PropertyMap):
     Raises an error if the edge (uid, vid, key) is invalid.
     """
 
-    @property
-    def containment_func(self):
-        return self.graph.has_node
+    def __contains__(self, item):
+        return self.graph.has_edge(*item)
+
+    # @property
+    # def containment_func(self):
+    #     return self.graph.has_node
+
+    def keys(self):
+        return self.graph.edges()
 
     def deserialize(self, obj_dict):
         self.clear()

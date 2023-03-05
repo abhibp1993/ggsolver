@@ -4,6 +4,7 @@ License goes here...
 """
 
 import json
+import logging
 import os
 import pickle
 from functools import reduce
@@ -846,13 +847,14 @@ class SubGraph(Graph):
 
         # Object representation
         self._parent = parent
+        self._graph = None    # Set to None because super()._graph initializes to empty graph leading to silent bugs.
         # self._graph = nx.subgraph_view(self._parent.graph_repr(), self.is_node_visible, self.is_edge_visible)
 
-        # Special properties
-        self._hidden_nodes = self["__hidden_nodes"] = NodePropertyMap(self, default=False)
-        self._hidden_edges = self["__hidden_edges"] = EdgePropertyMap(self, default=False)
+        # Special properties (these are defined over parent graph/subgraph)
+        self._hidden_nodes = NodePropertyMap(self._parent, default=False)
+        self._hidden_edges = EdgePropertyMap(self._parent, default=False)
 
-        # Initialize hidden nodes and edges
+        # Initialize hidden nodes and
         if hidden_nodes is not None:
             for uid in hidden_nodes:
                 self._hidden_nodes[uid] = True
@@ -868,7 +870,7 @@ class SubGraph(Graph):
         self._initialize_properties(**kwargs)
 
     def __str__(self):
-        return f"<SubGraph of {self._graph} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
+        return f"<SubGraph of {self.parent} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
 
     def _initialize_properties(self, **kwargs):
         # Extract values from kwargs
@@ -881,6 +883,8 @@ class SubGraph(Graph):
             raise AssertionError("When `copy_np` is string, it must be 'all'.")
         elif copy_np is not None:
             assert isinstance(copy_np, (list, tuple, set)), "When `copy_np` is iterable, it must be a list/tuple/set."
+        elif copy_np is None:
+            pass
         else:
             raise AssertionError("Type of `copy_np` is unsupported.")
 
@@ -888,6 +892,8 @@ class SubGraph(Graph):
             raise AssertionError("When `copy_ep` is string, it must be 'all'.")
         elif copy_ep is not None:
             assert isinstance(copy_ep, (list, tuple, set)), "When `copy_ep` is iterable, it must be a list/tuple/set."
+        elif copy_np is None:
+            pass
         else:
             raise AssertionError("Type of `copy_ep` is unsupported.")
 
@@ -895,6 +901,8 @@ class SubGraph(Graph):
             raise AssertionError("When `copy_gp` is string, it must be 'all'.")
         elif copy_gp is not None:
             assert isinstance(copy_gp, (list, tuple, set)), "When `copy_np` is iterable, it must be a list/tuple/set."
+        elif copy_np is None:
+            pass
         else:
             raise AssertionError("Type of `copy_gp` is unsupported.")
 
@@ -918,7 +926,7 @@ class SubGraph(Graph):
                 self._graph_properties[pname] = PMapView(self._parent.graph_properties[pname].copy())
 
     # =====================================================================================
-    # PROPERTIES
+    # CLASS PROPERTIES
     # =====================================================================================
     @property
     def parent(self):
@@ -926,10 +934,13 @@ class SubGraph(Graph):
 
     @property
     def base_graph(self):
-        if isinstance(self.parent, Graph) and not issubclass(type(self.parent), Graph):
-            return self.parent
-        else:
+        # If parent is a subgraph, return its base_graph.
+        if issubclass(type(self.parent), SubGraph):
             return self.parent.base_graph
+
+        # Else, parent is a Graph. Then return the parent.
+        else:
+            return self.parent
 
     # =====================================================================================
     # SUB-GRAPH SPECIAL METHODS: HIDE/SHOW NODES & EDGES
@@ -941,7 +952,6 @@ class SubGraph(Graph):
         If the subgraph is derived from another subgraph,
         then the node is visible if it is included in the subgraph, and it is visible in the parent.
         """
-        # TODO. Subgraph.nodes() returns visible nodes only.
         return not self._hidden_nodes[uid] and uid in self.parent.nodes()
 
     def is_edge_visible(self, uid, vid, key):
@@ -951,7 +961,6 @@ class SubGraph(Graph):
         If the subgraph is derived from another subgraph,
         then the edge is visible if it is included in the subgraph, and it is visible in the parent.
         """
-        # TODO. Subgraph.edges() returns visible nodes only.
         return not self._hidden_edges[uid, vid, key] and (uid, vid, key) in self.parent.edges()
 
     def hide_node(self, uid):
@@ -960,8 +969,16 @@ class SubGraph(Graph):
         Raises error if `uid` is not in base graph.
         If `uid` was hidden then no change is made.
         """
+        # Hide in-edges
+        for edge in self._parent.in_edges(uid):
+            self.hide_edge(*edge)
+
+        # Hide out-edges
+        for edge in self._parent.out_edges(uid):
+            self.hide_edge(*edge)
+
+        # Hide node
         self._hidden_nodes[uid] = True
-        # TODO. Hide in/out-going edges too.
 
     def show_node(self, uid):
         """
@@ -969,48 +986,68 @@ class SubGraph(Graph):
         Raises error if `uid` is not in base graph.
         If `uid` was already visible, then no change is made.
         """
+        # Show node
         self._hidden_nodes[uid] = False
-        # TODO. Unhide in/out-going edges too.
+
+        # Show in-edges
+        for edge in self._parent.in_edges(uid):
+            self.show_edge(*edge)
+
+        # Hide out-edges
+        for edge in self._parent.out_edges(uid):
+            self.show_edge(*edge)
 
     def hide_nodes(self, ulist):
         """
         Hides multiple nodes from subgraph.
         """
-        map(self.hide_node, ulist)
+        for uid in ulist:
+            self.hide_node(uid)
 
     def show_nodes(self, ulist):
         """
         Shows multiple nodes to subgraph.
         """
-        map(self.show_node, ulist)
+        for uid in ulist:
+            self.show_node(uid)
 
     def hide_edge(self, uid, vid, key):
         """ Hides the edge from subgraph. No changes are made to base graph. """
         self._hidden_edges[(uid, vid, key)] = True
 
     def show_edge(self, uid, vid, key):
-        """ Shows the edge to subgraph. The edge must be a valid edge in base graph. """
-        self._hidden_edges[(uid, vid, key)] = False
+        """
+        Shows the edge to subgraph. The edge must be a valid edge in base graph.
+
+        .. note:: A hidden edge can be made "visible" only if uid and vid are both visible.
+            Otherwise, no action is taken and a warning is issued.
+        """
+        if self.is_node_visible(uid) and self.is_node_visible(vid):
+            self._hidden_edges[(uid, vid, key)] = False
+        else:
+            logging.warning("Hidden edge cannot be shown because either uid or vid is still hidden.")
 
     def hide_edges(self, elist):
         """ Hides multiple edge from subgraph. No changes are made to base graph. """
-        map(self.hide_edge, elist)
+        for edge in elist:
+            self.hide_edge(*edge)
 
     def show_edges(self, elist):
         """ Shows  multiple edges to subgraph. The edge must be a valid edge in base graph. """
-        map(self.show_edge, elist)
+        for edge in elist:
+            self.show_edge(*edge)
 
     def hidden_nodes(self):
         """
         List of all hidden nodes in the **subgraph**.
         """
-        return (uid for uid in self._hidden_nodes if self._hidden_nodes[uid] is True)
+        return (uid for uid in self.parent.nodes() if self._hidden_nodes[uid] is True)
 
     def hidden_edges(self):
         """
         List of all hidden edges in the **subgraph**.
         """
-        return (edge for edge in self._hidden_edges if self._hidden_edges[edge] is True)
+        return (edge for edge in self.parent.edges() if self._hidden_edges[edge] is True)
 
     # =====================================================================================
     # ACCESSING AND COUNTING NODES, EDGES
@@ -1019,13 +1056,13 @@ class SubGraph(Graph):
         """
         List of all (visible) nodes in the **subgraph**.
         """
-        return (uid for uid in self._hidden_nodes if self._hidden_nodes[uid] is False)
+        return (uid for uid in self._parent.nodes() if self._hidden_nodes[uid] is False)
 
     def edges(self):
         """e
         List of all (visible) edges in the **subgraph**.
         """
-        return (edge for edge in self._hidden_edges if self._hidden_edges[edge] is False)
+        return (edge for edge in self._parent.edges() if self._hidden_edges[edge] is False)
 
     def nodes_in_parent(self):
         """
@@ -1041,7 +1078,7 @@ class SubGraph(Graph):
 
     def number_of_nodes(self):
         """ Gets the number of nodes in subgraph. """
-        return self.number_of_nodes() - sum(1 for _ in self.hidden_nodes())
+        return self.number_of_nodes_in_parent() - sum(1 for _ in self.hidden_nodes())
 
     def number_of_nodes_in_parent(self):
         return self.parent.number_of_nodes()
@@ -1063,7 +1100,7 @@ class SubGraph(Graph):
 
     def number_of_edges(self):
         """ Gets the number of edges in subgraph. """
-        return self.number_of_edges() - sum(1 for _ in self.hidden_edges())
+        return self.number_of_edges_in_parent() - sum(1 for _ in self.hidden_edges())
 
     def number_of_edges_in_parent(self):
         return self.parent.number_of_edges()
@@ -1159,7 +1196,7 @@ class SubGraph(Graph):
         Includes only visible edges.
         """
         if not self.is_node_visible(uid):
-            return list()
+            raise KeyError(f"{self.__class__.__name__}.in_edges({uid}):: Node ID is invalid. Is it hidden?")
 
         in_edges = self.base_graph.in_edges(uid)
         return ((uid, vid, key) for uid, vid, key in in_edges if self.is_edge_visible(uid, vid, key))
@@ -1170,7 +1207,7 @@ class SubGraph(Graph):
         Includes only visible edges.
         """
         if not self.is_node_visible(uid):
-            return list()
+            raise KeyError(f"{self.__class__.__name__}.out_edges({uid}):: Node ID is invalid. Is it hidden?")
 
         out_edges = self.base_graph.out_edges(uid)
         return ((uid, vid, key) for uid, vid, key in out_edges if self.is_edge_visible(uid, vid, key))
@@ -1181,7 +1218,7 @@ class SubGraph(Graph):
         Includes only visible nodes reachable via visible edges.
         """
         out_edges = self.out_edges(uid)
-        return (uid for uid, vid, key in out_edges if self.is_node_visible(uid))
+        return (v for u, v, k in out_edges if self.is_node_visible(uid))
 
     def predecessors(self, uid):
         """
@@ -1189,7 +1226,7 @@ class SubGraph(Graph):
         Includes only visible nodes reachable via visible edges.
         """
         in_edges = self.in_edges(uid)
-        return (uid for uid, vid, key in in_edges if self.is_node_visible(uid))
+        return (u for u, v, k in in_edges if self.is_node_visible(uid))
 
     def neighbors(self, uid):
         """
@@ -1280,7 +1317,6 @@ class SubGraph(Graph):
     # =====================================================================================
     def serialize(self):
         graph = self.base_graph.serialize()
-
 
     @classmethod
     def deserialize(cls, obj_dict):

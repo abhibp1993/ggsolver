@@ -40,6 +40,9 @@ class SWinReach(models.Solver):
         self._rank = mod_graph.NodePropertyMap(self._solution, default=float("inf"))
         self._solution["rank"] = self._rank
 
+        if len(self._final) == 0:
+            logging.warning(f"dtptb.SWinReach.__init__(): Final state set is empty.")
+
     def reset(self):
         """ Resets the solver to initial state. """
         super(SWinReach, self).reset()

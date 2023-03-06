@@ -1,0 +1,20 @@
+C:\Users\abhib\Anaconda3\python.exe E:/Github-Projects/ggsolver/examples/apps/bankheist/main.py
+pygame 2.1.2 (SDL 2.0.18, Python 3.9.12)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Using configuration file: conf='E:\\Github-Projects\\ggsolver\\examples\\apps\\bankheist\\saved_games\\game_2022_11_22_23_29.conf'
+Executing: game = BankHeistMDP(game_config=conf)
+Executing: random.choice(game.states())=((6, 2), (9, 6), (6, 4), 4)
+Pointed graphify adding edges: 100%|██████████| 379/379 [00:00<00:00, 9369.85it/s]
+WARNING:root:[WARN] Node property function not implemented: label. [IGNORED]
+WARNING:root:[WARN] Node property function not implemented: final. [IGNORED]
+WARNING:root:[WARN] Node property function not implemented: turn. [IGNORED]
+WARNING:root:[WARN] Node property function not implemented: enabled_acts. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: formula. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: p1_acts. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: p2_acts. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: atoms. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: win_cond. [IGNORED]
+ [SUCCESS] <Graph with |V|=379, |E|=4794> generated.
+Executing: graph = game.graphify(pointed=True)
+
+Process finished with exit code 0

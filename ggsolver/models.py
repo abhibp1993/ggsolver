@@ -127,7 +127,7 @@ class GraphicalModel:
         Programmer's notes:
         1. Caches states (returned by `self.states()`) in self.__states variable.
         2. Assumes all states to be hashable.
-        3.
+        3. (in v0.1.7) Handles `enabled_acts` optional function.
         """
         # Get states
         states = getattr(self, "states")
@@ -193,6 +193,19 @@ class GraphicalModel:
                 inputs_at_state = np_enabled_acts[state]
             else:
                 inputs_at_state = inputs
+
+            # Apply inputs to state to generate out edges
+            for inp in inputs_at_state:
+                # Generate edges from state
+                new_edges = self._gen_edges(delta, state, inp)
+
+                # Update graph edges
+                uid = self.__states[state]
+                for _, t, _, prob in new_edges:
+                    vid = self.__states[t]
+                    key = graph.add_edge(uid, vid)
+                    ep_input[uid, vid, key] = inp
+                    ep_prob[uid, vid, key] = prob
 
         # Add edge properties to graph
         graph["input"] = ep_input
@@ -846,6 +859,16 @@ class TSys(GraphicalModel):
         :return: (list/tuple of str). A list/tuple of atomic propositions that are true in the given state.
         """
         raise NotImplementedError(f"{self.__class__.__name__}.label() is not implemented.")
+
+    @register_property(NODE_PROPERTY)
+    def enabled_acts(self, state):
+        """
+        Defines the enabled actions at the given state.
+
+        :param state: (object) A valid state.
+        :return: (list/tuple of str). A list/tuple of actions enabled in the given state.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.enabled_acts() is not implemented.")
 
 
 class Game(TSys):

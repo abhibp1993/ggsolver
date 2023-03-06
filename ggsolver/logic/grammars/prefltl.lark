@@ -1,9 +1,9 @@
+// PrefLTL logic, AND-fragment. 
 start: prefltl_formula
 
 ?prefltl_formula:           pref_formula
 
-?pref_formula:              pref_or
-?pref_or:                   pref_and (PREF_OR pref_and)*
+?pref_formula:              pref_and
 ?pref_and:                  pref_base (PREF_AND pref_base)*
 
 ?pref_base:                 prefltl_strictpref
@@ -25,7 +25,7 @@ start: prefltl_formula
 ltl_formula:                STRING
 
 
-STRING:                     /[A-Za-z()_!|&\s+]+/
+STRING:                    /([A-Za-z()_!|&\s+](?!&&))+/
 LSEPARATOR:                 "("
 RSEPARATOR:                 ")"
 STRICTPREF:                 ">"
@@ -33,6 +33,5 @@ WEAKPREF:                   ">="
 INDIFFERENCE:               "~"
 INCOMPARABLE:               "<>"
 PREF_AND:                   "&&"
-PREF_OR:                    "||"
 
 %ignore /\s+/

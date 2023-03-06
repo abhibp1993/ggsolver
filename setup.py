@@ -55,11 +55,12 @@ with open("ggsolver/__init__.py") as fid:
             break
 
 packages = [
-    "ggsolver",
-    "ggsolver.interfaces",
-    "ggsolver.logic",
-    "ggsolver.dtptb",
-    "ggsolver.mdp",
+    "ggsolver",                 # since 0.1.2
+    "ggsolver.interfaces",      # since 0.1.2
+    "ggsolver.logic",           # since 0.1.5
+    "ggsolver.dtptb",           # since 0.1.2
+    "ggsolver.mdp",             # since 0.1.5
+    "ggsolver.gridworld",       # since 0.1.6
 ]
 
 install_requires = []

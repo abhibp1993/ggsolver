@@ -5,6 +5,7 @@ from dd.autoref import BDD
 from ggsolver.logic.formula import BaseFormula, ParsingError
 from tqdm import tqdm
 
+from ggsolver.graph import NodePropertyMap, EdgePropertyMap
 import ggsolver.util as util
 import ggsolver.models as models
 
@@ -46,6 +47,10 @@ class PL(BaseFormula):
     # IMPLEMENTATION OF ABSTRACT METHODS
     # ==================================================================
     def translate(self):
+        """
+        Translate a propositional logic formula to an automaton.
+        :return: (:class:`SpotAutomaton`) SpotAutomaton representing the automaton for PL formula.
+        """
         return SpotAutomaton(formula=self.f_str, atoms=self.atoms())
 
     def substitute(self, subs_map=None):
@@ -75,21 +80,34 @@ class PL(BaseFormula):
         return True if transform(self._repr).is_tt() else False
 
     def atoms(self):
+        """
+        Gets the list of atoms associated with PL formula.
+
+        The list may contain atoms that do not appear in the formula, if the user has provided it.
+        :return: (List[str]) List of atoms.
+        """
         return self._atoms
 
     # ==================================================================
     # SPECIAL METHODS OF PL CLASS
     # ==================================================================
-    def simplify(self):
+    def simplify(self, f_str=None):
         """
         Simplifies a propositional logic formula.
 
         We use the `boolean_to_isop=True` option for `spot.simplify`.
         See https://spot.lrde.epita.fr/doxygen/classspot_1_1tl__simplifier__options.html
 
+        :param f_str: (str or None) Input formula string. If not provided, self._user_string is used.
         :return: (str) String representing simplified formula.
         """
-        return spot.simplify(self._repr, boolean_to_isop=True).to_str()
+        if f_str is None:
+            return spot.simplify(self._repr, boolean_to_isop=True).to_str()
+
+        return spot.simplify(
+            spot.formula(f_str),
+            boolean_to_isop=True
+        ).to_str()
 
     def allsat(self):
         """
@@ -242,7 +260,7 @@ class Automaton(models.GraphicalModel):
         self.__states = dict(zip(states, node_ids))
 
         # Node property: state
-        np_state = graph.NodePropertyMap(graph=graph)
+        np_state = NodePropertyMap(graph=graph)
         np_state.update(dict(zip(node_ids, states)))
         graph["state"] = np_state
 
@@ -266,8 +284,8 @@ class Automaton(models.GraphicalModel):
         # inputs = input_func()
 
         # Edge properties: input, prob,
-        ep_input = graph.EdgePropertyMap(graph=graph)
-        ep_prob = graph.EdgePropertyMap(graph=graph, default=None)
+        ep_input = EdgePropertyMap(graph=graph)
+        ep_prob = EdgePropertyMap(graph=graph, default=None)
 
         # Generate edges
         delta = getattr(self, "delta")
@@ -448,9 +466,9 @@ class SpotAutomaton(Automaton):
 
         # Set the acceptance condition (in ggsolver terms)
         name = self.spot_aut.acc().name()
-        if name == "Büchi" and spot.mp_class(formula).upper() in ["B", "S"]:
+        if name == "Büchi" and spot.mp_class(formula).upper() in ["S"]:
             self._acc_cond = (Automaton.ACC_SAFETY, 0)
-        elif name == "Büchi" and spot.mp_class(formula).upper() in ["G"]:
+        elif name == "Büchi" and spot.mp_class(formula).upper() in ["B", "G"]:
             self._acc_cond = (Automaton.ACC_REACH, 0)
         elif name == "Büchi" and spot.mp_class(formula).upper() in ["O", "R"]:
             self._acc_cond = (Automaton.ACC_BUCHI, 0)
@@ -466,9 +484,9 @@ class SpotAutomaton(Automaton):
         Determines the options based on where the given LTL formula lies in Manna-Pnueli hierarchy.
         """
         mp_cls = spot.mp_class(self.formula())
-        if mp_cls.upper() == "B" or mp_cls.upper() == "S":
+        if mp_cls.upper() == "S":
             return 'Monitor', "Deterministic", "High", "Complete", "Unambiguous", "SBAcc"
-        elif mp_cls.upper() == "G" or mp_cls.upper() == "O" or mp_cls.upper() == "R":
+        elif mp_cls.upper() == "G" or mp_cls.upper() == "B" or mp_cls.upper() == "O" or mp_cls.upper() == "R":
             return 'Buchi', "Deterministic", "High", "Complete", "Unambiguous", "SBAcc"
         elif mp_cls.upper() == "P":
             return 'coBuchi', "Deterministic", "High", "Complete", "Unambiguous", "SBAcc"

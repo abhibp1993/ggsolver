@@ -2,7 +2,7 @@ import itertools
 from ggsolver.graph import *
 from ggsolver.logic.formula import BaseFormula, PARSERS_DIR
 from ggsolver.logic.ltl import LTL, ScLTL
-from ggsolver.logic.base import Automaton
+from ggsolver.logic.base import Automaton, ParsingError
 from ggsolver.logic.automata import DFA
 from lark import Lark, Transformer
 from pathlib import Path
@@ -61,16 +61,7 @@ class PrefLTL(BaseFormula):
     # ==================================================================
     # SPECIAL METHODS OF PrefLTL CLASS
     # ==================================================================
-    def simplify(self):
-        """
-        Simplifies a propositional logic formula.
-
-        We use the `boolean_to_isop=True` option for `spot.simplify`.
-        See https://spot.lrde.epita.fr/doxygen/classspot_1_1tl__simplifier__options.html
-
-        :return: (str) String representing simplified formula.
-        """
-        raise NotImplementedError
+    simplify = BaseFormula.simplify
 
 
 class PrefScLTL(PrefLTL):
@@ -108,6 +99,13 @@ class LTLPrefParser:
 
 
 class PrefModel:
+    """
+    Preference model induced by ScLTLPref formulas.
+
+    Programmer's Notes:
+    * The outcomes set is always complete. The 0-th element is the one added by "completion" procedure.
+        In case completion is not needed, 0-th element is ScLTL formula: "false" (universally false).
+    """
     def __init__(self, outcomes, atoms, relation, null_assumption=True):
         # Instance variables
         self._atoms = set(atoms)            # set of atoms
@@ -139,7 +137,7 @@ class PrefModel:
         self.transitive_closure()
 
     # ============================================================================
-    # GRAPHICAL MODEL
+    # PUBLIC METHODS
     # ============================================================================
     def graphify(self):
         """
@@ -177,6 +175,18 @@ class PrefModel:
 
         # Return graph
         return graph
+
+    def is_consistent(self):
+        """
+        Checks if the preference model is consistent.
+        A model is consistent if there are no cycles of length > 2 in the graph of preference model.
+        """
+        graph = self.graphify()
+        cycles = graph.cycles()
+        for cycle in cycles:
+            if len(cycle) > 1:
+                return False
+        return True
 
     # ============================================================================
     # PREFERENCE DETERMINATION
@@ -242,7 +252,7 @@ class PrefModel:
 
 class Formula2Model(Transformer):
     """
-    Transforms a preference formula to a preference model :math:`(U, \succeq)`.
+    Transforms a preference formula (PrefScLTL) to a preference model :math:`(U, \succeq)`.
 
     .. warn:: Generated model does not support ORing of preference formulas.
     """
@@ -257,7 +267,7 @@ class Formula2Model(Transformer):
 
         # Build preference model
         relation = self.transform(self.tree)
-        self.outcomes = {LTL(f_str=outcome.f_str, atoms=self.atoms) for outcome in self.outcomes}
+        self.outcomes = {ScLTL(f_str=outcome.f_str, atoms=self.atoms) for outcome in self.outcomes}
         self.model = PrefModel(outcomes=self.outcomes, atoms=self.atoms, relation=relation,
                                null_assumption=self.null_assumption)
 
@@ -268,7 +278,15 @@ class Formula2Model(Transformer):
         return args[0]
 
     def pref_and(self, args):
-        return set.union(*args[::2])
+        # PATCH: The grammar definition has a flaw. It accepts a formula like: `PreferenceFormula && LTLFormula`
+        #  E.g. `a > b && c` is accepted. This patch checks if both arguments are sets,
+        #  which is possible only when both arguments are preference formulas.
+        loperand = args[0]
+        roperand = args[2]
+        if isinstance(loperand, set) and  isinstance(roperand, set):
+            return set.union(*args[::2])
+        else:
+            raise ParsingError("A formula of type `PreferenceFormula && LTLFormula` is not accepted.")
 
     def pref_or(self, args):
         # TODO. See following tip.
@@ -291,7 +309,7 @@ class Formula2Model(Transformer):
         return set()
 
     def ltl_formula(self, args):
-        f = LTL(args[0])
+        f = ScLTL(args[0])
         self.outcomes.add(f)
         self.atoms.update(set(f.atoms()))
         return f
@@ -316,8 +334,9 @@ class DFPA(Automaton):
 
         # We will not generate automaton for alpha0 because any state that doesn't satisfy
         #   any outcomes alpha_1 ... alpha_n satisfies alpha_0, by construction.
-        atoms = reduce(set.union, [set(out.atoms()) for out in self._outcomes])
+        atoms = reduce(set.union, [set(out.atoms()) for out in self._outcomes[1:]])
         for i in range(1, len(self._outcomes)):
+            # FIXME. Check if LTL formula is a guarantee formula. If yes, translate as ScLTL.
             dfa = DFA(atoms=atoms)
             dfa.from_automaton(aut=self._outcomes[i].translate())
             self._automata.append(dfa)
@@ -334,18 +353,36 @@ class DFPA(Automaton):
     def atoms(self):
         return reduce(set.union, [set(out.atoms()) for out in self._outcomes])
 
-    def init_state(self):
-        return tuple(aut.init_state() for aut in self._automata)
-
     def delta(self, state, inp):
         return tuple(self._automata[i].delta(state[i], inp) for i in range(len(self._automata)))
+
+    def init_state(self):
+        return tuple(aut.init_state() for aut in self._automata)
 
     def final(self, state):
         """
         Returns the acceptance set to which the state belongs to.
+        :return: (int) Acceptance set as an integer.
+
+        .. note:: The acceptance set number is decimal representation of the binary tuple `(T/F)_{i=1...n}`.
+
+        To extract the satisfied outcomes as a list, use the following command:
+        >>> binary_str = format(acc_set, f"#0{len(self.outcomes()) + 1}b")
+        >>> maximal_satisfied = tuple([int(bit_str) for bit_str in binary_str[2:]])
+
+        The first statement returns a string of form "0b0101" if there are 5 outcomes
+        (recall 0-th outcomes is not counted). The second statement constructs the binary tuple
+        representation of the maximal set.
         """
+        # Get the set of maximal outcomes satisfied by any word visiting the given state.
         outcomes = self.maximal(state)
-        return tuple(1 if outcome in outcomes else 0 for outcome in self._outcomes)
+
+        # Vectorize the set of outcomes
+        outcomes_vec = self.outcomes_to_vector(outcomes)
+
+        # Construct a number representing the vector.
+        satisfied_outcomes = "".join([str(val) for val in outcomes_vec])
+        return int(f"0b{satisfied_outcomes}", base=2)
 
     # =========================================================================
     # SPECIAL METHODS
@@ -376,14 +413,21 @@ class DFPA(Automaton):
         for i in range(len(nodes)):
             partition[i] = nodes[np_state[i]]
 
-        # TODO: Add edges by comparing maximal sets.
-        cond1 = False
-        cond2 = True
+        # Add edges by comparing maximal sets.
         for node_i, node_j in itertools.product(node_ids, node_ids):
+            # Initialize condition variables
+            cond1 = False
+            cond2 = True
+
             # Get indices of maximal outcomes satisfied by states in node_i, node_j
-            maximal_i = [idx for idx, value in enumerate(np_state[node_i]) if value == 1]
-            maximal_j = [idx for idx, value in enumerate(np_state[node_j]) if value == 1]
-            for alpha_i, alpha_j in itertools.product(maximal_i, maximal_j):
+            vec_i = format(np_state[node_i], f"#0{len(self._outcomes) + 2}b")
+            vec_i = [idx - 2 for idx, value in enumerate(vec_i) if value == "1"]
+
+            vec_j = format(np_state[node_j], f"#0{len(self._outcomes) + 2}b")
+            vec_j = [idx - 2 for idx, value in enumerate(vec_j) if value == "1"]
+            # maximal_j = [idx for idx, value in enumerate(np_state[node_j]) if value == 1]
+            # maximal_i = [idx for idx, value in enumerate(np_state[node_i]) if value == 1]
+            for alpha_i, alpha_j in itertools.product(vec_i, vec_j):
                 # Condition 1
                 if self._pref_model.is_strictly_preferred(alpha_i, alpha_j):
                     cond1 = True
@@ -398,6 +442,9 @@ class DFPA(Automaton):
         return pref_graph
 
     def outcomes(self, state):
+        """
+        Returns the set of outcomes satisfied by any word visiting the given state.
+        """
         out = set()
         for i in range(len(state)):
             if 0 in self._automata[i].final(state[i]):
@@ -421,6 +468,29 @@ class DFPA(Automaton):
 
         return outcomes - remove
 
+    def outcomes_to_vector(self, outcomes):
+        """
+        Returns a vector [0, 1, ..., 0] representing if the given state satisfies the outcome at that index.
+        """
+        satisfied_outcomes = [0] * len(self._outcomes)
+
+        for outcome in outcomes:
+            idx = self._outcomes.index(outcome)
+            satisfied_outcomes[idx] = 1
+
+        return satisfied_outcomes
+
+    def vector_to_outcomes(self, vec):
+        """
+        Returns the set of outcomes satisfied by the state with given vector [0, 1, ..., 0].
+        """
+        out = set()
+        for idx in range(len(vec)):
+            if vec[idx] == 1:
+                out.add(self._outcomes[idx])
+
+        return out
+
 
 if __name__ == '__main__':
     # parser_ = LTLPrefParser()
@@ -437,27 +507,30 @@ if __name__ == '__main__':
     # graph = formula_._repr.graphify()
     # graph.to_png("pref.png", nlabel=["state"])
 
-    formula_ = PrefScLTL("Fa > Fb")
+    formula_ = PrefScLTL("a > b && b > c")
     model_ = formula_.model()
-    # graph_ = model_.graphify()
-    # graph_.to_png("graph.png", nlabel=["state"])
+    print(f"{formula_=}")
+    print(f"{model_.is_consistent()=}")
+    print(f"{model_.outcomes()=}")
+    print(f"{model_.relation()=}")
+    graph_ = model_.graphify()
+    graph_.to_png("graph.png", nlabel=["state"])
 
     aut_ = formula_.translate()
     print(f"{aut_.states()=}")
     print(f"{aut_.atoms()=}")
     print(f"{aut_.init_state()=}")
-    print(f"{aut_.delta((1, 1), {'a'})=}")
-    print(f"{aut_.delta((1, 1), {'b'})=}")
-    print(f"{aut_.delta((1, 1), {'a', 'b'})=}")
-    print(f"{aut_.final((0, 0))=}")
-    print(f"{aut_.final((0, 1))=}")
-    print(f"{aut_.final((1, 0))=}")
-    print(f"{aut_.final((1, 1))=}")
+    # print(f"{aut_.delta((1, 1), {'a'})=}")
+    # print(f"{aut_.delta((1, 1), {'b'})=}")
+    # print(f"{aut_.delta((1, 1), {'a', 'b'})=}")
+    # print(f"{aut_.final((0, 0))=}")
+    # print(f"{aut_.final((0, 1))=}")
+    # print(f"{aut_.final((1, 0))=}")
+    # print(f"{aut_.final((1, 1))=}")
     pref_graph_ = aut_._construct_pref_graph()
-    pref_graph_.to_png("pref_graph.png", nlabel=["state", "partition"])
+    pref_graph_.to_png("pref_graph.png", nlabel=["state"])
     aut_graph_ = aut_.graphify()
-    aut_graph_.to_png("aut_graph.png", nlabel=["state"], elabel=["input"])
-
+    aut_graph_.to_png("aut_graph.png", nlabel=["state", "final"], elabel=["input"])
 
     # dfpa = formula_.translate()
     # print(f"{dfpa.states()=}")
@@ -469,3 +542,4 @@ if __name__ == '__main__':
     # pref_graph.to_png("pref_graph.png", nlabel=["state"])
     # print(f"{dfpa.pref_graph()=}")
     # TODO. Try nested ANDing with parenthesis.
+

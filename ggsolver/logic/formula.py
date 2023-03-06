@@ -13,7 +13,8 @@ class ParsingError(ValueError):
 
 class BaseFormula(ABC):
     def __init__(self, f_str, atoms=None):
-        self.f_str = f_str
+        self.user_str = f_str
+        self.f_str = self.simplify(f_str)
         self._atoms = set(atoms) if atoms is not None else set()
 
     def __str__(self):
@@ -30,6 +31,18 @@ class BaseFormula(ABC):
 
     def update_atoms(self, atoms):
         self._atoms |= set(atoms)
+
+    def simplify(self, f_str=None):
+        """
+        Simplifies the input formula.
+
+        :param f_str: (str or None) Input formula string. If not provided, self._user_string is used.
+        :return: (str) Simplified formula string.
+        """
+        if f_str is None:
+            return self.user_str
+        else:
+            return f_str
 
     @abstractmethod
     def translate(self):

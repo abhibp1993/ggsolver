@@ -8,9 +8,9 @@ API
 
     modules/graph
     modules/models
-    modules/interfaces
     modules/automata
     modules/dtptb
     modules/mdp
+    modules/logic
 
 

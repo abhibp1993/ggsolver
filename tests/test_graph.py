@@ -3,6 +3,7 @@ import random
 import unittest
 import ggsolver.graph as graph
 import types
+from pprint import pprint
 
 
 class TestGraphTopology(unittest.TestCase):
@@ -365,6 +366,35 @@ class TestSubGraphProperties(unittest.TestCase):
 
         self.assertIsInstance(self.subgraph1["node_winner"], graph.PMapView)
         self.assertIsInstance(self.subgraph1["edge_winner"], graph.PMapView)
+
+
+class TestGraphSerialization(unittest.TestCase):
+    def setUp(self):
+        # Define a `graph`. (Using Jobstmann graph)
+        self.graph = graph.Graph()
+        self.nodes = self.graph.add_nodes(8)
+        edge_uv = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4), (2, 2), (3, 0), (3, 4), (3, 5), (4, 1), (4, 3),
+                   (5, 3), (5, 6), (6, 6), (6, 7), (7, 0), (7, 3)]
+        edge_keys = self.graph.add_edges(edge_uv)
+        self.edges = [(edge_uv[i][0], edge_uv[i][1], edge_keys[i]) for i in range(len(edge_keys))]
+
+        # Set node and edge property
+        self.graph["node_winner"] = graph.NodePropertyMap(self.graph, default=None)
+        for uid in self.graph.nodes():
+            self.graph["node_winner"][uid] = 1
+
+        self.graph["edge_winner"] = graph.EdgePropertyMap(self.graph, default=None)
+        for edge in self.graph.edges():
+            self.graph["edge_winner"][edge] = 1
+
+    def test_serialization(self):
+        serialized_dict = self.graph.serialize()
+        deserialized_graph = graph.Graph.deserialize(serialized_dict)
+        serialize_the_deserialized = deserialized_graph.serialize()
+
+        serialized_dict.pop("serialization_time")
+        serialize_the_deserialized.pop("serialization_time")
+        self.assertEqual(serialized_dict, serialize_the_deserialized)
 
 
 if __name__ == '__main__':

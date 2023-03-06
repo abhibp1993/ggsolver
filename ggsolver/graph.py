@@ -2,7 +2,7 @@
 ggsolver: graph.py
 License goes here...
 """
-
+import ast
 import json
 import logging
 import os
@@ -210,23 +210,30 @@ class PropertyMap(dict):
                 super(PropertyMap, self).pop(k)
 
     def serialize(self):
-        # If NodePropertyMap, i.e. keys are integers, then serialization is straightforward.
-        serialized_dict = dict()
-        if isinstance(next(iter(self.local_keys())), int):
-            serialized_dict = self
+        # Construct a map of non-default values.
+        non_default_items = {str(k): v for k, v in self.local_items()}
 
-        # If EdgePropertyMap, i.e. keys are integers, then apply cantor mapping to keys.
-        else:
-            serialized_dict = {util.cantor_pairing([k[0], k[1], k[2]]): v for k, v in self.local_items()}
+        # # If NodePropertyMap, i.e. keys are integers, then serialization is straightforward.
+        # serialized_dict = dict()
+        # if isinstance(next(iter(self.local_keys())), int):
+        #     serialized_dict = self
+        #
+        # # If EdgePropertyMap, i.e. keys are integers, then apply cantor mapping to keys.
+        # else:
+        #     serialized_dict = {util.cantor_pairing([k[0], k[1], k[2]]): v for k, v in self.local_items()}
 
         return {
             "type": self.__class__.__name__,
             "default": self.default,
-            "map": serialized_dict
+            "map": non_default_items
         }
 
     def deserialize(self, obj_dict):
-        raise NotImplementedError("Abstract. To be specialized by derived classes.")
+        self.clear()
+        self.default = obj_dict["default"]
+        # Explicitly deserialize to ensure all keys are valid nodes.
+        for k, v in obj_dict["map"].items():
+            self[ast.literal_eval(k)] = v
 
 
 class PMapView(PropertyMap):
@@ -293,12 +300,12 @@ class NodePropertyMap(PropertyMap):
     def keys(self):
         return self.graph.nodes()
 
-    def deserialize(self, obj_dict):
-        self.clear()
-        self.default = obj_dict["default"]
-        # Explicitly deserialize to ensure all keys are valid nodes.
-        for k, v in obj_dict["dict"].items():
-            self[int(k)] = v
+    # def deserialize(self, obj_dict):
+    #     self.clear()
+    #     self.default = obj_dict["default"]
+    #     # Explicitly deserialize to ensure all keys are valid nodes.
+    #     for k, v in obj_dict["dict"].items():
+    #         self[int(k)] = v
 
 
 class EdgePropertyMap(PropertyMap):
@@ -319,12 +326,12 @@ class EdgePropertyMap(PropertyMap):
     def keys(self):
         return self.graph.edges()
 
-    def deserialize(self, obj_dict):
-        self.clear()
-        self.default = obj_dict["default"]
-        # Explicitly deserialize to ensure all keys are valid nodes.
-        for k, v in obj_dict["dict"].items():
-            self[util.inverse_cantor_pairing(k, d=3)] = v
+    # def deserialize(self, obj_dict):
+    #     self.clear()
+    #     self.default = obj_dict["default"]
+    #     # Explicitly deserialize to ensure all keys are valid nodes.
+    #     for k, v in obj_dict["dict"].items():
+    #         self[util.inverse_cantor_pairing(k, d=3)] = v
 
 
 class ExtendiblePMapView(dict):
@@ -643,11 +650,11 @@ class Graph(IGraph):
         # Metadata
         graph["type"] = "Graph"
         graph["ggsolver.version"] = version.version()
-        graph["save_time"] = str(datetime.now(timezone.utc).astimezone())
+        graph["serialization_time"] = str(datetime.now(timezone.utc).astimezone())
 
         # Topology
         graph["nodes"] = self.number_of_nodes()
-        graph["edges"] = [util.cantor_pairing(edge) for edge in self.edges()]
+        graph["edges"] = [str(edge) for edge in self.edges()]
 
         # Property metadata
         graph["node_properties"] = list(self.node_properties.keys())
@@ -681,7 +688,7 @@ class Graph(IGraph):
         if obj_dict["type"] != "Graph":
             raise ValueError(f"Cannot construct {cls.__name__} object from {obj_dict['type']}. ")
 
-        obj_version = graph["ggsolver.version"]
+        obj_version = obj_dict["ggsolver.version"]
         obj_version_minor = [int(part) for part in obj_version.split('.')][1]
         curr_version_minor = [int(part) for part in version.version().split('.')][1]
         if obj_version_minor < curr_version_minor:
@@ -693,7 +700,7 @@ class Graph(IGraph):
         graph.add_nodes(num_nodes=int(obj_dict["nodes"]))
 
         # Add edges
-        edges = (util.inverse_cantor_pairing(int(eid), d=3) for eid in obj_dict["edges"])
+        edges = (ast.literal_eval(eid) for eid in obj_dict["edges"])
         graph.add_edges(edges)
 
         # Property metadata
@@ -704,14 +711,14 @@ class Graph(IGraph):
         # Deserialize properties
         for pname in node_properties:
             graph[pname] = NodePropertyMap(graph)
-            graph[pname].deserialize(obj_dict[pname])
+            graph[pname].deserialize(obj_dict["np." + pname])
 
         for pname in edge_properties:
             graph[pname] = EdgePropertyMap(graph)
-            graph[pname].deserialize(obj_dict[pname])
+            graph[pname].deserialize(obj_dict["ep." + pname])
 
         for pname in graph_properties:
-            graph[pname] = obj_dict[pname]
+            graph[pname] = obj_dict["gp." + pname]
 
         # Return constructed object
         return graph

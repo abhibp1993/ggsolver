@@ -229,52 +229,51 @@ class PropertyMap(dict):
         raise NotImplementedError("Abstract. To be specialized by derived classes.")
 
 
-class PMapView(dict):
-    """
-    MapView is a dictionary that stores key-value pairs of only those keys which have been modified
-    with respect to the PropertyMap viewed by MapView object.
-    """
-    def __init__(self, pmap: PropertyMap):
-        super(PMapView, self).__init__()
-        self._pmap = pmap
+class PMapView(PropertyMap):
+    def __init__(self, graph, pmap):
+        super(PMapView, self).__init__(graph=graph, default=pmap.default)
+        self.pmap = pmap
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} of {repr(self._pmap)}>"
+        return f"<PMapView of {repr(self.pmap)} in {self.graph}>"
+
+    def __contains__(self, item):
+        return self.pmap.__contains__(item)
 
     def __getitem__(self, item):
-        """
-        The value of input key is searched as follows:
-        First, check if the key is in "self" dictionary? If yes, the key-value was modified w.r.t. base PropertyMap.
-        If not, check if the key is present in base PropertyMap. If not, raise KeyError. Else return the value.
-        """
-        if item in self.keys():
-            return super(PMapView, self).__getitem__(item)
-        return self._pmap[item]
+        return self.pmap.__getitem__(item)
 
     def __setitem__(self, item, value):
-        """
-        Updating values of base PropertyMap is NOT allowed. Hence, check if item is valid.
-        If yes, update the "self" dictionary to store the modified value.
+        raise PermissionError(f"Cannot set value of property in {self.__class__.__name__}.")
 
-        :param item:
-        :param value:
-        :return:
-        """
-        # Access current value of item
-        old_value = self._pmap[item]
+    def keys(self):
+        return self.pmap.keys()
 
-        # Update the value
-        if old_value != value:
-            super(PMapView, self).__setitem__(item, value)
+    def items(self):
+        return self.pmap.items()
+
+    def local_keys(self):
+        """ For a PMView, no keys are stored locally. Return all keys of the property map "self" views. """
+        return self.pmap.keys()
+
+    def local_items(self):
+        """ For a PMView, no keys are stored locally. Return all items() of the property map "self" views. """
+        return self.pmap.items()
+
+    def update_default(self, new_default):
+        raise PermissionError(f"Cannot update default of {self.__class__.__name__}.")
 
     def serialize(self):
-        pmap_dict = self._pmap.serialize()
-        pmap_dict["type"] = "PMapView"
-        pmap_dict["modified"] = self.items()
-        return pmap_dict
+        # Return serialization of underlying PMap.
+        serialized_dict = self.pmap.serialize()
+        return serialized_dict
 
     def deserialize(self, obj_dict):
-        raise NotImplementedError("Request feature when needed.")
+        """
+        Serialization of NPMView does not store any new information than the NodePropertyMap it views.
+        Hence, no action is applied to `self` during deserialization.
+        """
+        return
 
 
 class NodePropertyMap(PropertyMap):
@@ -326,6 +325,58 @@ class EdgePropertyMap(PropertyMap):
         # Explicitly deserialize to ensure all keys are valid nodes.
         for k, v in obj_dict["dict"].items():
             self[util.inverse_cantor_pairing(k, d=3)] = v
+
+
+class ExtendiblePMapView(dict):
+    """
+    MapView is a dictionary that stores key-value pairs of only those keys which have been modified
+    with respect to the PropertyMap viewed by MapView object.
+
+    .. note:: This class is kept for future. It may be included in v0.1.8 or onwards.
+        In v0.1.7, it is decided that a simple PMapView, which makes the underlying PropertyMap read-only
+        will be included in the API.
+    """
+    def __init__(self, pmap: PropertyMap):
+        super(ExtendiblePMapView, self).__init__()
+        self._pmap = pmap
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} of {repr(self._pmap)}>"
+
+    def __getitem__(self, item):
+        """
+        The value of input key is searched as follows:
+        First, check if the key is in "self" dictionary? If yes, the key-value was modified w.r.t. base PropertyMap.
+        If not, check if the key is present in base PropertyMap. If not, raise KeyError. Else return the value.
+        """
+        if item in self.keys():
+            return super(PMapView, self).__getitem__(item)
+        return self._pmap[item]
+
+    def __setitem__(self, item, value):
+        """
+        Updating values of base PropertyMap is NOT allowed. Hence, check if item is valid.
+        If yes, update the "self" dictionary to store the modified value.
+
+        :param item:
+        :param value:
+        :return:
+        """
+        # Access current value of item
+        old_value = self._pmap[item]
+
+        # Update the value
+        if old_value != value:
+            super(PMapView, self).__setitem__(item, value)
+
+    def serialize(self):
+        pmap_dict = self._pmap.serialize()
+        pmap_dict["type"] = "PMapView"
+        pmap_dict["modified"] = self.items()
+        return pmap_dict
+
+    def deserialize(self, obj_dict):
+        raise NotImplementedError("Request feature when needed.")
 
 
 class Graph(IGraph):
@@ -842,6 +893,8 @@ class SubGraph(Graph):
             The remaining properties will be shared. If "all" then all properties are copied.
         :param copy_gp: (Iterable[str] or "all") Iterable of graph properties to be (shallow) copied.
             The remaining properties will be shared. If "all" then all properties are copied.
+
+        .. note:: (v0.1.7) The graph properties are not viewed! They are copied from base graph.
         """
         super(SubGraph, self).__init__()
 
@@ -863,67 +916,19 @@ class SubGraph(Graph):
             for (uid, vid, key) in hidden_edges:
                 self._hidden_edges[uid, vid, key] = True
 
-        # Define node, edge and graph properties
-        self._node_properties = dict()      # parent.node_properties
-        self._edge_properties = dict()      # parent.edge_properties
-        self._graph_properties = dict()     # parent.graph_properties
-        self._initialize_properties(**kwargs)
+        # Define node, edge and graph properties (store property map views)
+        self._node_properties = {
+            k: PMapView(graph=self, pmap=v)
+            for k, v in self._parent.node_properties.items()
+        }
+        self._edge_properties = {
+            k: PMapView(graph=self, pmap=v)
+            for k, v in self._parent.edge_properties.items()
+        }
+        self._graph_properties = self._parent.graph_properties.copy()
 
     def __str__(self):
         return f"<SubGraph of {self.parent} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
-
-    def _initialize_properties(self, **kwargs):
-        # Extract values from kwargs
-        copy_np = kwargs.get('copy_np', None)
-        copy_ep = kwargs.get('copy_ep', None)
-        copy_gp = kwargs.get('copy_gp', None)
-
-        # Check if given values to copy_(np/ep/gp) are acceptable
-        if isinstance(copy_np, str) and not copy_np == "all":
-            raise AssertionError("When `copy_np` is string, it must be 'all'.")
-        elif copy_np is not None:
-            assert isinstance(copy_np, (list, tuple, set)), "When `copy_np` is iterable, it must be a list/tuple/set."
-        elif copy_np is None:
-            pass
-        else:
-            raise AssertionError("Type of `copy_np` is unsupported.")
-
-        if isinstance(copy_ep, str) and not copy_ep == "all":
-            raise AssertionError("When `copy_ep` is string, it must be 'all'.")
-        elif copy_ep is not None:
-            assert isinstance(copy_ep, (list, tuple, set)), "When `copy_ep` is iterable, it must be a list/tuple/set."
-        elif copy_np is None:
-            pass
-        else:
-            raise AssertionError("Type of `copy_ep` is unsupported.")
-
-        if isinstance(copy_gp, str) and not copy_np == "all":
-            raise AssertionError("When `copy_gp` is string, it must be 'all'.")
-        elif copy_gp is not None:
-            assert isinstance(copy_gp, (list, tuple, set)), "When `copy_np` is iterable, it must be a list/tuple/set."
-        elif copy_np is None:
-            pass
-        else:
-            raise AssertionError("Type of `copy_gp` is unsupported.")
-
-        # Construct node/edge/graph properties of subgraph using parent
-        for pname, np_map in self._parent.node_properties:
-            if copy_np == "all" or pname in copy_np:
-                self._node_properties[pname] = self._parent.node_properties[pname].copy()
-            else:
-                self._node_properties[pname] = PMapView(self._parent.node_properties[pname].copy())
-
-        for pname, ep_map in self._parent.edge_properties:
-            if copy_ep == "all" or pname in copy_ep:
-                self._edge_properties[pname] = self._parent.edge_properties[pname].copy()
-            else:
-                self._edge_properties[pname] = PMapView(self._parent.edge_properties[pname].copy())
-
-        for pname, gp_map in self._parent.graph_properties:
-            if copy_gp == "all" or pname in copy_gp:
-                self._graph_properties[pname] = self._parent.graph_properties[pname].copy()
-            else:
-                self._graph_properties[pname] = PMapView(self._parent.graph_properties[pname].copy())
 
     # =====================================================================================
     # CLASS PROPERTIES
@@ -943,7 +948,7 @@ class SubGraph(Graph):
             return self.parent
 
     # =====================================================================================
-    # SUB-GRAPH SPECIAL METHODS: HIDE/SHOW NODES & EDGES
+    # SUB-GRAPH SPECIAL METHODS
     # =====================================================================================
     def is_node_visible(self, uid):
         """
@@ -1048,6 +1053,28 @@ class SubGraph(Graph):
         List of all hidden edges in the **subgraph**.
         """
         return (edge for edge in self.parent.edges() if self._hidden_edges[edge] is True)
+
+    def make_property_local(self, pname):
+        # If property is node/edge property, create a new property map and populate it.
+        if pname in self.node_properties:
+            pmap_view = self.node_properties[pname]
+            pmap = NodePropertyMap(graph=self, default=pmap_view.default)
+            for k, v in pmap_view.items():
+                if self.has_node(k):
+                    pmap[k] = v
+            self[pname] = pmap
+
+        elif pname in self.edge_properties:
+            pmap_view = self.edge_properties[pname]
+            pmap = EdgePropertyMap(graph=self, default=pmap_view.default)
+            for k, v in pmap_view.items():
+                if self.has_edge(*k):
+                    pmap[k] = v
+            self[pname] = pmap
+
+        else:
+            # FIXME (v0.1.8+) If property is graph property, take no action. In v0.1.7 all graph props are local.
+            return
 
     # =====================================================================================
     # ACCESSING AND COUNTING NODES, EDGES
@@ -1321,43 +1348,3 @@ class SubGraph(Graph):
     @classmethod
     def deserialize(cls, obj_dict):
         pass
-
-
-if __name__ == '__main__':
-    g = Graph()
-    nodes = g.add_nodes(10)
-    edges = g.add_edges([(i, i + 1) for i in range(8)])
-
-    print(g.nodes())
-    print(g.edges())
-
-    # Create subgraph
-    sg = SubGraph(g)
-    print(sg.nodes())
-    print(sg.edges())
-
-    name = NodePropertyMap(g)
-    for i in nodes:
-        name[i] = f"n{i}"
-    g["name"] = name
-    print(f"{g.node_properties = }")
-    print(f"{sg.node_properties = }")
-
-    print()
-    name = sg.create_node_property("name2")
-    for i in nodes:
-        name[i] = f"n{i}"
-    # sg["name2"] = name
-    print(f"{g.node_properties = }")
-    print(f"{sg.node_properties = }")
-    print(sg["name2"].items())
-
-    sg.hide_node(2)
-    sg.hide_edge(0, 1, 0)
-    sg.hide_edge(1, 2, 0)
-
-    print(g.nodes())
-    print(g.edges())
-    print(sg.nodes())
-    print(sg.edges())
-    print(list(sg["name2"].items()))

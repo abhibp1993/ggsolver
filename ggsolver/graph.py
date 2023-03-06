@@ -213,15 +213,6 @@ class PropertyMap(dict):
         # Construct a map of non-default values.
         non_default_items = {str(k): v for k, v in self.local_items()}
 
-        # # If NodePropertyMap, i.e. keys are integers, then serialization is straightforward.
-        # serialized_dict = dict()
-        # if isinstance(next(iter(self.local_keys())), int):
-        #     serialized_dict = self
-        #
-        # # If EdgePropertyMap, i.e. keys are integers, then apply cantor mapping to keys.
-        # else:
-        #     serialized_dict = {util.cantor_pairing([k[0], k[1], k[2]]): v for k, v in self.local_items()}
-
         return {
             "type": self.__class__.__name__,
             "default": self.default,
@@ -233,7 +224,8 @@ class PropertyMap(dict):
         self.default = obj_dict["default"]
         # Explicitly deserialize to ensure all keys are valid nodes.
         for k, v in obj_dict["map"].items():
-            self[ast.literal_eval(k)] = v
+            if self.__contains__(k):
+                self[ast.literal_eval(k)] = v
 
 
 class PMapView(PropertyMap):
@@ -293,19 +285,8 @@ class NodePropertyMap(PropertyMap):
     def __contains__(self, item):
         return self.graph.has_node(item)
 
-    # @property
-    # def containment_func(self):
-    #     return self.graph.has_node
-
     def keys(self):
         return self.graph.nodes()
-
-    # def deserialize(self, obj_dict):
-    #     self.clear()
-    #     self.default = obj_dict["default"]
-    #     # Explicitly deserialize to ensure all keys are valid nodes.
-    #     for k, v in obj_dict["dict"].items():
-    #         self[int(k)] = v
 
 
 class EdgePropertyMap(PropertyMap):
@@ -319,19 +300,8 @@ class EdgePropertyMap(PropertyMap):
     def __contains__(self, item):
         return self.graph.has_edge(*item)
 
-    # @property
-    # def containment_func(self):
-    #     return self.graph.has_node
-
     def keys(self):
         return self.graph.edges()
-
-    # def deserialize(self, obj_dict):
-    #     self.clear()
-    #     self.default = obj_dict["default"]
-    #     # Explicitly deserialize to ensure all keys are valid nodes.
-    #     for k, v in obj_dict["dict"].items():
-    #         self[util.inverse_cantor_pairing(k, d=3)] = v
 
 
 class ExtendiblePMapView(dict):

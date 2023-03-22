@@ -64,12 +64,27 @@ class ActivePOMDP(models.Game):
         )
 
     @models.register_property(GRAPH_PROPERTY)
-    def obs_set(self):
+    def obs_set_1(self):  # CHECK: Returns a dictionary.
         """
-        Implement algorithm to apply query from each state.
+        Implement algorithm to apply query from each state for P1.
         :return:
         """
-        raise NotImplementedError("TODO. ")
+        observation_set_1 = dict()
+        for st, query in itertools.product(self.states(), self.sensor_query()):
+            observation_set_1[(st, query)] = self.observation(st, query)
+        return observation_set_1
+
+    @models.register_property(GRAPH_PROPERTY)
+    def obs_set_2(self):  # CHECK: Returns a dictionary.
+        """
+        Implement algorithm to apply query from each state for P2.
+        :return:
+        """
+        observation_set_2 = dict()
+        for st, query in itertools.product(self.states(), self.sensor_query()):
+            unsecured_sensors_queried = query.intersection(set(self.sensors_unsecured()))
+            observation_set_2[(st, query)] = self.observation(st, unsecured_sensors_queried)
+        return observation_set_2
 
     @models.register_property(GRAPH_PROPERTY)
     def sensors(self):
@@ -100,6 +115,7 @@ class ProductWithDFA(ActivePOMDP):
     """
     For the product to be defined, Game must implement `atoms` and `label` functions.
     """
+
     def __init__(self, game: ActivePOMDP, aut: automata.DFA):
         super(ProductWithDFA, self).__init__()
         self._game = game
@@ -126,3 +142,16 @@ class ProductWithDFA(ActivePOMDP):
 
     def final(self, state):
         return 0 in self._aut.final(state[1])
+
+    def observation(self, state, query):
+        s, q = state
+        unsecured_sensors = query.intersection(set(self._game.sensors_unsecured()))
+        observation_1 = itertools.product(self._game.observation(s, query), self._aut.states())
+        observation_2 = itertools.product(self._game.observation(s, unsecured_sensors), self._aut.states())
+
+        return observation_1, observation_2
+
+    def init_observation(self):
+        return itertools.product(self._game.init_observation(), self._aut.states()), itertools.product(self._game.states(), self._aut.states())
+
+    

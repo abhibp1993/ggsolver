@@ -1,1 +1,2 @@
-__version__ = "0.1.6"
+import ggsolver.version as version
+__version__ = version.version()

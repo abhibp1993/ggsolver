@@ -42,14 +42,14 @@ if __name__ == '__main__':
     graph = game.graphify()
     win = SWinReach(graph)
     win.solve()
-    print(f"{win.win_region(1)=}")
+    print(f"{win.winning_states(1)=}")
 
     game2 = JobstmannGame(final={1, 2, 3, 6, 7})
     graph2 = game2.graphify()
     win2 = SWinSafe(graph2, player=2)
     win2.solve()
-    print(f"{win2.win_region(1)=}")
-    print(f"{win2.win_region(2)=}")
+    print(f"{win2.winning_states(1)=}")
+    print(f"{win2.winning_states(2)=}")
 
     # # Print the generated graph
     # print(f"Printing {graph}")

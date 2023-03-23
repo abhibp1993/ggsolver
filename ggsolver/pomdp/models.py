@@ -1,6 +1,9 @@
 import ggsolver.models as models
 import ggsolver.logic.automata as automata
+import ggsolver.mdp as mdp
 import itertools
+
+from ggsolver.util import powerset
 
 
 class QualPOMDP(models.Game):
@@ -37,11 +40,14 @@ class QualPOMDP(models.Game):
         raise NotImplementedError("Marked Abstract")
 
 
+"""
+Author: Sumukha Udupa.
+Paper: CITE Opacity-enforcing active perception and control against eavesdropping attacks.
+
+"""
+
+
 class ActivePOMDP(models.Game):
-    """
-    Opacity work of Sumukha. CITE PAPER!
-    delta(s, a) -> [s]
-    """
     GRAPH_PROPERTY = models.Game.GRAPH_PROPERTY.copy()
     NODE_PROPERTY = models.Game.NODE_PROPERTY.copy()
 
@@ -110,7 +116,6 @@ class ActivePOMDP(models.Game):
         raise NotImplementedError("Marked Abstract")
 
 
-# Check if model is ActivePOMDP.
 class ProductWithDFA(ActivePOMDP):
     """
     For the product to be defined, Game must implement `atoms` and `label` functions.
@@ -128,11 +133,13 @@ class ProductWithDFA(ActivePOMDP):
         return self._game.actions()
 
     def delta(self, state, act):
-        # TODO. Change the definition.
         s, q = state
+        next_states = list()
         t = self._game.delta(s, act)
-        p = self._aut.delta(q, self._game.label(t))
-        return t, p
+        for st in t:
+            p = self._aut.delta(q, self._game.label(st))
+            next_states.append((st, p))
+        return next_states
 
     def init_state(self):
         if self._game.init_state() is not None:
@@ -152,6 +159,100 @@ class ProductWithDFA(ActivePOMDP):
         return observation_1, observation_2
 
     def init_observation(self):
-        return itertools.product(self._game.init_observation(), self._aut.states()), itertools.product(self._game.states(), self._aut.states())
+        return itertools.product(self._game.init_observation(), self._aut.states()), itertools.product(
+            self._game.states(), self._aut.states())
 
-    
+
+class OpacityEnforcingGame(mdp):
+
+    def __init__(self, game: ProductWithDFA):
+        super(OpacityEnforcingGame, self).__init__()
+        self._game = game
+
+    def states(self):
+        states = list()
+        belief_list = list()
+
+        for (state, query), value in self._game.obs_set_1():
+
+            power_set_of_belief = powerset(value)
+            for B in power_set_of_belief:
+                if state in B:
+                    belief_list.append(B)
+
+            for B1, B2 in itertools.product(belief_list, belief_list):
+                states.append(
+                    (state, B1, B2))  # TODO: Check if B1 and B2 should be sent in as list itself or as sets/frozensets?
+
+            belief_list = list()
+
+        return states
+
+    def actions(self):
+        return itertools.product(self._game.actions(), self._game.sensor_query())
+
+    def init_state(self):
+        initial_obs = self._game.init_observation()
+        initial_state = (self._game.init_state(), initial_obs[0], initial_obs[1])
+        return initial_state
+
+    def final(self, state):  # TODO: Change if changes are made in states()
+        st, B1, B2 = state
+        P1_flag = 1
+        P2_flag = 1
+
+        for s in B1:
+            if self._game.final(s) == 0:
+                P1_flag = 0
+                break
+
+        if P1_flag == 0:
+            return 0
+
+        for state in B2:
+            if self._game.final(state) == 0:
+                P2_flag = 0
+                break
+
+        if P1_flag == 1 and P2_flag == 0:
+            return 1
+        else:
+            return 0
+
+    def belief_one_dash(self, belief, action):
+        a, X = action
+        post_belief = list()
+        for s in belief:
+            post = self._game.delta(s, a)
+            post_belief.append(post)
+
+        return post_belief
+
+    def belief_two_dash(self, belief):
+        post_belief = list()
+        for a in self._game.actions():
+            for s in belief:
+                post = self._game.delta(s, a)
+                post_belief.append(post)
+
+        return post_belief
+
+    def delta(self, state, action):
+        a, X = action
+        delta_states = list()
+        if self.final(state) == 0:
+            st, B1, B2 = state
+            next_states = self._game.delta(st, a)
+            post_b1 = self.belief_one_dash(B1, action)
+            post_b2 = self.belief_two_dash(B2)
+
+            for nx_st in next_states:
+                observation_1, observation_2 = self._game.observation(nx_st, X)
+                B1_dash = set(post_b1).intersection(set(observation_1))
+                B2_dash = set(post_b2).intersection(set(observation_2))
+                delta_states.append((nx_st, list(B1_dash), list(B2_dash)))
+
+        else:
+            delta_states.append(state)
+
+        return delta_states

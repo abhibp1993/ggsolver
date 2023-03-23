@@ -69,6 +69,7 @@ class ActivePOMDP(models.Game):
             is_turn_based=False
         )
 
+    # TODO. Merge into obs_set: {(s, sigma): [P1 obs, P2 obs]}
     @models.register_property(GRAPH_PROPERTY)
     def obs_set_1(self):  # CHECK: Returns a dictionary.
         """
@@ -169,24 +170,26 @@ class OpacityEnforcingGame(mdp):
         super(OpacityEnforcingGame, self).__init__()
         self._game = game
 
+    # def states(self):
+    #     states = list()
+    #     belief_list = list()
+    #
+    #     for (state, query), value in self._game.obs_set_1():
+    #
+    #         power_set_of_belief = powerset(value)
+    #         for B in power_set_of_belief:
+    #             if state in B:
+    #                 belief_list.append(B)
+    #
+    #         for B1, B2 in itertools.product(belief_list, belief_list):
+    #             states.append(
+    #                 (state, B1, B2))  # TODO: Check if B1 and B2 should be sent in as list itself or as sets/frozensets?
+    #
+    #         belief_list = list()
+    #
+    #     return states
     def states(self):
-        states = list()
-        belief_list = list()
-
-        for (state, query), value in self._game.obs_set_1():
-
-            power_set_of_belief = powerset(value)
-            for B in power_set_of_belief:
-                if state in B:
-                    belief_list.append(B)
-
-            for B1, B2 in itertools.product(belief_list, belief_list):
-                states.append(
-                    (state, B1, B2))  # TODO: Check if B1 and B2 should be sent in as list itself or as sets/frozensets?
-
-            belief_list = list()
-
-        return states
+        raise NotImplementedError("Due to exploding belief states, only pointed graphify must be used.")
 
     def actions(self):
         return itertools.product(self._game.actions(), self._game.sensor_query())
@@ -197,27 +200,29 @@ class OpacityEnforcingGame(mdp):
         return initial_state
 
     def final(self, state):  # TODO: Change if changes are made in states()
+        # TODO. Rename variables PEP8 conventions.
         st, B1, B2 = state
-        P1_flag = 1
-        P2_flag = 1
+        p1_flag = 1
+        p2_flag = 1
 
         for s in B1:
             if self._game.final(s) == 0:
-                P1_flag = 0
+                p1_flag = 0
                 break
 
-        if P1_flag == 0:
-            return 0
+        if p1_flag == 0:
+            return False
 
         for state in B2:
             if self._game.final(state) == 0:
-                P2_flag = 0
+                p2_flag = 0
                 break
 
-        if P1_flag == 1 and P2_flag == 0:
-            return 1
+        if p1_flag == 1 and p2_flag == 0:
+            return True
         else:
-            return 0
+            return False
+    # TODO. Check return 0, 1 -> True, False
 
     def belief_one_dash(self, belief, action):
         a, X = action
@@ -240,7 +245,7 @@ class OpacityEnforcingGame(mdp):
     def delta(self, state, action):
         a, X = action
         delta_states = list()
-        if self.final(state) == 0:
+        if self.final(state) == 0:      # TODO. final -> true, false.
             st, B1, B2 = state
             next_states = self._game.delta(st, a)
             post_b1 = self.belief_one_dash(B1, action)

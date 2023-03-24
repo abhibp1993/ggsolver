@@ -238,3 +238,148 @@
 [INFO] SUCCESS!! Updated abhibp1993/ggsolver:latest image.
 [INFO] Running docker push abhibp1993/ggsolver:latest
 [INFO] SUCCESS!! Pushed abhibp1993/ggsolver:latest image.
+[INFO] 
+
+		********** Running dockerfile rebuild script on 2022-11-21 16:18:11.243909 ********** 
+
+
+[INFO] Updated E:\Github-Repositories\ggsolver\docker\devel/Dockerfile with version 0.1.6.
+[INFO] Updated E:\Github-Repositories\ggsolver\docker\latest/Dockerfile with version 0.1.6.
+[INFO] Running docker build -t abhibp1993/ggsolver:devel E:\Github-Repositories\ggsolver\docker\devel
+[INFO] SUCCESS!! Updated abhibp1993/ggsolver:devel image.
+[INFO] Running docker push abhibp1993/ggsolver:devel
+[INFO] SUCCESS!! Pushed abhibp1993/ggsolver:devel image.
+[INFO] Running docker build --no-cache -t abhibp1993/ggsolver:latest E:\Github-Repositories\ggsolver\docker\latest
+[INFO] SUCCESS!! Updated abhibp1993/ggsolver:latest image.
+[INFO] Running docker push abhibp1993/ggsolver:latest
+[INFO] SUCCESS!! Pushed abhibp1993/ggsolver:latest image.
+[INFO] 
+
+		********** Running dockerfile rebuild script on 2022-11-21 16:33:37.284802 ********** 
+
+
+[INFO] Updated E:\Github-Repositories\ggsolver\docker\devel/Dockerfile with version 0.1.6.
+[INFO] Updated E:\Github-Repositories\ggsolver\docker\latest/Dockerfile with version 0.1.6.
+[INFO] Running docker build -t abhibp1993/ggsolver:devel E:\Github-Repositories\ggsolver\docker\devel
+[INFO] SUCCESS!! Updated abhibp1993/ggsolver:devel image.
+[INFO] Running docker push abhibp1993/ggsolver:devel
+[INFO] SUCCESS!! Pushed abhibp1993/ggsolver:devel image.
+[INFO] Running docker build --no-cache -t abhibp1993/ggsolver:latest E:\Github-Repositories\ggsolver\docker\latest
+[INFO] SUCCESS!! Updated abhibp1993/ggsolver:latest image.
+[INFO] Running docker push abhibp1993/ggsolver:latest
+[INFO] SUCCESS!! Pushed abhibp1993/ggsolver:latest image.
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:41:30.570012 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:42:43.819968 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:43:01.555292 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:44:18.073793 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:44:40.694041 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:45:04.001202 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:45:27.257474 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:45:53.424827 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:46:13.961494 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:46:40.918498 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:46:52.596425 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:47:54.306825 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:49:33.425440 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:49:42.436348 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:49:56.445393 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:51:43.060799 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:52:01.033424 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:52:12.445162 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:52:17.350517 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:52:41.950267 ********** 
+
+
+[INFO] 
+
+		********** Running dockerfile rebuild script w/ ver. 0.1.6 on 2022-11-21 16:55:53.169907 ********** 
+
+
+[INFO] Updated E:\Github-Repositories\ggsolver\docker\devel/Dockerfile with version 0.1.6.
+[INFO] Updated E:\Github-Repositories\ggsolver\docker\latest/Dockerfile with version 0.1.6.
+[INFO] Running docker build -t abhibp1993/ggsolver:devel E:\Github-Repositories\ggsolver\docker\devel
+[INFO] SUCCESS!! Updated abhibp1993/ggsolver:devel image.
+[INFO] Running docker push abhibp1993/ggsolver:devel
+[INFO] SUCCESS!! Pushed abhibp1993/ggsolver:devel image.
+[INFO] Running docker build --no-cache -t abhibp1993/ggsolver:latest E:\Github-Repositories\ggsolver\docker\latest
+[INFO] SUCCESS!! Updated abhibp1993/ggsolver:latest image.
+[INFO] Running docker push abhibp1993/ggsolver:latest
+[INFO] SUCCESS!! Pushed abhibp1993/ggsolver:latest image.

@@ -1,0 +1,16 @@
+C:\Users\abhib\Anaconda3\python.exe E:/Github-Projects/ggsolver/examples/apps/bankheist/main.py
+pygame 2.1.2 (SDL 2.0.18, Python 3.9.12)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Unpointed graphify adding edges: 100%|██████████| 311040/311040 [01:22<00:00, 3757.78it/s]
+WARNING:root:[WARN] Node property function not implemented: label. [IGNORED]
+WARNING:root:[WARN] Node property function not implemented: final. [IGNORED]
+WARNING:root:[WARN] Node property function not implemented: enabled_acts. [IGNORED]
+WARNING:root:[WARN] Node property function not implemented: turn. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: formula. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: win_cond. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: p1_acts. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: p2_acts. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: atoms. [IGNORED]
+ [SUCCESS] <Graph with |V|=311040, |E|=5587968> generated.
+
+Process finished with exit code 0

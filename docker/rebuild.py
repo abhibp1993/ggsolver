@@ -109,7 +109,7 @@ def push_docker_image(image):
 
 if __name__ == '__main__':
     version = get_ggsolver_version()
-    logging.info(f"\n\n\t\t********** Running dockerfile rebuild script on {datetime.now()} ********** \n\n")
+    logging.info(f"\n\n\t\t********** Running dockerfile rebuild script w/ ver. {version} on {datetime.now()} ********** \n\n")
 
     # Update dockerfiles
     update_dockerfile(fpath=os.path.join(dir_, "devel/Dockerfile"), version=version)
@@ -121,3 +121,4 @@ if __name__ == '__main__':
 
     build_docker_image(image="abhibp1993/ggsolver:latest", fpath=os.path.join(dir_, "latest"), nocache=True)
     push_docker_image(image="abhibp1993/ggsolver:latest")
+

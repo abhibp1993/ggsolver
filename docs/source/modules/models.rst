@@ -5,7 +5,7 @@ Models
 Automaton
 ---------
 
-.. autoclass:: ggsolver.models.Automaton
+.. autoclass:: ggsolver.logic.base.Automaton
     :members:
     :inherited-members:
     :special-members: __init__

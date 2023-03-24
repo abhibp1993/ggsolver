@@ -4,7 +4,7 @@
 ASWinReach
 -----------
 
-.. autoclass:: ggsolver.mdp.reachability.ASWinReach
+.. autoclass:: ggsolver.mdp.ASWinReach
     :members:
     :inherited-members:
 
@@ -12,7 +12,7 @@ ASWinReach
 PWinReach
 ---------
 
-.. autoclass:: ggsolver.mdp.reachability.PWinReach
+.. autoclass:: ggsolver.mdp.PWinReach
     :members:
     :inherited-members:
 

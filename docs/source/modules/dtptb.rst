@@ -4,7 +4,7 @@
 SWinReach
 ---------
 
-.. autoclass:: ggsolver.dtptb.reachability.SWinReach
+.. autoclass:: ggsolver.dtptb.SWinReach
     :members:
     :inherited-members:
 
@@ -12,7 +12,7 @@ SWinReach
 SWinSafe
 ---------
 
-.. autoclass:: ggsolver.dtptb.reachability.SWinSafe
+.. autoclass:: ggsolver.dtptb.SWinSafe
     :members:
     :inherited-members:
 
@@ -20,7 +20,7 @@ SWinSafe
 ASWinReach
 ----------
 
-.. autoclass:: ggsolver.dtptb.reachability.ASWinReach
+.. autoclass:: ggsolver.dtptb.ASWinReach
     :members:
     :inherited-members:
 
@@ -28,7 +28,7 @@ ASWinReach
 ASWinSafe
 ----------
 
-.. autoclass:: ggsolver.dtptb.reachability.ASWinSafe
+.. autoclass:: ggsolver.dtptb.ASWinSafe
     :members:
     :inherited-members:
 

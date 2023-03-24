@@ -6,3 +6,7 @@ cmake-build-debug/
 */__pycache__/*
 *.pyc
 */.ipynb_checkpoints/
+
+examples/notebooks/.ipynb_checkpoints/
+
+examples/old_examples/examples2/notebooks/logic/.ipynb_checkpoints/

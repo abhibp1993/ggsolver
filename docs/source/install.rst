@@ -32,7 +32,7 @@ Note that using PyCharm is not necessary, but it makes life easy!!
 Assuming Docker client is already installed on your OS, `abhibp1993:ggsolver:latest` docker image can be
 downloaded by running::
 
-    $ docker pull abhibp1993/ggsolver:v0.1
+    $ docker pull abhibp1993/ggsolver
 
 
 The instructions to set up remote interpreter are given at

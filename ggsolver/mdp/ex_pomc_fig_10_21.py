@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     win = ASWinReach(mdp_graph)
     win.solve()
-    print(win.win_region(1))
+    print(win.winning_states(1))
 
     win2 = PWinReach(mdp_graph)
     win2.solve()

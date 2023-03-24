@@ -1076,6 +1076,8 @@ class Solver:
         self._solution = SubGraph(self._graph)
 
         # Associate node and edge properties with solution
+        #   When input `graph` is a SubGraph, the following statements will overwrite
+        #   the node/edge_winners of input `graph`.
         self._node_winner = NodePropertyMap(self._solution, default=-1)     # Values denote which player wins from node.
         self._edge_winner = EdgePropertyMap(self._solution, default=-1)     # Values denote which player wins from edge.
         self._solution["node_winner"] = self._node_winner
@@ -1085,22 +1087,16 @@ class Solver:
         self._is_solved = False
 
         # Cache variables
-        self._state2node = {self._solution["state"][uid]: uid for uid in self._solution.nodes()}
+        self._state2node = dict()
+        if "state" in self._solution.node_properties:
+            self._state2node = {self._solution["state"][uid]: uid for uid in self._solution.nodes()}
 
     def __str__(self):
-        return f"<Solver for {self._graph}>"
+        return f"<{self.__class__.__name__} for {self._graph}>"
 
     def graph(self):
         """ Returns the input game graph. """
         return self._graph
-
-    def state2node(self, state):
-        """ Helper function to get the node id associated with given state. """
-        return self._state2node[state]
-
-    def is_solved(self):
-        """ Returns if the game is solved or not. """
-        return self._is_solved
 
     def solution(self):
         """
@@ -1114,16 +1110,28 @@ class Solver:
             raise ValueError(f"{self} is not solved.")
         return self._solution
 
+    def state2node(self, state):
+        """ Helper function to get the node id associated with given state. """
+        return self._state2node[state]
+
+    def node2state(self, uid):
+        """ Helper function to get the node id associated with given state. """
+        return self._solution["state"][uid]
+
+    def is_solved(self):
+        """ Returns if the game is solved or not. """
+        return self._is_solved
+
     def solve(self):
         """ Abstract method."""
         raise NotImplementedError
 
-    def winner(self, state):
+    def state_winner(self, state):
         """ Returns the player who wins from the given state. """
         uid = self.state2node(state)
         return self._node_winner[uid]
 
-    def win_acts(self, state):
+    def winning_actions(self, state):
         """ Retuns the list of winning actions from the given state. """
         # Get the input domain (name of function) of game
         ep_input = self._solution["input"]
@@ -1144,10 +1152,32 @@ class Solver:
         # Convert to list and return
         return list(win_acts)
 
-    def win_region(self, player):
+    def winning_states(self, player):
         """ Returns the winning region for the player. """
         # return [self._solution["state"][uid] for uid in self._solution.nodes() if self._node_winner[uid] == player]
         return [self._solution["state"][uid] for uid in self._solution.nodes() if self._node_winner[uid] == player]
+
+    def node_winner(self, uid):
+        """ Returns the player who wins from the given state. """
+        return self._node_winner[uid]
+
+    def winning_edges(self, uid):
+        """ Returns the list of winning actions from the given node. """
+        # Determine which player has a winning strategy at the node
+        player = self._node_winner[uid]
+
+        # Identify all winning actions.
+        win_edges = set()
+        for _, vid, key in self._graph.out_edges(uid):
+            if self._edge_winner[uid, vid, key] == player:
+                win_edges.add((uid, vid, key))
+
+        # Convert to list and return
+        return list(win_edges)
+
+    def winning_nodes(self, player):
+        """ Returns the winning region for the player. """
+        return [uid for uid in self._solution.nodes() if self._node_winner[uid] == player]
 
     def reset(self):
         """ Resets the solver. """

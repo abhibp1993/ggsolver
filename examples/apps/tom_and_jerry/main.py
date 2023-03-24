@@ -265,7 +265,7 @@ class TomJerryGame(dtptb.DTPTBGame):
         self._terrain = Terrain(np.array(self._game_config["terrain"]))
         self._cheese_location = self._game_config["cheese"]["cheese.1"]
         self._walkable_cells = [(x, y) for x in range(self._terrain.x_max) for y in range(self._terrain.y_max) if
-                                self._terrain[x, y] == 1]
+                                (self._terrain[x, y] == 1 or self._terrain[x,y] == 2)]
         self._door_locations = [(x, y) for x in range(self._terrain.x_max) for y in range(self._terrain.y_max) if
                                 self._terrain[x, y] == 2]
         print(self._walkable_cells)
@@ -460,7 +460,7 @@ if __name__ == '__main__':
     # TODO create this subgraph
     tom_jerry_subgraph = gg_graph.SubGraph(base_graph)
     tom_jerry_subgraph.hide_nodes(
-        base_solver.winning_nodes(1))  # TODO I think the winning_nodes method is missing from this branch
+        base_solver.winning_nodes(1))
     # TODO ask AK
     #  Should there be any non-rationalizable edges left? Those would just be edges that go from win1 to win2 in the
     #  original game right? Since we removed win1 from this game and are only looking at win2 are all actions rationalizable?

@@ -228,8 +228,8 @@ class Character(gw.Control):
 
 class Terrain:
     def __init__(self, terrain_array: np.ndarray):
-        self._terrain = terrain_array
-        self._y_max, self._x_max = self._terrain.shape
+        self.terrain = terrain_array
+        self._y_max, self._x_max = self.terrain.shape
 
     def __contains__(self, item):
         x, y = item
@@ -238,10 +238,10 @@ class Terrain:
     def __getitem__(self, item):
         assert self.__contains__(item)
         x, y = item
-        return self._terrain[self._y_max - y - 1, x]
+        return self.terrain[self._y_max - y - 1, x]
 
     def __repr__(self):
-        return np.array2string(self._terrain)
+        return np.array2string(self.terrain)
 
     @property
     def shape(self):
@@ -264,8 +264,6 @@ class TomJerryGame(dtptb.DTPTBGame):
 
         self._terrain = Terrain(np.array(self._game_config["terrain"]))
         self._cheese_location = self._game_config["cheese"]["cheese.1"]
-
-        # TODO what should the order of x and y be here?
         self._walkable_cells = [(x, y) for x in range(self._terrain.x_max) for y in range(self._terrain.y_max) if
                                 self._terrain[x, y] == 1]
         self._door_locations = [(x, y) for x in range(self._terrain.x_max) for y in range(self._terrain.y_max) if
@@ -273,14 +271,14 @@ class TomJerryGame(dtptb.DTPTBGame):
         print(self._walkable_cells)
         self._states = self._construct_states()
         self._final = self._construct_final()
-        self._tom_winning_states = self._construct_tom_winning_states()
+        # self._tom_winning_states = self._construct_tom_winning_states()
 
     def _construct_states(self):
         """
         State representation: (tom.cell, jerry.cell, door_states, turn)
         :return:
         """
-        unique, counts = np.unique(self._terrain, return_counts=True)
+        unique, counts = np.unique(self._terrain.terrain, return_counts=True)
         number_of_doors = counts[2]
         possible_door_states = list(itertools.product([0, 1], repeat=number_of_doors))
         return list(
@@ -328,7 +326,7 @@ class TomJerryGame(dtptb.DTPTBGame):
             return_state = state
 
         # Jerry's turn to move
-        if turn == CheeseState.JERRY_TURN:
+        elif turn == CheeseState.JERRY_TURN:
             new_jerry_cell = self._move(jerry_cell, act)
             new_state = (tom_cell, new_jerry_cell, door_states, CheeseState.TOM_TURN)
             if self._is_state_valid(new_state):
@@ -338,7 +336,7 @@ class TomJerryGame(dtptb.DTPTBGame):
                 return_state = (tom_cell, jerry_cell, door_states, CheeseState.TOM_TURN)
 
         # Tom's turn to move
-        if turn == CheeseState.TOM_TURN:
+        else:   # if turn == CheeseState.TOM_TURN:
             new_tom_cell = self._move(tom_cell, act)
             door_states_list = list(door_states)
             # if tom moved into a door open it and move him there
@@ -379,47 +377,47 @@ class TomJerryGame(dtptb.DTPTBGame):
         tom_cell, jerry_cell, door_states, turn = state
 
         # if tom or jerry are in a wall
-        if self._terrain[self.grid_coordinates_to_terrain(tom_cell[0], tom_cell[1])] == 0 or self._terrain[
-            self.grid_coordinates_to_terrain(jerry_cell[0], jerry_cell[1])] == 0:
+        if self._terrain[tom_cell] == 0 or self._terrain[jerry_cell] == 0:
             return False
 
         # if jerry or tom is in a CLOSED door
         for index, door in enumerate(self._door_locations):
-            if jerry_cell == door and door_states[index] == CheeseState.DOOR_CLOSED or tom_cell == door and door_states[
-                index] == CheeseState.DOOR_CLOSED:
+            if (jerry_cell == door and door_states[index] == CheeseState.DOOR_CLOSED) or \
+                    (tom_cell == door and door_states[index] == CheeseState.DOOR_CLOSED):
                 return False
+
         return True
 
-    def tom_winning_states(self):
-        return self._tom_winning_states
-
-    def _construct_tom_winning_states(self):
-        return list(filter(self._tom_wins_state, self.states()))
-
-    def _tom_wins_state(self, state):
-        tom_cell, jerry_cell, door_states, turn = state
-        if tom_cell == jerry_cell:
-            return True
-        else:
-            return False
-
-    def _matrix_flip(self, mat, axis):
-        if not hasattr(mat, 'ndim'):
-            mat = np.asarray(mat)
-        indexer = [slice(None)] * mat.ndim
-        try:
-            indexer[axis] = slice(None, None, -1)
-        except IndexError:
-            raise ValueError("axis =% i is invalid for the % i-dimensional input array"
-                             % (axis, mat.ndim))
-        return mat[tuple(indexer)]
-
-    def grid_coordinates_to_terrain(self, x, y):
-        # This function is needed because self._terrain is flipped in both axes
-        return self._x_max - x, self._y_max - y
-
-    def _orient_terrain(self, mat):
-        return self._matrix_flip(np.transpose(mat), axis=0)
+    # def tom_winning_states(self):
+    #     return self._tom_winning_states
+    #
+    # def _construct_tom_winning_states(self):
+    #     return list(filter(self._tom_wins_state, self.states()))
+    #
+    # def _tom_wins_state(self, state):
+    #     tom_cell, jerry_cell, door_states, turn = state
+    #     if tom_cell == jerry_cell:
+    #         return True
+    #     else:
+    #         return False
+    #
+    # def _matrix_flip(self, mat, axis):
+    #     if not hasattr(mat, 'ndim'):
+    #         mat = np.asarray(mat)
+    #     indexer = [slice(None)] * mat.ndim
+    #     try:
+    #         indexer[axis] = slice(None, None, -1)
+    #     except IndexError:
+    #         raise ValueError("axis =% i is invalid for the % i-dimensional input array"
+    #                          % (axis, mat.ndim))
+    #     return mat[tuple(indexer)]
+    #
+    # def grid_coordinates_to_terrain(self, x, y):
+    #     # This function is needed because self._terrain is flipped in both axes
+    #     return self._x_max - x, self._y_max - y
+    #
+    # def _orient_terrain(self, mat):
+    #     return self._matrix_flip(np.transpose(mat), axis=0)
 
 
 class CheeseState:

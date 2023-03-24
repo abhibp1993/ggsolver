@@ -388,38 +388,6 @@ class TomJerryGame(dtptb.DTPTBGame):
 
         return True
 
-    # def tom_winning_states(self):
-    #     return self._tom_winning_states
-    #
-    # def _construct_tom_winning_states(self):
-    #     return list(filter(self._tom_wins_state, self.states()))
-    #
-    # def _tom_wins_state(self, state):
-    #     tom_cell, jerry_cell, door_states, turn = state
-    #     if tom_cell == jerry_cell:
-    #         return True
-    #     else:
-    #         return False
-    #
-    # def _matrix_flip(self, mat, axis):
-    #     if not hasattr(mat, 'ndim'):
-    #         mat = np.asarray(mat)
-    #     indexer = [slice(None)] * mat.ndim
-    #     try:
-    #         indexer[axis] = slice(None, None, -1)
-    #     except IndexError:
-    #         raise ValueError("axis =% i is invalid for the % i-dimensional input array"
-    #                          % (axis, mat.ndim))
-    #     return mat[tuple(indexer)]
-    #
-    # def grid_coordinates_to_terrain(self, x, y):
-    #     # This function is needed because self._terrain is flipped in both axes
-    #     return self._x_max - x, self._y_max - y
-    #
-    # def _orient_terrain(self, mat):
-    #     return self._matrix_flip(np.transpose(mat), axis=0)
-
-
 class CheeseState:
     TOM_TURN = 1
     JERRY_TURN = 2
@@ -443,7 +411,6 @@ if __name__ == '__main__':
     print("Executing: game = TomJerryGame(game_config=conf)")
     print(f"Executing: random.choice(game.states())={arbitrary_state}")
     tom_jerry_game.initialize(arbitrary_state)
-    # TODO when this is changed from pointed=True to pointed=False it causes an error
     base_graph = tom_jerry_game.graphify(pointed=False)
     print("Executing: base_graph = game.graphify(pointed=False)")
     ## Create mapping from arena points to game states ##

@@ -254,16 +254,32 @@ class TomJerryGame(dtptb.DTPTBGame):
                    itertools.product(self._walkable_cells, self._walkable_cells, possible_door_states, [CheeseState.TOM_TURN, CheeseState.JERRY_TURN]))
         )
 
+    def _move(self, cell, act, steps=1):
+        x, y = cell
+
+        if act == gw_utils.GW_ACT_N:
+            return x, y + steps
+
+        elif act == gw_utils.GW_ACT_E:
+            return x + steps, y
+
+        elif act == gw_utils.GW_ACT_S:
+            return self._move(cell, gw_utils.GW_ACT_N, -steps)
+
+        elif act == gw_utils.GW_ACT_W:
+            return self._move(cell, gw_utils.GW_ACT_E, -steps)
+
+        elif act == gw_utils.GW_ACT_STAY:
+            return cell
     def states(self):
         return self._states
 
     def actions(self):
         return [
-            # define new actions for moving n tiles in a direction in gw_utils if we want to allow jerry more movement options
-            gw_utils.GW_ACT_N,
-            gw_utils.GW_ACT_S,
-            gw_utils.GW_ACT_E,
-            gw_utils.GW_ACT_W,
+            "N",
+            "S",
+            "E",
+            "W",
         ]
 
     def delta(self, state, act):
@@ -277,7 +293,7 @@ class TomJerryGame(dtptb.DTPTBGame):
 
         # Jerry's turn to move
         if turn == CheeseState.JERRY_TURN:
-            new_jerry_cell = gw_utils.move(jerry_cell, act)
+            new_jerry_cell = self._move(jerry_cell, act)
             new_state = (tom_cell, new_jerry_cell, door_states, CheeseState.TOM_TURN)
             if self._is_state_valid(new_state):
                 return_state = new_state
@@ -287,7 +303,7 @@ class TomJerryGame(dtptb.DTPTBGame):
 
         # Tom's turn to move
         if turn == CheeseState.TOM_TURN:
-            new_tom_cell = gw_utils.move(tom_cell, act)
+            new_tom_cell = self._move(tom_cell, act)
             door_states_list = list(door_states)
             # if tom moved into a door open it and move him there
             for index, door in enumerate(self._door_locations):
@@ -373,7 +389,6 @@ class CheeseState:
         self.door_array = door_array
         self.turn = turn
 
-
 if __name__ == '__main__':
     conf = os.path.join(curr_file_path, "saved_games", "game_2023_02_17_17_36.conf")
     print(f"Using configuration file: {conf=}")
@@ -381,21 +396,13 @@ if __name__ == '__main__':
     ## Create Base Reachability Game ##
     tom_jerry_game = TomJerryGame(game_config=conf)
     arbitrary_state = random.choice(tom_jerry_game.states())
-    print("Executing: game = TomJerryMDP(game_config=conf)")
+    print("Executing: game = TomJerryGame(game_config=conf)")
     print(f"Executing: random.choice(game.states())={arbitrary_state}")
     tom_jerry_game.initialize(arbitrary_state)
-<<<<<<< Updated upstream
+    # TODO when this is changed from pointed=True to pointed=False it causes an error
     base_graph = tom_jerry_game.graphify(pointed=False)
     print("Executing: base_graph = game.graphify(pointed=False)")
     ## Create mapping from arena points to game states ##
-=======
-    graph = tom_jerry_game.graphify(pointed=True)
-    print("Executing: graph = game.graphify(pointed=True)")
-
-    # TODO. Ask MSC. The inputs to greedy_max expect trap_subset to be {s: DSWin_s}. The
-    #  I do not see the values to be winning!
-    # Create mapping from arena points to game states #
->>>>>>> Stashed changes
     trap_subsets = {}
     for node in base_graph.nodes():
         cell_tom, cell_jerry, states_door, player_turn = base_graph["state"][node]
@@ -403,23 +410,23 @@ if __name__ == '__main__':
             trap_subsets[cell_jerry] = []
         trap_subsets[cell_jerry].append(node)
     fake_subsets = trap_subsets
-<<<<<<< Updated upstream
-    ## Create a subgraph of the base game hiding P1's winning nodes and non-rationalizable edges ##
+    ## Create a subgraph of the base game hiding P1's winning nodes (win1) and non-rationalizable edges ##
     base_solver = reach.SWinReach(base_graph, tom_jerry_game.final_states(), player=2)
     base_solver.solve()
-    base_solver._solution
     # TODO create this subgraph
-    tom_jerry_subgraph = gg_graph.SubGraph(base_graph, hidden_nodes=, hidden_edges=)
-=======
+    tom_jerry_subgraph = gg_graph.SubGraph(base_graph)
+    tom_jerry_subgraph.hide_nodes(base_solver.winning_nodes(1)) # TODO I think the winning_nodes method is missing from this branch
+    # TODO ask AK
+    #  Should there be any non-rationalizable edges left? Those would just be edges that go from win1 to win2 in the
+    #  original game right? Since we removed win1 from this game and are only looking at win2 are all actions rationalizable?
 
     # Create set of nodes where tom wins (reaches jerry) ##
     tom_win_nodes = list()
-    for node in graph.nodes():
-        cell_tom, cell_jerry, states_door, player_turn = graph["state"][node]
+    for node in tom_jerry_subgraph.nodes():
+        cell_tom, cell_jerry, states_door, player_turn = tom_jerry_subgraph["state"][node]
         if cell_jerry == cell_tom:
             tom_win_nodes.append(node)
 
->>>>>>> Stashed changes
     ## Allocate traps and fakes ##
     arena_traps, arena_fakes, covered_states, trap_states, fake_states = solvers.greedy_max(
         tom_jerry_subgraph, trap_subsets=trap_subsets, fake_subsets=fake_subsets, max_traps=1, max_fakes=0)
@@ -428,7 +435,7 @@ if __name__ == '__main__':
     ## Create P2's Perceptual Game ##
     p2_perceptual_game = decoy_models.PerceptualGameP2(game=tom_jerry_game, traps=trap_states, fakes=fake_states)
     ## Solve p2's perceptual game ##
-    solution_p2_perceptual_game = reach.SWinReach(graph, final=tom_jerry_game.final_states())
+    solution_p2_perceptual_game = reach.SWinReach(tom_jerry_subgraph, final=tom_jerry_game.final_states())
     solution_p2_perceptual_game.solve() # P2's strategy
     ## Create Reachability Game of P1 ##
     p1_reachability_game = decoy_models.ReachabilityGameOfP1(

@@ -1,4 +1,5 @@
 from ggsolver.dtptb import SWinReach
+import ggsolver.graph as gg_graph
 """
 Algorithms and fact checking functions.
 """
@@ -56,7 +57,11 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
             final_states = list(trap_states) + trap_subsets[arena_point]
 
             # TODO construct a new sub-graph based on the base graph where the final_states are sink states
-            solver = SWinReach(graph, final=final_states)
+            out_going_final_edges = [graph.out_edges(state) for state in final_states]
+            sink_graph = gg_graph.SubGraph(graph)
+            sink_graph.hide_edges(out_going_final_edges)
+
+            solver = SWinReach(sink_graph, final=final_states)
             solver.solve()
             # TODO add different metrics to determine value of arena point as a trap
             # pair = {"arena_point": arena_point, "value_of_trap": solver.win_region(1)}

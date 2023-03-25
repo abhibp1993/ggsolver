@@ -25,4 +25,5 @@ N6 -> N7 [ color="red" ];
 N7 [ shape="box", label="7: 1", color="red" ];
 N7 -> N0 [ color="black" ];
 N7 -> N3 [ color="red" ];
+N7 -> N5 [ color="black" ];
 }

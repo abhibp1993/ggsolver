@@ -284,11 +284,26 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
     @models.register_property(GRAPH_PROPERTY)
     def belief_equivalent(self):
         states = self.__states
-        equivalence_cls = {int: {}}
+        equivalence_cls = {0: []}
         for (s, b1, b2), (t, c1, c2) in itertools.product(states, states):
             if b1 == c1 and b2 == c2:
                 uid = states[(s, b1, b2)]
                 vid = states[(t, c1, c2)]
-                # uid and vid are in same equivalence class.
-                # histograms.
+                flag = 0
+                fin_item = 0
+                for items in equivalence_cls:
+                    if uid in equivalence_cls[items] or vid in equivalence_cls[items]:
+                        new_keys = equivalence_cls[items]
+                        new_keys.add(uid)
+                        new_keys.add(vid)
+                        equivalence_cls[items] = new_keys
+                        flag = 0
+                        break
+                    else:
+                        flag = 1
+                        fin_item = items
 
+                if flag == 1:
+                    equivalence_cls[fin_item + 1] = [uid, vid]
+
+        return equivalence_cls

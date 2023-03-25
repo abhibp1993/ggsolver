@@ -76,22 +76,25 @@ class ActivePOMDP(models.Game):
         Implement algorithm to apply query from each state for P1.
         :return:
         """
-        observation_set_1 = dict()
+        observation_set = dict()
         for st, query in itertools.product(self.states(), self.sensor_query()):
-            observation_set_1[(st, query)] = self.observation(st, query)
-        return observation_set_1
+            unsecured_sensors = set(query).intersection(set(self.sensors_unsecured()))
+            observation_p1 = self.observation(st, query)
+            observation_p2 = self.observation(st, unsecured_sensors)
+            observation_set[(st, query)] = [observation_p1, observation_p2]
+        return observation_set
 
-    @models.register_property(GRAPH_PROPERTY)
-    def obs_set_2(self):  # CHECK: Returns a dictionary.
-        """
-        Implement algorithm to apply query from each state for P2.
-        :return:
-        """
-        observation_set_2 = dict()
-        for st, query in itertools.product(self.states(), self.sensor_query()):
-            unsecured_sensors_queried = query.intersection(set(self.sensors_unsecured()))
-            observation_set_2[(st, query)] = self.observation(st, unsecured_sensors_queried)
-        return observation_set_2
+    # @models.register_property(GRAPH_PROPERTY)
+    # def obs_set_2(self):  # CHECK: Returns a dictionary.
+    #     """
+    #     Implement algorithm to apply query from each state for P2.
+    #     :return:
+    #     """
+    #     observation_set_2 = dict()
+    #     for st, query in itertools.product(self.states(), self.sensor_query()):
+    #         unsecured_sensors_queried = query.intersection(set(self.sensors_unsecured()))
+    #         observation_set_2[(st, query)] = self.observation(st, unsecured_sensors_queried)
+    #     return observation_set_2
 
     @models.register_property(GRAPH_PROPERTY)
     def sensors(self):
@@ -144,12 +147,28 @@ class ProductWithDFA(ActivePOMDP):
 
     def init_state(self):
         if self._game.init_state() is not None:
-            s0 = self.init_state()
+            s0 = self._game.init_state()
             q0 = self._aut.init_state()
             return s0, self._aut.delta(q0, self._game.label(s0))
 
     def final(self, state):
         return 0 in self._aut.final(state[1])
+
+    # @models.register_property(GRAPH_PROPERTY)
+    def sensors(self):
+        return self._game.sensors()
+
+    # @models.register_property(GRAPH_PROPERTY)
+    def sensors_secured(self):
+        return self._game.sensors_secured()
+
+    # @models.register_property(GRAPH_PROPERTY)
+    def sensors_unsecured(self):
+        return self._game.sensors_unsecured()
+
+    # @models.register_property(GRAPH_PROPERTY)
+    def sensor_query(self):
+        return self._game.sensor_query()
 
     def observation(self, state, query):
         s, q = state
@@ -164,7 +183,8 @@ class ProductWithDFA(ActivePOMDP):
             self._game.states(), self._aut.states())
 
 
-class OpacityEnforcingGame(mdp):
+class OpacityEnforcingGame(mdp.QualitativeMDP):
+    GRAPH_PROPERTY = mdp.QualitativeMDP.GRAPH_PROPERTY.copy()
 
     def __init__(self, game: ProductWithDFA):
         super(OpacityEnforcingGame, self).__init__()
@@ -192,20 +212,19 @@ class OpacityEnforcingGame(mdp):
         raise NotImplementedError("Due to exploding belief states, only pointed graphify must be used.")
 
     def actions(self):
-        return itertools.product(self._game.actions(), self._game.sensor_query())
+        return list(itertools.product(self._game.actions(), self._game.sensor_query()))
 
     def init_state(self):
         initial_obs = self._game.init_observation()
         initial_state = (self._game.init_state(), initial_obs[0], initial_obs[1])
         return initial_state
 
-    def final(self, state):  # TODO: Change if changes are made in states()
-        # TODO. Rename variables PEP8 conventions.
-        st, B1, B2 = state
+    def final(self, state):
+        st, b1, b2 = state
         p1_flag = 1
         p2_flag = 1
 
-        for s in B1:
+        for s in b1:
             if self._game.final(s) == 0:
                 p1_flag = 0
                 break
@@ -213,7 +232,7 @@ class OpacityEnforcingGame(mdp):
         if p1_flag == 0:
             return False
 
-        for state in B2:
+        for state in b2:
             if self._game.final(state) == 0:
                 p2_flag = 0
                 break
@@ -222,7 +241,6 @@ class OpacityEnforcingGame(mdp):
             return True
         else:
             return False
-    # TODO. Check return 0, 1 -> True, False
 
     def belief_one_dash(self, belief, action):
         a, X = action
@@ -245,19 +263,32 @@ class OpacityEnforcingGame(mdp):
     def delta(self, state, action):
         a, X = action
         delta_states = list()
-        if self.final(state) == 0:      # TODO. final -> true, false.
-            st, B1, B2 = state
+        if not self.final(state):
+            st, b1, b2 = state
             next_states = self._game.delta(st, a)
-            post_b1 = self.belief_one_dash(B1, action)
-            post_b2 = self.belief_two_dash(B2)
+            post_b1 = self.belief_one_dash(b1, action)
+            post_b2 = self.belief_two_dash(b2)
 
             for nx_st in next_states:
                 observation_1, observation_2 = self._game.observation(nx_st, X)
-                B1_dash = set(post_b1).intersection(set(observation_1))
-                B2_dash = set(post_b2).intersection(set(observation_2))
-                delta_states.append((nx_st, list(B1_dash), list(B2_dash)))
+                b1_dash = set(post_b1).intersection(set(observation_1))
+                b2_dash = set(post_b2).intersection(set(observation_2))
+                delta_states.append((nx_st, list(b1_dash), list(b2_dash)))
 
         else:
             delta_states.append(state)
 
         return delta_states
+
+    # PATCH. We need a way to store belief equivalence
+    @models.register_property(GRAPH_PROPERTY)
+    def belief_equivalent(self):
+        states = self.__states
+        equivalence_cls = {int: {}}
+        for (s, b1, b2), (t, c1, c2) in itertools.product(states, states):
+            if b1 == c1 and b2 == c2:
+                uid = states[(s, b1, b2)]
+                vid = states[(t, c1, c2)]
+                # uid and vid are in same equivalence class.
+                # histograms.
+

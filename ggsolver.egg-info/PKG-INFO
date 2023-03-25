@@ -1,0 +1,84 @@
+Metadata-Version: 2.1
+Name: ggsolver
+Version: 0.1.6
+Summary: Python package containing set-based solvers for synthesis of winning strategies in two-player games on graphs
+Home-page: https://akulkarni.me/
+Author: Abhishek N. Kulkarni
+Author-email: abhi.bp1993@gmail.com
+Maintainer: Abhishek N. Kulkarni
+Maintainer-email: abhi.bp1993@gmail.com
+License: UNKNOWN
+Project-URL: Bug Tracker, https://github.com/abhibp1993/ggsolver/issues
+Project-URL: Documentation, 
+Project-URL: Source Code, https://github.com/abhibp1993/ggsolver
+Keywords: ggsolver,Game theory,Reactive synthesis
+Platform: Linux
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Intended Audience :: Education
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Requires-Python: >=3.9
+
+# ggsolver 
+
+
+# User Tips
+
+## Creating a new graphical model
+
+To create a new graphical model, inherit from the relevant model in `models.py`.
+For instance, the following template shows how to define a new game.  
+
+```python
+
+
+class MyGame(Game):
+    NODE_PROPERTY = Game.NODE_PROPERTY.copy()
+    EDGE_PROPERTY = Game.EDGE_PROPERTY.copy()
+    GRAPH_PROPERTY = Game.GRAPH_PROPERTY.copy()
+    
+    ...
+```
+
+The `NODE_PROPERTY, EDGE_PROPERTY, GRAPH_PROPERTY` register the node, edge and graph 
+properties to be serialized. To mark a function as node property, 
+
+```python
+from ggsolver.models import Game, register_property
+
+class MyGame(Game):
+    NODE_PROPERTY = Game.NODE_PROPERTY.copy()
+    EDGE_PROPERTY = Game.EDGE_PROPERTY.copy()
+    GRAPH_PROPERTY = Game.GRAPH_PROPERTY.copy()
+    
+    @register_property(NODE_PROPERTY)
+    def state_property(self, state):
+        return "value"
+    
+    @register_property(EDGE_PROPERTY)
+    def transition_property(self, from_state, action, to_state):
+        return "value"
+    
+    @register_property(GRAPH_PROPERTY)
+    def graph_property(self):
+        return "value"
+```
+
+
+
+
+
+
+
+
+

@@ -35,7 +35,7 @@ class SWinReach(models.Solver):
 
         super(SWinReach, self).__init__(graph, **kwargs)
         self._player = player
-        self._final = final if final is not None else self.get_final_states()
+        self._final = set(map(self.state2node, final)) if final is not None else self.get_final_states()
         self._turn = self._solution["turn"]
         self._rank = mod_graph.NodePropertyMap(self._solution, default=float("inf"))
         self._solution["rank"] = self._rank

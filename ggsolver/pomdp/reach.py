@@ -51,6 +51,8 @@ class ASWinReach(models.Solver):
         """
         # TODO. self._solution -> SubGraph.
 
+        graph = self._solution
+
         level_y = list()
         level_y.append(set(self.graph.nodes()))
 
@@ -65,9 +67,18 @@ class ASWinReach(models.Solver):
             else:
                 level_y.append(new_level_y)
 
-        strategy_1 = self.strategy_construction(new_level_y)
+        for st in new_level_y:
+            graph.hide_node(st)
 
-
+        # Process node, edge winners
+        for uid in tqdm(self._solution.nodes(), desc="Processing node, edge winners..."):
+            self._node_winner[uid] = 1 if self._solution.is_node_visible(uid) else 3
+            out_edges = self._solution.out_edges(uid)
+            winning_acts = {self._solution["input"][uid, vid, key]
+                            for _, vid, key in out_edges if self._solution.is_edge_visible(uid, vid, key)}
+            for _, vid, key in out_edges:
+                self._edge_winner[uid, vid, key] = 1 if self._solution["input"][
+                                                            uid, vid, key] in winning_acts else 3
 
         # Mark the game to be solved
         self._is_solved = True

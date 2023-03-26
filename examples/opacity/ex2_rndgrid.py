@@ -18,6 +18,7 @@ import ggsolver.gridworld.util as util
 import ggsolver.dtptb as dtptb
 import ggsolver.logic as logic
 import ggsolver.graph as graph
+import ggsolver.models as models
 
 import models as mod_opacity
 import logging
@@ -26,6 +27,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class RndGridworld(mod_opacity.Arena):
+    GRAPH_PROPERTY = mod_opacity.Arena.GRAPH_PROPERTY.copy()
+
     def __init__(self, dim, obs=None, actions=None, init_state=None, sense_rng=2, num_goals=2):
         """
 
@@ -43,7 +46,7 @@ class RndGridworld(mod_opacity.Arena):
         self._init_state = init_state
         self._sense_rng = sense_rng
         self._num_goals = num_goals
-        self._goals = random.choices(list(self.states()), k=num_goals)
+        self._goal_cells = random.choices(list(self.states()), k=num_goals)
 
     def states(self):
         """
@@ -81,8 +84,8 @@ class RndGridworld(mod_opacity.Arena):
         return [f"g{idx}" for idx in range(self._num_goals)]
 
     def label(self, state):
-        if state in self._goals:
-            idx = self._goals.index(state)
+        if state[0:2] in self._goal_cells:
+            idx = self._goal_cells.index(state)
             return [f"g{idx}"]
         return []
 
@@ -106,6 +109,10 @@ class RndGridworld(mod_opacity.Arena):
             else:
                 return f"o2 not: {(p2r_prime, p2c_prime)}"
 
+    @models.register_property(GRAPH_PROPERTY)
+    def goal_cells(self):
+        return self._goal_cells
+
 
 def solve(game: mod_opacity.BeliefGame):
     """
@@ -114,12 +121,12 @@ def solve(game: mod_opacity.BeliefGame):
     """
     # Graphify the game
     # PATCH
-    if os.path.exists("belief_game.gm"):
+    if os.path.exists("out/belief_game.gm"):
         game_graph = graph.Graph.load("belief_game.gm")
         print("Loaded existing game graph.")
     else:
         game_graph = game.graphify(pointed=True)
-        game_graph.save("belief_game.gm")
+        game_graph.save("out/belief_game.gm")
         print("graphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
@@ -156,15 +163,15 @@ if __name__ == "__main__":
     game = RndGridworld(dim=(4, 4), sense_rng=1)
     game.initialize((0, 0, 1, 1, 1))
     aut = game.formula1().translate()
-    # base_graph = game.graphify()
-    # base_graph.save("base_game.gm", overwrite=True)
 
+    aut_graph = aut.graphify()
+    aut_graph.to_png("out/aut_graph.png", nlabel=["state", "final"], elabel=["input"])
+    base_graph = game.graphify()
+    base_graph.save("out/base_game.gm", overwrite=True)
     # graph.to_png("graph.png", nlabel=["state"], elabel=["input", "attacker_observation"])
 
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
-    # # graph = belief_game.graphify(pointed=True)
-    # # graph.to_png("belief_graph.png", nlabel=["state"], elabel=["input"])
     solve(belief_game)
 
-    # Analyze the output (see API for models.Solver)#
+    # Analyze the output (see API for models.Solver)

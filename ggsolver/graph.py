@@ -727,12 +727,21 @@ class Graph(IGraph):
 
         .. note:: Pickle protocol is not tested.
         """
+
+        def convert_lists_to_tuples(obj):
+            if isinstance(obj, dict):
+                return {convert_lists_to_tuples(k): convert_lists_to_tuples(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return tuple(convert_lists_to_tuples(x) for x in obj)
+            else:
+                return obj
+
         if not os.path.exists(fpath):
             raise FileNotFoundError("File does not exist.")
 
         if protocol == "json":
             with open(fpath, "r") as file:
-                obj_dict = json.load(file)
+                obj_dict = json.load(file, object_hook=convert_lists_to_tuples)
                 graph = cls.deserialize(obj_dict)
         elif protocol == "pickle":
             with open(fpath, "rb") as file:

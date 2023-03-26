@@ -103,9 +103,9 @@ def solve(game: mod_opacity.BeliefGame):
 
     # Solve the safety game.
     swin_reach.solve()
-    print("SWIN rECH solved..")
+    print("SWIN reach solved..")
 
-    print(f"{swin_reach.win_region(1)=}")
+    print(f"{swin_reach.winning_states(1)=}")
 
     # Return solution to reachability game.
     return swin_reach
@@ -123,6 +123,6 @@ if __name__ == "__main__":
     belief_game.initialize(belief_game.init_state())
     graph = belief_game.graphify(pointed=True)
     graph.to_png("belief_graph.png", nlabel=["state"], elabel=["input"])
-    # solve(belief_game)
+    solve(belief_game)
 
     # Analyze the output (see API for models.Solver)#

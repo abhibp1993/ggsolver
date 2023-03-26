@@ -70,7 +70,7 @@ class SWinReach(models.Solver):
                 self._edge_winner[uid, vid, key] = self._player
 
         # Zielonka's recursive algorithm
-        with tqdm(total=self._solution.number_of_visible_nodes(), desc="Pointed graphify adding edges") as progress_bar:
+        with tqdm(total=self._solution.number_of_nodes(), desc="Pointed graphify adding edges") as progress_bar:
             while True:
                 predecessors = set(reduce(set.union, map(set, map(self._solution.predecessors, win_nodes))))
 

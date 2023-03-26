@@ -224,8 +224,9 @@ class PropertyMap(dict):
         self.default = obj_dict["default"]
         # Explicitly deserialize to ensure all keys are valid nodes.
         for k, v in obj_dict["map"].items():
+            k = ast.literal_eval(k)
             if self.__contains__(k):
-                self[ast.literal_eval(k)] = v
+                self[k] = v
 
 
 class PMapView(PropertyMap):

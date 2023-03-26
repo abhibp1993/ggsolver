@@ -10,12 +10,14 @@ Generate a random gridworld arena of size N_ROWS, N_COLS.
     - Observation: Generated based on sensor.
 """
 import itertools
+import os
 import random
 from scipy.spatial.distance import cityblock
 
 import ggsolver.gridworld.util as util
 import ggsolver.dtptb as dtptb
 import ggsolver.logic as logic
+import ggsolver.graph as graph
 
 import models as mod_opacity
 import logging
@@ -84,7 +86,7 @@ class RndGridworld(mod_opacity.Arena):
             return [f"g{idx}"]
         return []
 
-    def formula(self):
+    def formula1(self):
         objective = [f"Fg{idx}" for idx in range(self._num_goals)]
         return logic.ltl.ScLTL(" & ".join(objective), atoms=self.atoms())
 
@@ -111,35 +113,58 @@ def solve(game: mod_opacity.BeliefGame):
     :return:
     """
     # Graphify the game
-    graph = game.graphify(pointed=True)
-    print("grphify done.")
+    # PATCH
+    if os.path.exists("belief_game.gm"):
+        game_graph = graph.Graph.load("belief_game.gm")
+        print("Loaded existing game graph.")
+    else:
+        game_graph = game.graphify(pointed=True)
+        game_graph.save("belief_game.gm")
+        print("graphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
-    swin_reach = dtptb.SWinReach(graph)
-    print("Swin_reach created")
+    swin_reach_p1 = dtptb.SWinReach(game_graph)
+    print("P1's SWinReach object created")
+
+    # Define reachability solver for P2 (see Thm. 2)
+    # final = {game_graph["state"] for uid in game_graph.nodes() if game.final_p2(game_graph["state"][uid])}
+    final = set()
+    for uid in game_graph.nodes():
+        if game.final_p2(game_graph["state"][uid]):
+            final.add(game_graph["state"])
+
+    swin_reach_p2 = dtptb.SWinReach(game_graph, final=final)
+    print("P2's SWinReach object created")
 
     # Solve the safety game.
-    swin_reach.solve()
-    print("SWIN reach solved..")
+    swin_reach_p1.solve()
+    print("P1's SWinReach object solved..")
 
-    print(f"{swin_reach.winning_states(1)=}")
+    # Solve the safety game.
+    swin_reach_p2.solve()
+    print("P2's SWinReach object solved..")
+
+    print(f"{len(swin_reach_p1.winning_states(1))=}")
+    print(f"{len(swin_reach_p2.winning_states(1))=}")
 
     # Return solution to reachability game.
-    return swin_reach
+    return swin_reach_p1
 
 
 if __name__ == "__main__":
     # Instantiate MyGame here
-    game = RndGridworld(dim=(4, 4), )
+    game = RndGridworld(dim=(4, 4), sense_rng=1)
     game.initialize((0, 0, 1, 1, 1))
-    aut = game.formula().translate()
-    graph = game.graphify()
+    aut = game.formula1().translate()
+    # base_graph = game.graphify()
+    # base_graph.save("base_game.gm", overwrite=True)
+
     # graph.to_png("graph.png", nlabel=["state"], elabel=["input", "attacker_observation"])
 
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
-    graph = belief_game.graphify(pointed=True)
-    graph.to_png("belief_graph.png", nlabel=["state"], elabel=["input"])
+    # # graph = belief_game.graphify(pointed=True)
+    # # graph.to_png("belief_graph.png", nlabel=["state"], elabel=["input"])
     solve(belief_game)
 
     # Analyze the output (see API for models.Solver)#

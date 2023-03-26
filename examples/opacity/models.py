@@ -65,9 +65,13 @@ class BeliefGame(dtptb.DTPTBGame):
         if any(0 not in self._aut.final(q_b) for s_b, q_b in b):
             return if_final
         return False
-        # for s_b, q_b in b:
-        #     if_final = if_final and (0 in self._aut.final(q_b))
-        # return if_final
+
+    def final_p2(self, state):
+        s, q, b = state
+        if_final = 0 in self._aut.final(q)
+        if all(0 in self._aut.final(q_b) for s_b, q_b in b):
+            return if_final
+        return False
 
     def init_state(self):
         s0 = self._game.init_state()

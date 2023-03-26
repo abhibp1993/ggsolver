@@ -94,18 +94,32 @@ def solve(game: mod_opacity.BeliefGame):
     :return:
     """
     # Graphify the game
-    graph = game.graphify(pointed=True)
+    game_graph = game.graphify(pointed=True)
     print("grphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
-    swin_reach = dtptb.SWinReach(graph)
+    swin_reach = dtptb.SWinReach(game_graph)
     print("Swin_reach created")
+
+    # Define reachability solver for P2 (see Thm. 2)
+    final = set()
+    for uid in game_graph.nodes():
+        if game.final_p2(game_graph["state"][uid]):
+            final.add(game_graph["state"][uid])
+
+    swin_reach_p2 = dtptb.SWinReach(game_graph, final=final)
+    print("P2's SWinReach object created")
 
     # Solve the safety game.
     swin_reach.solve()
     print("SWIN reach solved..")
 
+    # Solve the safety game.
+    swin_reach_p2.solve()
+    print("P2's SWinReach object solved..")
+
     print(f"{swin_reach.winning_states(1)=}")
+    print(f"{swin_reach_p2.winning_states(1)=}")
 
     # Return solution to reachability game.
     return swin_reach

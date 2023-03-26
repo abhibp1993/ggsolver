@@ -68,6 +68,11 @@ class ActivePOMDP(models.Game):
             is_probabilistic=False,
             is_turn_based=False
         )
+        self._sensors = kwargs["sensors"] if "sensors" in kwargs else None
+        self._sensors_secured = kwargs["sensors_secured"] if "sensors_secured" in kwargs else None
+        self._sensors_unsecured = kwargs["sensors_unsecured"] if "sensors_unsecured" in kwargs else None
+        self._sensor_query = kwargs["sensor_query"] if "sensor_query" in kwargs else None
+        self._init_observation = kwargs["init_observation"] if "init_observation" in kwargs else None
 
     # TODO. Merge into obs_set: {(s, sigma): [P1 obs, P2 obs]}
     @models.register_property(GRAPH_PROPERTY)
@@ -98,26 +103,34 @@ class ActivePOMDP(models.Game):
 
     @models.register_property(GRAPH_PROPERTY)
     def sensors(self):
-        raise NotImplementedError("Marked Abstract")
+        return self._sensors
 
     @models.register_property(GRAPH_PROPERTY)
     def sensors_secured(self):
-        raise NotImplementedError("Marked Abstract")
+        return self._sensors_secured
 
     @models.register_property(GRAPH_PROPERTY)
     def sensors_unsecured(self):
-        raise NotImplementedError("Marked Abstract")
+        return self._sensors_unsecured
 
     @models.register_property(GRAPH_PROPERTY)
     def sensor_query(self):
-        raise NotImplementedError("Marked Abstract")
+        return self._sensor_query
 
     @models.register_property(GRAPH_PROPERTY)
     def init_observation(self):
-        raise NotImplementedError("Marked Abstract")
+        return self._init_observation
 
     def observation(self, state, query):
-        raise NotImplementedError("Marked Abstract")
+        obs = {st for st in self.states()}
+
+        for act in query:
+            if state in self.sensors()[act]:
+                obs = obs.intersection(set(self.sensors()[act]))
+            else:
+                obs = obs.intersection(set(self.states()) - set(self.sensors()[act]))
+
+        return list(obs)
 
 
 class ProductWithDFA(ActivePOMDP):
@@ -172,15 +185,18 @@ class ProductWithDFA(ActivePOMDP):
 
     def observation(self, state, query):
         s, q = state
-        unsecured_sensors = query.intersection(set(self._game.sensors_unsecured()))
-        observation_1 = itertools.product(self._game.observation(s, query), self._aut.states())
+        unsecured_sensors = set(self.sensor_query()[query]).intersection(set(self.sensors_unsecured()))
+        # unsecured_sensors = query.intersection(set(self._game.sensors_unsecured()))
+        observation_1 = itertools.product(self._game.observation(s, set(self.sensor_query()[query])), self._aut.states())
         observation_2 = itertools.product(self._game.observation(s, unsecured_sensors), self._aut.states())
 
-        return observation_1, observation_2
+        return list(observation_1), list(observation_2)
 
     def init_observation(self):
-        return itertools.product(self._game.init_observation(), self._aut.states()), itertools.product(
-            self._game.states(), self._aut.states())
+        return [list(self.init_state()), list(itertools.product(
+            self._game.states(), [self.init_state()[1]]))]
+        # return [list(self.init_state()), list(itertools.product(
+        #     self._game.states(), self._aut.states()))]
 
 
 class OpacityEnforcingGame(mdp.QualitativeMDP):
@@ -216,26 +232,45 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
 
     def init_state(self):
         initial_obs = self._game.init_observation()
-        initial_state = (self._game.init_state(), initial_obs[0], initial_obs[1])
+        initial_state = (self._game.init_state(), tuple(initial_obs[0]), tuple(initial_obs[1]))
         return initial_state
 
     def final(self, state):
         st, b1, b2 = state
+
+        if type(b1[1]) == int:
+            b1 = b1
+        else:
+            b1 = list(b1)
+
+        if type(b2[1]) == int:
+            b2 = b2
+        else:
+            b2 = list(b2)
+
         p1_flag = 1
         p2_flag = 1
 
-        for s in b1:
-            if self._game.final(s) == 0:
+        if type(b1[1]) == int:
+            if self._game.final(b1) == 0:
                 p1_flag = 0
-                break
+        else:
+            for s in list(b1):
+                if self._game.final(s) == 0:
+                    p1_flag = 0
+                    break
 
         if p1_flag == 0:
             return False
 
-        for state in b2:
-            if self._game.final(state) == 0:
+        if type(b2[1]) == int:
+            if self._game.final(b2) == 0:
                 p2_flag = 0
-                break
+        else:
+            for state in list(b2):
+                if self._game.final(state) == 0:
+                    p2_flag = 0
+                    break
 
         if p1_flag == 1 and p2_flag == 0:
             return True
@@ -244,27 +279,47 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
 
     def belief_one_dash(self, belief, action):
         a, X = action
-        post_belief = list()
-        for s in belief:
-            post = self._game.delta(s, a)
-            post_belief.append(post)
+        post_belief = set()
 
-        return post_belief
-
-    def belief_two_dash(self, belief):
-        post_belief = list()
-        for a in self._game.actions():
+        if type(belief[1]) == int:
+            post = self._game.delta(belief, a)
+            post_belief = post_belief.union(set(post))
+        else:
             for s in belief:
                 post = self._game.delta(s, a)
-                post_belief.append(post)
+                post_belief = post_belief.union(set(post))
 
-        return post_belief
+        return list(post_belief)
+
+    def belief_two_dash(self, belief):
+        post_belief = set()
+        for a in self._game.actions():
+            if type(belief[1]) == int:
+                post = self._game.delta(belief, a)
+                post_belief = post_belief.union(set(post))
+            else:
+                for s in belief:
+                    post = self._game.delta(s, a)
+                    post_belief = post_belief.union(set(post))
+
+        return list(post_belief)
 
     def delta(self, state, action):
         a, X = action
         delta_states = list()
         if not self.final(state):
             st, b1, b2 = state
+
+            if type(b1[1]) == int:
+                b1 = b1
+            else:
+                b1 = list(b1)
+
+            if type(b2[1]) == int:
+                b2 = b2
+            else:
+                b2 = list(b2)
+
             next_states = self._game.delta(st, a)
             post_b1 = self.belief_one_dash(b1, action)
             post_b2 = self.belief_two_dash(b2)
@@ -273,7 +328,17 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
                 observation_1, observation_2 = self._game.observation(nx_st, X)
                 b1_dash = set(post_b1).intersection(set(observation_1))
                 b2_dash = set(post_b2).intersection(set(observation_2))
-                delta_states.append((nx_st, list(b1_dash), list(b2_dash)))
+                if len(b1_dash) == 1:
+                    b1_dash = tuple(b1_dash)[0]
+                else:
+                    b1_dash = tuple(b1_dash)
+
+                if len(b2_dash) == 1:
+                    b2_dash = tuple(b2_dash)[0]
+                else:
+                    b2_dash = tuple(b2_dash)
+
+                delta_states.append((nx_st, b1_dash, b2_dash))
 
         else:
             delta_states.append(state)
@@ -294,8 +359,8 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
                 for items in equivalence_cls:
                     if uid in equivalence_cls[items] or vid in equivalence_cls[items]:
                         new_keys = equivalence_cls[items]
-                        new_keys.add(uid)
-                        new_keys.add(vid)
+                        new_keys.append(uid)
+                        new_keys.append(vid)
                         equivalence_cls[items] = new_keys
                         flag = 0
                         break

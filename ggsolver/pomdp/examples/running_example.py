@@ -1,7 +1,7 @@
 """
 Running example from paper.
 """
-from ggsolver.pomdp.models import ActivePOMDP, ProductWithDFA
+from ggsolver.pomdp.models import ActivePOMDP, ProductWithDFA, OpacityEnforcingGame
 import sys
 import ggsolver.logic as logic
 sys.path.append('/home/ggsolver/')
@@ -38,7 +38,7 @@ if __name__ == '__main__':
             "D": ["s1", "s2", "s3"],
             },
         secured_sensors=["B"],
-        unsecured_sensors=["A", "C", "D"],
+        sensors_unsecured=["A", "C", "D"],
         sensor_query={
             "1": ["A", "B"],
             "2": ["B", "C"],
@@ -48,9 +48,15 @@ if __name__ == '__main__':
             "6": ["B", "D"],
                       },
 
-        init_observation="s0"
+        init_observation=["s0"]
 
     )
+    # M.sensors = {
+    #         "A": ["s1", "s2"],
+    #         "B": ["s2"],
+    #         "C": ["s3", "s4"],
+    #         "D": ["s1", "s2", "s3"],
+    #         }
     # pomdp_M_graph = M.graphify()
     # pomdp_M_graph.to_png("pomdp_M.png", nlabel=["state"], elabel=["input"])
 
@@ -66,5 +72,14 @@ if __name__ == '__main__':
     prod_POMDP_M = ProductWithDFA(M, aut)
     # # s0, q0 = prod_POMDP_M.init_state()
     prod_POMDP_M.initialize(M.init_state)
-    prod_POMDP_M_graph = prod_POMDP_M.graphify(pointed=True)
-    prod_POMDP_M_graph.to_png("product_pomdp_M.png", nlabel=["state"], elabel=["input"])
+    # prod_POMDP_M_graph = prod_POMDP_M.graphify(pointed=True)
+    # prod_POMDP_M_graph.to_png("product_pomdp_M.png", nlabel=["state"], elabel=["input"])
+
+
+    # # testing OpacityEnforcingGame.
+    opacity_game_G = OpacityEnforcingGame(prod_POMDP_M)
+    #
+    opacity_game_G.initialize(prod_POMDP_M.init_state())
+    opacity_game_G_graph = opacity_game_G.graphify(pointed=True)
+    opacity_game_G_graph.to_png("opacity_enforcing_game.png", nlabel=["state"], elabel=["input"])
+

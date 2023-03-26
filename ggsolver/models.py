@@ -214,7 +214,7 @@ class GraphicalModel:
         logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: prob. [OK]"))
 
     def _gen_underlying_graph_pointed(self, graph):
-        logging.info(util.ColoredMsg.ok(f"[INFO] Running graphify UNPOINTED."))
+        logging.info(util.ColoredMsg.ok(f"[INFO] Running graphify POINTED."))
 
         # Get input function
         input_func = getattr(self, self._input_domain)

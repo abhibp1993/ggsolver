@@ -47,20 +47,23 @@ class BeliefGame(dtptb.DTPTBGame):
         t = self._game.delta(s, act)
         p = self._aut.delta(q, self._game.label(t))
         c = list()
-        for s_b, q_b in b:
-            for a_b in self._game.actions():
-                t_b = self._game.delta(s_b, a_b)
-                p_b = self._aut.delta(q_b, self._game.label(t_b))
-                if self._game.attacker_observation(s, act, t) == self._game.attacker_observation(s_b, a_b, t_b):
-                    c.append((t_b, p_b))
+        o = self._game.attacker_observation(s, act, t)
+        for s_b, q_b, a_b in itertools.product(b, self.actions()):
+            t_b = self._game.delta(s_b, a_b)
+            p_b = self._aut.delta(q_b, self._game.label(t_b))
+            if o == self._game.attacker_observation(s_b, a_b, t_b):
+                c.append((t_b, p_b))
         return t, p, tuple(c)
 
     def final(self, state):
         s, q, b = state
-        IfFinal = 0 in self._aut.final(q)
-        for s_b,q_b in b:
-            IfFinal = IfFinal & (0 in self._aut.final(q_b))
-        return IfFinal
+        if_final = 0 in self._aut.final(q)
+        if any(0 not in self._aut.final(q_b) for s_b, q_b in b):
+            return if_final
+        return False
+        # for s_b, q_b in b:
+        #     if_final = if_final and (0 in self._aut.final(q_b))
+        # return if_final
 
     def init_state(self):
         s0 = self._game.init_state()

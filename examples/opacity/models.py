@@ -46,13 +46,17 @@ class BeliefGame(dtptb.DTPTBGame):
         s, q, b = state
         t = self._game.delta(s, act)
         p = self._aut.delta(q, self._game.label(t))
-        c = list()
+
+        if t is None:
+            return
+
+        c = set()
         o = self._game.attacker_observation(s, act, t)
-        for s_b, q_b, a_b in itertools.product(b, self.actions()):
+        for (s_b, q_b), a_b in itertools.product(b, self.actions()):
             t_b = self._game.delta(s_b, a_b)
             p_b = self._aut.delta(q_b, self._game.label(t_b))
             if o == self._game.attacker_observation(s_b, a_b, t_b):
-                c.append((t_b, p_b))
+                c.add((t_b, p_b))
         return t, p, tuple(c)
 
     def final(self, state):

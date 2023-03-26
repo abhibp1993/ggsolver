@@ -8,13 +8,15 @@ import ggsolver.logic as logic
 # import ggsolver.graph as ggraph
 import ggsolver.dtptb as dtptb
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 
 class MyGame(mod_opacity.Arena):
     """
-    # TODO. Implement this for your example.
+    Toy problem in paper, Fig. 1.
     """
+
     def states(self):
         return list(range(7))
 
@@ -25,40 +27,65 @@ class MyGame(mod_opacity.Arena):
             return 2
 
     def actions(self):
-        return [(0,1),(0,4),(0,5),(1,2),(1,6),(2,3),(4,6),(5,2),(5,6),(6,3),(3,3)]
+        return ["a1", "a2", "a3", "b1", "b2"]
 
     def delta(self, state, act):
-        if state == act[0]:
-            return act[1]
-        return None
+        # [(0, 1), (0, 4), (0, 5), (1, 2), (1, 6), (2, 3), (4, 6), (5, 2), (5, 6), (6, 3), (3, 3)]
+        trans_dict = {
+            0: {"a1": 5, "a2": 1, "a3": 4},
+            1: {"b1": 6, "b2": 2},
+            2: {"a1": 3, "a2": 3, "a3": 3},
+            3: {"a1": 3, "a2": 3, "a3": 3, "b1": 3, "b2": 3},
+            4: {"b1": 6, "b2": 6},
+            5: {"b1": 2, "b2": 6},
+            6: {"a1": 3, "a2": 3, "a3": 3}
+        }
+        try:
+            return trans_dict[state][act]
+        except KeyError:
+            return None
 
     def atoms(self):
-        return ["h1", "h2", "p3"]
+        return ["p1", "p2", "p3"]
 
     def label(self, state):
         if state == 5:
-            return ["h1"]
-        elif state == 5:
-            return ["h2"]
+            return ["p1"]
+        elif state == 6:
+            return ["p2"]
         elif state == 3:
             return ["p3"]
         else:
             return []
 
     def formula(self):
-        return logic.ltl.ScLTL("Fh1 || Fh2 && Fp3")
+        return logic.ltl.ScLTL("Fp1 || Fp2 && Fp3", atoms=self.atoms())
 
     def attacker_observation(self, state, act, next_state):
-        if (state in [1,4]) and (next_state in [1,4]):
-            return "1a4" + "1a4"
-        elif (state in [2,5,6]) and (next_state in [1,4]):
-            return "2ah" + "1a4"
-        elif (state in [1,4]) and (next_state in [2,5,6]):
-            return "1a4" + "2ah"
-        elif (state in [2,5,6]) and (next_state in [2,5,6]):
-            return "2ah" + "2ah"
-        else:
-            return str(state) + str(next_state)
+        obs_dict = {
+            0: {"a1": {5: "o1"}, "a2": {1: "o2"}, "a3": {4: "o2"}},
+            1: {"b1": {6: "o3"}, "b2": {2: "o3"}},
+            2: {"a1": {3: "o4"}, "a2": {3: "o4"}, "a3": {3: "o4"}},
+            3: {"a1": {3: "o5"}, "a2": {3: "o5"}, "a3": {3: "o5"}, "b1": {3: "o5"}, "b2": {3: "o5"}},
+            4: {"b1": {6: "o3"}, "b2": {6: "o3"}},
+            5: {"b1": {2: "o6"}, "b2": {6: "o6"}},
+            6: {"a1": {3: "o4"}, "a2": {3: "o4"}, "a3": {3: "o4"}}
+        }
+        try:
+            return obs_dict[state][act][next_state]
+        except KeyError:
+            return None
+
+        # if (state in [1, 4]) and (next_state in [1, 4]):
+        #     return "1a4" + "1a4"
+        # elif (state in [2, 5, 6]) and (next_state in [1, 4]):
+        #     return "2ah" + "1a4"
+        # elif (state in [1, 4]) and (next_state in [2, 5, 6]):
+        #     return "1a4" + "2ah"
+        # elif (state in [2, 5, 6]) and (next_state in [2, 5, 6]):
+        #     return "2ah" + "2ah"
+        # else:
+        #     return str(state) + str(next_state)
 
 
 def solve(game: mod_opacity.BeliefGame):
@@ -89,9 +116,13 @@ if __name__ == "__main__":
     game = MyGame()
     game.initialize(0)
     aut = game.formula().translate()
+    graph = game.graphify(pointed=True)
+    graph.to_png("graph.png", nlabel=["state"], elabel=["input", "attacker_observation"])
 
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
-    solve(belief_game)
+    graph = belief_game.graphify(pointed=True)
+    graph.to_png("belief_graph.png", nlabel=["state"], elabel=["input"])
+    # solve(belief_game)
 
     # Analyze the output (see API for models.Solver)#

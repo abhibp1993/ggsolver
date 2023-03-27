@@ -35,7 +35,8 @@ class SWinReach(models.Solver):
 
         super(SWinReach, self).__init__(graph, **kwargs)
         self._player = player
-        self._final = final if final is not None else self.get_final_states()
+        # self._final = final if final is not None else self.get_final_states()
+        self._final = set(map(self.state2node, final)) if final is not None else self.get_final_states()
         self._turn = self._solution["turn"]
         self._rank = mod_graph.NodePropertyMap(self._solution, default=float("inf"))
         self._solution["rank"] = self._rank
@@ -63,14 +64,14 @@ class SWinReach(models.Solver):
         win_nodes = set(self._final)
 
         # Initialize rank, node/edge_winner for final states
-        for uid in win_nodes:
+        for uid in tqdm(win_nodes, desc="Initializing final states"):
             self._rank[uid] = rank
             self._node_winner[uid] = self._player
             for _, vid, key in self._solution.out_edges(uid):
                 self._edge_winner[uid, vid, key] = self._player
 
         # Zielonka's recursive algorithm
-        with tqdm(total=self._solution.number_of_visible_nodes(), desc="Pointed graphify adding edges") as progress_bar:
+        with tqdm(total=self._solution.number_of_nodes(), desc="Pointed graphify adding edges") as progress_bar:
             while True:
                 predecessors = set(reduce(set.union, map(set, map(self._solution.predecessors, win_nodes))))
 

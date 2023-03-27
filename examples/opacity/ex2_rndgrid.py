@@ -122,7 +122,7 @@ def solve(game: mod_opacity.BeliefGame):
     # Graphify the game
     # PATCH
     if os.path.exists("out/belief_game.gm"):
-        game_graph = graph.Graph.load("belief_game.gm")
+        game_graph = graph.Graph.load("out/belief_game.gm")
         print("Loaded existing game graph.")
     else:
         game_graph = game.graphify(pointed=True)
@@ -164,10 +164,10 @@ if __name__ == "__main__":
     game.initialize((0, 0, 1, 1, 1))
     aut = game.formula1().translate()
 
-    aut_graph = aut.graphify()
-    aut_graph.to_png("out/aut_graph.png", nlabel=["state", "final"], elabel=["input"])
-    base_graph = game.graphify()
-    base_graph.save("out/base_game.gm", overwrite=True)
+    # aut_graph = aut.graphify()
+    # aut_graph.to_png("out/aut_graph.png", nlabel=["state", "final"], elabel=["input"])
+    # base_graph = game.graphify()
+    # base_graph.save("out/base_game.gm", overwrite=True)
     # graph.to_png("graph.png", nlabel=["state"], elabel=["input", "attacker_observation"])
 
     belief_game = mod_opacity.BeliefGame(game, aut)

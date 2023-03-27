@@ -3,10 +3,15 @@ Parity game solver using PGSolver (https://github.com/tcsprojects/pgsolver)
 """
 
 import logging
+import os.path
+import pathlib
 import subprocess
+import datetime
 from functools import reduce
 from tqdm import tqdm
 from pprint import pprint
+import networkx as nx
+from networkx.drawing.nx_agraph import read_dot
 
 import ggsolver.graph as mod_graph
 import ggsolver.util as util
@@ -16,6 +21,194 @@ logger = logging.getLogger(__name__)
 
 
 class SWinReach(models.Solver):
+    def __init__(self, graph, final=None, path="out/", filename=None, save_output=False, **kwargs):
+        if not graph["is_deterministic"]:
+            logger.warning(util.ColoredMsg.warn(f"dtptb.SWinReach expects deterministic game graph. Input parameters: "
+                                                f"is_deterministic={graph['is_deterministic']}, "
+                                                f"is_probabilistic={graph['is_probabilistic']}."))
+
+        if not graph["is_turn_based"]:
+            logger.warning(util.ColoredMsg.warn(f"dtptb.SWinReach expects turn-based game graph. Input parameters: "
+                                                f"is_turn_based={graph['is_turn_based']}."))
+
+        super(SWinReach, self).__init__(graph, **kwargs)
+        self._player = 1  # For PGSolver, we can only solve for P1's reachability.
+        self._final = {self.state2node(st) for st in final} if final is not None else self.get_final_states()
+        if len(self._final) == 0:
+            logging.warning(f"dtptb.SWinReach.__init__(): Final state set is empty.")
+
+        self._turn = self._solution["turn"]
+        self._rank = mod_graph.NodePropertyMap(self._solution, default=float("inf"))
+        self._solution["rank"] = self._rank
+        self._path = path
+        if not os.path.exists(self._path):
+            os.mkdir(self._path)
+
+        self._filename = filename if filename is not None else \
+            f'pgzlk_{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}'
+        self._save_output = save_output
+
+    def _gen_pgsolver_input(self):
+        """
+        Converts `self._graph` to PGSolver input format.
+
+        .. note:: PGSolver does not accept multi-digraphs. It expects a digraph.
+                    In DTPTBGame, this is reasonable because how many parallel edges exist between two nodes
+                    does not affect the decision whether to mark a node as winning.
+
+        Programmer's notes:
+
+            - PGSolver solves for max parity (even/odd doesn't matter).
+                Because SWinReach is concerned with reachability games, two parity values are sufficient.
+                We assign parity `2` to final states, remaining states are assigned `1`.
+
+        .. warning:: PGSolver expects node set to be contiguous. That is, nodes must be {0, 1, 2, ..., n - 1}.
+                In the case when nodes are not contiguous, special care must be taken. Current this is not
+                handled by this function.
+
+        """
+        # Header
+        game_graph = f"parity {self._graph.number_of_nodes() - 1};"
+
+        # Add node specifications
+        for uid in self._solution.nodes():
+            game_graph += "\n" + f"{uid} {2 if uid in self._final else 1} {0 if self._turn[uid] == 1 else 1} " + \
+                          ",".join(list(map(str, self._graph.successors(uid)))) + f' "{self._graph["state"][uid]}";'
+
+        return game_graph
+
+    def _run_pgsolver(self):
+        # Construct PGSolver input
+        pg_input = self._gen_pgsolver_input()
+
+        # Save PGSolver input file
+        with open(os.path.join(self._path, f"{self._filename}.gm"), "w") as file:
+            file.write(pg_input)
+
+        # Run PGSolver
+        pgsolver_output = \
+            subprocess.run(['/pgsolver/bin/pgsolver',  # command
+                            '-global', 'recursive',  # solver (=zielonka)
+                            '-d', os.path.join(self._path, f"{self._filename}.dot"),  # generate dot form of solution
+                            '--printsolonly',  # print solution option of PGSolver
+                            os.path.join(self._path, f"{self._filename}.gm")  # input file
+                            ],
+                           stdout=subprocess.PIPE)
+
+        # Save output of PGSolver
+        with open(os.path.join(self._path, f"{self._filename}.out"), "w") as file:
+            file.write(pgsolver_output.stdout.decode())
+
+        # Parse output
+        # return self._parse_pgsolver_output()
+        return self._parse_pgsolver_dot()
+
+    def _parse_pgsolver_output(self):
+
+        with open(os.path.join(self._path, f"{self._filename}.out"), "r") as file:
+            pgsolver_output = file.readlines()
+
+        # Parse solution
+        # # 1. Decode from byte string
+        # solution_str = pgsolver_output.stdout.decode()
+        # # 2. Create list of lines
+        # solution_str = solution_str.split("\n")
+        # 3. Ignore first and last lines as they do not contain information about solution
+        # solution_str = solution_str[1:-1]
+        solution = pgsolver_output[1:-1]
+        # 4. Remove any line termination symbols
+        solution = map(lambda x: x.replace(";", "").split(" "), solution)
+        # 5. Extract winning nodes.
+        win1 = set()
+        win2 = set()
+        for obj in solution:
+            if int(obj[1]) == 0:  # P1 wins if node winner=0.
+                win1.add(int(obj[0]))
+            else:  # P2 wins if node winner=1.
+                win2.add(int(obj[0]))
+        return win1, win2
+
+    def _parse_pgsolver_dot(self):
+        # Read the DOT file as a networkx graph
+        dot_graph = read_dot(os.path.join(self._path, f"{self._filename}.dot"))
+
+        # Iterate over nodes to extract information.
+        win1 = set()
+        win2 = set()
+        for node, data in dot_graph.nodes(data=True):
+            uid = int(node[1:])
+            if data["color"] == 'red':
+                win1.add(uid)
+            else:  # if data["color"] == 'red':
+                win2.add(uid)
+
+        pi1 = set()
+        pi2 = set()
+        for src, tgt, data in dot_graph.edges(data=True):
+            uid = int(src[1:])
+            vid = int(tgt[1:])
+
+            # If uid is P1 state, any black edge is losing.
+            if self._graph["turn"][uid] == 1:
+                if data["color"] == "green":
+                    pi1.add((uid, vid))
+                else:
+                    pi2.add((uid, vid))
+
+            # If uid is P2 state, any black edge is losing.
+            else:  # self._graph["turn"][uid] == 2:
+                if data["color"] == "red":
+                    pi2.add((uid, vid))
+                else:
+                    pi1.add((uid, vid))
+
+        return win1, win2, pi1, pi2
+
+    def reset(self):
+        """ Resets the solver to initial state. """
+        super(SWinReach, self).reset()
+        self._rank = mod_graph.NodePropertyMap(self._solution)
+        self._is_solved = False
+
+    def get_final_states(self):
+        """ Determines the final states using "final" property of the input graph. """
+        return {uid for uid in self.graph().nodes() if self.graph()["final"][uid]}
+
+    def solve(self):
+        # If game is solved, do not resolve it.
+        if self._is_solved:
+            logging.warning(f"dtptb.pgsolver.SWinReach.solve: Game is solved. To resolve, call `reset` before `solve`.")
+            return
+
+        # If output is to be saved, save the game graph
+        if self._save_output:
+            self._graph.save(os.path.join(self._path, f"{self._filename}.ggraph"))
+
+        # Invoke pgsolver using command-line tool.
+        win1, win2, pi1, pi2 = self._run_pgsolver()
+
+        # Mark node, edge winners.
+        print(win1, win2)
+        pprint(pi1)
+        pprint(pi2)
+
+        # If user has not requested to save data, remove it.
+        if not self._save_output:
+            game_file = os.path.join(self._path, f"{self._filename}.gm")
+            out_file = os.path.join(self._path, f"{self._filename}.out")
+            dot_file = os.path.join(self._path, f"{self._filename}.dot")
+
+            if os.path.exists(game_file):
+                os.remove(game_file)
+
+            if os.path.exists(out_file):
+                os.remove(out_file)
+
+            if os.path.exists(dot_file):
+                os.remove(dot_file)
+
+
+class SWinReach2(models.Solver):
     """
     Computes sure winning region for player 1 or player 2 to reach a set of final states in a deterministic
     two-player turn-based game.
@@ -39,7 +232,7 @@ class SWinReach(models.Solver):
             logger.warning(util.ColoredMsg.warn(f"dtptb.SWinReach expects turn-based game graph. Input parameters: "
                                                 f"is_turn_based={graph['is_turn_based']}."))
 
-        super(SWinReach, self).__init__(graph, **kwargs)
+        super(SWinReach2, self).__init__(graph, **kwargs)
         self._player = player
         self._final = {self.state2node(st) for st in final} if final is not None else self.get_final_states()
         self._turn = self._solution["turn"]

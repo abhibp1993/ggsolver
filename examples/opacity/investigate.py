@@ -3,7 +3,7 @@ from pprint import pprint
 
 
 if __name__ == '__main__':
-    game_graph = graph.Graph.load("belief_game.gm")
+    game_graph = graph.Graph.load("4by4_rng2_random.gm")
 
     states = {game_graph["state"][uid] for uid in game_graph.nodes()}
     finals = set()

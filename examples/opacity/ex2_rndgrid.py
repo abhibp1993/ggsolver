@@ -46,7 +46,7 @@ class RndGridworld(mod_opacity.Arena):
         self._init_state = init_state
         self._sense_rng = sense_rng
         self._num_goals = num_goals
-        self._goal_cells = random.choices(list(self.states()), k=num_goals)
+        self._goal_cells = random.choices(list(itertools.product(range(self._dim[0]), range(self._dim[1]))), k=num_goals)
 
     def states(self):
         """
@@ -85,7 +85,7 @@ class RndGridworld(mod_opacity.Arena):
 
     def label(self, state):
         if state[0:2] in self._goal_cells:
-            idx = self._goal_cells.index(state)
+            idx = self._goal_cells.index(state[0:2])
             return [f"g{idx}"]
         return []
 
@@ -121,38 +121,44 @@ def solve(game: mod_opacity.BeliefGame):
     """
     # Graphify the game
     # PATCH
-    if os.path.exists("out/belief_game.gm"):
-        game_graph = graph.Graph.load("out/belief_game.gm")
+    if os.path.exists("out/4by4_rng2_random.gm"):
+        game_graph = graph.Graph.load("out/4by4_rng2_random.gm")
         print("Loaded existing game graph.")
     else:
         game_graph = game.graphify(pointed=True)
-        game_graph.save("out/belief_game.gm")
+        game_graph.save("out/4by4_rng2_random.gm")
         print("graphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
     swin_reach_p1 = dtptb.SWinReach(game_graph)
     print("P1's SWinReach object created")
 
+    # Solve the safety game.
+    swin_reach_p1.solve()
+    print("P1's SWinReach object solved..")
+
+    print(f"{len(swin_reach_p1.winning_states(1))=}")
+
     # Define reachability solver for P2 (see Thm. 2)
     # final = {game_graph["state"] for uid in game_graph.nodes() if game.final_p2(game_graph["state"][uid])}
     final = set()
     for uid in game_graph.nodes():
         if game.final_p2(game_graph["state"][uid]):
-            final.add(game_graph["state"])
+            final.add(game_graph["state"][uid])
 
-    swin_reach_p2 = dtptb.SWinReach(game_graph, final=final)
-    print("P2's SWinReach object created")
+    if len(final) == 0:
+        print("There is no revealing winning states")
 
-    # Solve the safety game.
-    swin_reach_p1.solve()
-    print("P1's SWinReach object solved..")
+    else:
+        swin_reach_p2 = dtptb.SWinReach(game_graph, final=final)
+        print("P2's SWinReach object created")
 
-    # Solve the safety game.
-    swin_reach_p2.solve()
-    print("P2's SWinReach object solved..")
 
-    print(f"{len(swin_reach_p1.winning_states(1))=}")
-    print(f"{len(swin_reach_p2.winning_states(1))=}")
+        # Solve the safety game.
+        swin_reach_p2.solve()
+        print("P2's SWinReach object solved..")
+
+        print(f"{len(swin_reach_p2.winning_states(1))=}")
 
     # Return solution to reachability game.
     return swin_reach_p1
@@ -160,14 +166,14 @@ def solve(game: mod_opacity.BeliefGame):
 
 if __name__ == "__main__":
     # Instantiate MyGame here
-    game = RndGridworld(dim=(4, 4), sense_rng=1)
-    game.initialize((0, 0, 1, 1, 1))
+    game = RndGridworld(dim=(4, 4), sense_rng=2)
+    game.initialize((0, 0, 2, 2, 1))
     aut = game.formula1().translate()
 
-    # aut_graph = aut.graphify()
-    # aut_graph.to_png("out/aut_graph.png", nlabel=["state", "final"], elabel=["input"])
-    # base_graph = game.graphify()
-    # base_graph.save("out/base_game.gm", overwrite=True)
+    aut_graph = aut.graphify()
+    aut_graph.to_png("out/aut_graph.png", nlabel=["state", "final"], elabel=["input"])
+    base_graph = game.graphify()
+    base_graph.save("out/base_game.gm", overwrite=True)
     # graph.to_png("graph.png", nlabel=["state"], elabel=["input", "attacker_observation"])
 
     belief_game = mod_opacity.BeliefGame(game, aut)

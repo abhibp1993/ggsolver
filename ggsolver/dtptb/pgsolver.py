@@ -101,7 +101,7 @@ class SWinReach(models.Solver):
 
         # Parse output
         # return self._parse_pgsolver_output()
-        return self._parse_pgsolver_dot()
+        # return self._parse_pgsolver_dot()
 
     def _parse_pgsolver_output(self):
 
@@ -128,41 +128,44 @@ class SWinReach(models.Solver):
                 win2.add(int(obj[0]))
         return win1, win2
 
-    def _parse_pgsolver_dot(self):
+    def _process_pgsolver_dot(self):
         # Read the DOT file as a networkx graph
         dot_graph = read_dot(os.path.join(self._path, f"{self._filename}.dot"))
 
         # Iterate over nodes to extract information.
-        win1 = set()
-        win2 = set()
         for node, data in dot_graph.nodes(data=True):
+            # Get node id
             uid = int(node[1:])
-            if data["color"] == 'red':
-                win1.add(uid)
+
+            # Mark node winner
+            if data["color"] == 'green':
+                self._node_winner[uid] = 1
             else:  # if data["color"] == 'red':
-                win2.add(uid)
+                self._node_winner[uid] = 2
 
-        pi1 = set()
-        pi2 = set()
-        for src, tgt, data in dot_graph.edges(data=True):
-            uid = int(src[1:])
-            vid = int(tgt[1:])
+            # Mark edge winners
+            for _, vid, key in self._solution.out_edges(uid):
+                # Programmer's note: dot_graph is a nx.MultiDigraph instance.
+                #   Hence, the edges of dot_graph have format: (u, v, k).
+                #   The key here may not correspond to that in self._solution.
+                #   Such confusion should be avoided.
+                # We use 0-th key because the color of all parallel edge between fixed pair of nodes
+                # is same for Zielonka's algorithm.
+                data = dot_graph.get_edge_data(f"N{uid}", f"N{vid}", 0)
 
-            # If uid is P1 state, any black edge is losing.
-            if self._graph["turn"][uid] == 1:
-                if data["color"] == "green":
-                    pi1.add((uid, vid))
-                else:
-                    pi2.add((uid, vid))
+                # If uid is P1 state, any black edge is losing.
+                if self._solution["turn"][uid] == 1:
+                    if data["color"] == "green":
+                        self._edge_winner[uid, vid, key] = 1
+                    else:
+                        self._edge_winner[uid, vid, key] = 2
 
-            # If uid is P2 state, any black edge is losing.
-            else:  # self._graph["turn"][uid] == 2:
-                if data["color"] == "red":
-                    pi2.add((uid, vid))
-                else:
-                    pi1.add((uid, vid))
-
-        return win1, win2, pi1, pi2
+                # If uid is P2 state, any black edge is losing.
+                else:  # self._graph["turn"][uid] == 2:
+                    if data["color"] == "red":
+                        self._edge_winner[uid, vid, key] = 2
+                    else:
+                        self._edge_winner[uid, vid, key] = 1
 
     def reset(self):
         """ Resets the solver to initial state. """
@@ -177,20 +180,24 @@ class SWinReach(models.Solver):
     def solve(self):
         # If game is solved, do not resolve it.
         if self._is_solved:
-            logging.warning(f"dtptb.pgsolver.SWinReach.solve: Game is solved. To resolve, call `reset` before `solve`.")
+            logging.warning(
+                f"dtptb.pgsolver.SWinReach.solve:: Game is solved. To resolve, call `reset` before `solve`.")
             return
 
         # If output is to be saved, save the game graph
         if self._save_output:
             self._graph.save(os.path.join(self._path, f"{self._filename}.ggraph"))
 
-        # Invoke pgsolver using command-line tool.
-        win1, win2, pi1, pi2 = self._run_pgsolver()
+        try:
+            # Invoke PGSolver using command-line tool to solve the game.
+            self._run_pgsolver()
 
-        # Mark node, edge winners.
-        print(win1, win2)
-        pprint(pi1)
-        pprint(pi2)
+            # Process PGSolver output to mark node, edge winners
+            #   (PGSolver generates dot file and console output. The following code uses dot)
+            self._process_pgsolver_dot()
+
+        except Exception as err:
+            logger.error(f"dtptb.pgsolver.SWinReach.solve:: {err}")
 
         # If user has not requested to save data, remove it.
         if not self._save_output:

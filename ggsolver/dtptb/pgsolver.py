@@ -191,8 +191,11 @@ class SWinReach(models.Solver):
             return
 
         # If output is to be saved, save the game graph
-        if self._save_output:
-            self._graph.save(os.path.join(self._path, f"{self._filename}.ggraph"))
+        try:
+            if self._save_output:
+                self._graph.save(os.path.join(self._path, f"{self._filename}.ggraph"))
+        finally:
+            pass
 
         try:
             # Invoke PGSolver using command-line tool to solve the game.

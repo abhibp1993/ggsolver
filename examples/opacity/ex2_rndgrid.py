@@ -15,7 +15,7 @@ import random
 from scipy.spatial.distance import cityblock
 
 import ggsolver.gridworld.util as util
-import ggsolver.dtptb as dtptb
+import ggsolver.dtptb.pgsolver as dtptb
 import ggsolver.logic as logic
 import ggsolver.graph as graph
 import ggsolver.models as models
@@ -26,10 +26,13 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
+# TODO: Define state object. Make it hashable.
+
+
 class RndGridworld(mod_opacity.Arena):
     GRAPH_PROPERTY = mod_opacity.Arena.GRAPH_PROPERTY.copy()
 
-    def __init__(self, dim, obs=None, actions=None, init_state=None, sense_rng=2, num_goals=2):
+    def __init__(self, dim, goal_cells, obs=None, actions=None, init_state=None, sense_rng=2):
         """
 
         :param dim: (rows, col)
@@ -45,8 +48,8 @@ class RndGridworld(mod_opacity.Arena):
         self._actions = actions
         self._init_state = init_state
         self._sense_rng = sense_rng
-        self._num_goals = num_goals
-        self._goal_cells = random.choices(list(itertools.product(range(self._dim[0]), range(self._dim[1]))), k=num_goals)
+        self._goal_cells = goal_cells
+        self._num_goals = len(self._goal_cells)
 
     def states(self):
         """
@@ -130,7 +133,7 @@ def solve(game: mod_opacity.BeliefGame):
         print("graphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
-    swin_reach_p1 = dtptb.SWinReach(game_graph)
+    swin_reach_p1 = dtptb.SWinReach(game_graph, save_output=True)
     print("P1's SWinReach object created")
 
     # Solve the safety game.
@@ -150,9 +153,8 @@ def solve(game: mod_opacity.BeliefGame):
         print("There is no revealing winning states")
 
     else:
-        swin_reach_p2 = dtptb.SWinReach(game_graph, final=final)
+        swin_reach_p2 = dtptb.SWinReach(game_graph, final=final, save_output=True)
         print("P2's SWinReach object created")
-
 
         # Solve the safety game.
         swin_reach_p2.solve()
@@ -166,8 +168,8 @@ def solve(game: mod_opacity.BeliefGame):
 
 if __name__ == "__main__":
     # Instantiate MyGame here
-    game = RndGridworld(dim=(4, 4), sense_rng=2)
-    game.initialize((0, 0, 2, 2, 1))
+    game = RndGridworld(dim=(2, 2), goal_cells=[(1, 1), (0, 0)], sense_rng=1)
+    game.initialize((0, 1, 1, 0, 1))
     aut = game.formula1().translate()
 
     aut_graph = aut.graphify()
@@ -178,6 +180,11 @@ if __name__ == "__main__":
 
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
-    solve(belief_game)
+
+    def run_profiler():
+        solve(belief_game)
+
+    import cProfile
+    cProfile.run('run_profiler()', filename='my_profile_results.txt')
 
     # Analyze the output (see API for models.Solver)

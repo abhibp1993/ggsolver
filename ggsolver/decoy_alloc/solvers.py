@@ -1,5 +1,6 @@
 from ggsolver.dtptb import SWinReach
 import ggsolver.graph as gg_graph
+from itertools import combinations
 """
 Algorithms and fact checking functions.
 """
@@ -109,3 +110,30 @@ def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fa
         print(f"\tNew total winning states: {len(covered_states)}")
 
     return arena_traps, arena_fakes, covered_states, trap_states, fake_states
+
+def exhaustive_search(graph, trap_subsets, max_traps=float("inf")):
+    trap_winning_regions = set()
+    arena_points = set()
+    for arena_point, state_list in trap_subsets.items():
+        arena_points.add(arena_point)
+
+    trap_combinations = combinations(arena_points, max_traps)
+
+    for trap_set in trap_combinations:
+        final_states = set()
+        for trap in trap_set:
+            final_states = final_states + trap_subsets[trap]
+        # TODO construct a new sub-graph based on the base graph where the final_states are sink states
+        out_going_final_edges = [graph.out_edges(state) for state in final_states]
+        sink_graph = gg_graph.SubGraph(graph)
+        sink_graph.hide_edges(out_going_final_edges)
+
+        solver = SWinReach(sink_graph, final=final_states)
+        solver.solve()
+        # TODO add different metrics to determine value of arena point as a trap
+        # pair = {"arena_point": arena_point, "value_of_trap": solver.win_region(1)}
+        pair = {"trap_set": trap_set, "winning_states": solver.winning_states(1)}
+        trap_winning_regions.append(pair)
+
+    highest_value_trap_set = max(trap_winning_regions, key=lambda trap_pair: len(trap_pair["winning_states"]))
+    return highest_value_trap_set

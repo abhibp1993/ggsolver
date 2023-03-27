@@ -161,11 +161,17 @@ class SWinReach(models.Solver):
                         self._edge_winner[uid, vid, key] = 2
 
                 # If uid is P2 state, any black edge is losing.
+                # Programmer's Note: PGSolver (as far as I understand) only determines "a" strategy
+                #   for P2 to win from its winning state. If more winning edges exist at a P2 win node,
+                #   then they may be black. In this case, we use permissive strategy to determine their winner.
                 else:  # self._graph["turn"][uid] == 2:
                     if data["color"] == "red":
                         self._edge_winner[uid, vid, key] = 2
                     else:
-                        self._edge_winner[uid, vid, key] = 1
+                        if self._node_winner[vid] == 2:
+                            self._edge_winner[uid, vid, key] = 2
+                        else:
+                            self._edge_winner[uid, vid, key] = 1
 
     def reset(self):
         """ Resets the solver to initial state. """

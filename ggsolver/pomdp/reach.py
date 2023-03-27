@@ -1,6 +1,7 @@
 import random
 # from ggsolver.models import Solver
 import ggsolver.models as models
+import copy
 import itertools
 from tqdm import tqdm
 
@@ -17,7 +18,8 @@ class ASWinReach(models.Solver):
         """
         super(ASWinReach, self).__init__(graph, **kwargs)
         self._player = player
-        self._final = set(final) if final is not None else {n for n in graph.nodes() if self._graph["final"][n] == 0}
+        self._final = set(final) if final is not None else {n for n in graph.nodes() if self._graph["final"][n] is True}
+        self.graph = graph
 
     def inner_loop(self, level_y):
         """
@@ -51,7 +53,7 @@ class ASWinReach(models.Solver):
         """
         # TODO. self._solution -> SubGraph.
 
-        graph = self._solution
+        graph_sol = self._solution
 
         level_y = list()
         level_y.append(set(self.graph.nodes()))
@@ -67,8 +69,8 @@ class ASWinReach(models.Solver):
             else:
                 level_y.append(new_level_y)
 
-        for st in new_level_y:
-            graph.hide_node(st)
+        for st in set(self.graph.nodes())-set(new_level_y): # TODO: Change to all nodes not in winning region.
+            graph_sol.hide_node(st)
 
         # Process node, edge winners
         for uid in tqdm(self._solution.nodes(), desc="Processing node, edge winners..."):
@@ -136,9 +138,9 @@ class ASWinReach(models.Solver):
            """
 
         observation_equivalent_states = list()
-        for items in (self.graph["equivalence_cls"][st] for st in self.graph.nodes()):
-            if uid in items:
-                observation_equivalent_states = items
+        for items in self.graph["belief_equivalent"]:
+            if uid in self.graph["belief_equivalent"][items]:
+                observation_equivalent_states = self.graph["belief_equivalent"][items]
                 break
         return observation_equivalent_states
 

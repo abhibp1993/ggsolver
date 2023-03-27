@@ -2,6 +2,7 @@
 Running example from paper.
 """
 from ggsolver.pomdp.models import ActivePOMDP, ProductWithDFA, OpacityEnforcingGame
+from ggsolver.pomdp.reach import ASWinReach
 import sys
 import ggsolver.logic as logic
 sys.path.append('/home/ggsolver/')
@@ -51,12 +52,7 @@ if __name__ == '__main__':
         init_observation=["s0"]
 
     )
-    # M.sensors = {
-    #         "A": ["s1", "s2"],
-    #         "B": ["s2"],
-    #         "C": ["s3", "s4"],
-    #         "D": ["s1", "s2", "s3"],
-    #         }
+
     # pomdp_M_graph = M.graphify()
     # pomdp_M_graph.to_png("pomdp_M.png", nlabel=["state"], elabel=["input"])
 
@@ -81,5 +77,16 @@ if __name__ == '__main__':
     #
     opacity_game_G.initialize(prod_POMDP_M.init_state())
     opacity_game_G_graph = opacity_game_G.graphify(pointed=True)
-    opacity_game_G_graph.to_png("opacity_enforcing_game.png", nlabel=["state"], elabel=["input"])
+    # opacity_game_G_graph.to_png("opacity_enforcing_game.png", nlabel=["state"], elabel=["input"])
+
+    # testing the solver.
+    win = ASWinReach(opacity_game_G_graph)
+    win.solve()
+    print("********************** ASW Region ***********************************")
+    print(win.win_region(1))
+
+    print("*************** Winning Actions **************************************")
+    for st in win.win_region(1):
+        print("State: ", st)
+        print("Winning actions: ", win.win_acts(st))
 

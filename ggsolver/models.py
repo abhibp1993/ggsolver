@@ -1136,7 +1136,7 @@ class Solver:
 
         # Identify all winning actions.
         win_acts = set()
-        for _, vid, key in self._graph.out_edges(uid):
+        for _, vid, key in self._solution.out_edges(uid):
             if self._edge_winner[uid, vid, key] == player:
                 # win_acts.add(self._graph[ep_input][uid, vid, key])
                 win_acts.add(ep_input[uid, vid, key])

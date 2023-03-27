@@ -348,8 +348,8 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
     # PATCH. We need a way to store belief equivalence
     @models.register_property(GRAPH_PROPERTY)
     def belief_equivalent(self):
-        states = self.__states
-        equivalence_cls = {0: []}
+        states = self._GraphicalModel__states
+        equivalence_cls = {0: {}}
         for (s, b1, b2), (t, c1, c2) in itertools.product(states, states):
             if b1 == c1 and b2 == c2:
                 uid = states[(s, b1, b2)]
@@ -358,10 +358,10 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
                 fin_item = 0
                 for items in equivalence_cls:
                     if uid in equivalence_cls[items] or vid in equivalence_cls[items]:
-                        new_keys = equivalence_cls[items]
-                        new_keys.append(uid)
-                        new_keys.append(vid)
-                        equivalence_cls[items] = new_keys
+                        new_keys = set(equivalence_cls[items])
+                        new_keys.add(uid)
+                        new_keys.add(vid)
+                        equivalence_cls[items] = list(new_keys)
                         flag = 0
                         break
                     else:
@@ -369,6 +369,7 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
                         fin_item = items
 
                 if flag == 1:
-                    equivalence_cls[fin_item + 1] = [uid, vid]
-
+                    new_keys = {uid, vid}
+                    equivalence_cls[fin_item + 1] = list(new_keys)
+        equivalence_cls.pop(0)
         return equivalence_cls

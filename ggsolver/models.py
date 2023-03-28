@@ -392,6 +392,55 @@ class GraphicalModel:
         logging.info(util.ColoredMsg.ok(f"[INFO] Processed edge property: input. [OK]"))
         logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: prob. [OK]"))
 
+    def _gen_underlying_graph_pointed_parallel(self, graph):
+        # Get functions to construct underlying graph
+        input_func = getattr(self, self._input_domain)
+        enabled_inputs = getattr(self, "enabled_inputs", None)
+        delta = getattr(self, "delta")
+        init_state = getattr(self, "init_state")
+
+        # Define node, edge and graph properties
+        graph["state"] = np_state = NodePropertyMap(graph=graph)
+        graph["input"] = ep_input = EdgePropertyMap(graph=graph)
+        graph["prob"] = ep_prob = EdgePropertyMap(graph=graph, default=None)
+        graph["input_domain"] = self._input_domain
+
+        # Logging and printing
+        logging.info(util.ColoredMsg.ok(f"[INFO] Input domain function detected as '{self._input_domain}'. [OK]"))
+        logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: input_domain. [OK]"))
+
+        # Get initial state
+        s0 = init_state()
+
+        # Extract inputs and define enabled_inputs function (only for graphification), if undefined.
+        inputs = list(input_func())
+        try:
+            # Check if enabled_inputs is implemented by user.
+            arbitrary_key, st = list(self.__states.items())[0]
+            enabled_inputs(st)
+
+            # Create enabled inputs map.
+            graph["enabled_inputs"] = np_enabled_inputs = NodePropertyMap(graph=graph, default=inputs)
+            for state in tqdm(self.__states.keys(), desc="Generating map {state: enabled_inputs}"):
+                np_enabled_inputs[self.__states[state]] = enabled_inputs(state)
+            logging.info(util.ColoredMsg.ok(f"[INFO] Processed node property: enabled_inputs. [OK]"))
+
+        except NotImplementedError:
+            def enabled_inputs(state_):
+                return inputs
+
+        # Generate nodes and edges in BFS-style
+        queue = [s0]
+        visited = set()
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            # TODO.
+            # 1. define function that takes in state, enabled_inputs and delta and generates edges.
+            # 2. consume all nodes in queue (using executor).
+            # 3. Update queue and visited.
+            # Repeat 1,2,3 until results is empty.
+            # Collect all edges in single data structure.
+            pass
+
     def _add_node_prop_to_graph(self, graph, p_name, default=None):
         """
         Adds the node property called `p_name` to the graph.

@@ -416,8 +416,7 @@ class GraphicalModel:
         inputs = list(input_func())
         try:
             # Check if enabled_inputs is implemented by user.
-            arbitrary_key, st = list(self.__states.items())[0]
-            enabled_inputs(st)
+            enabled_inputs(s0)
 
             # Create enabled inputs map.
             graph["enabled_inputs"] = np_enabled_inputs = NodePropertyMap(graph=graph, default=inputs)
@@ -433,13 +432,52 @@ class GraphicalModel:
         queue = [s0]
         visited = set()
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            # TODO.
-            # 1. define function that takes in state, enabled_inputs and delta and generates edges.
-            # 2. consume all nodes in queue (using executor).
-            # 3. Update queue and visited.
-            # Repeat 1,2,3 until results is empty.
-            # Collect all edges in single data structure.
-            pass
+            with tqdm(total=1, desc="Pointed graphify adding edges") as progress_bar:
+                while len(queue) > 0:
+                    # Update progress_bar
+                    progress_bar.total = len(queue) + len(visited)
+                    progress_bar.update(len(queue))
+
+                    # Add all states in queue to graph
+                    for st in queue:
+                        if st not in self.__states:
+                            uid = graph.add_node()
+                            self.__states[st] = uid
+                            np_state[uid] = st
+
+                    # Mark all states in queue as visited
+                    visited.update(set(queue))
+
+                    # Distribute jobs among processes
+                    futures = [executor.submit(self._gen_edges_parallel, (delta, st, inp))
+                               for st in queue for inp in enabled_inputs(st)]
+
+                    frontier = set()
+                    for future in concurrent.futures.as_completed(futures):
+                        future_edges = future.result()
+                        for src, dst, inp, prob in future_edges:
+                            # Store new states to be explored in `frontier`
+                            if dst not in visited:
+                                frontier.add(dst)
+
+                            # Add edge to graph
+                            uid = self.__states[src]
+                            if dst not in self.__states:
+                                vid = graph.add_node()
+                                self.__states[dst] = vid
+                                np_state[vid] = dst
+                            else:
+                                vid = self.__states[dst]
+                            key = graph.add_edge(uid, vid)
+                            ep_input[uid, vid, key] = inp
+                            ep_prob[uid, vid, key] = prob
+
+                    # Update queue (remove all processed states, add new frontier states)
+                    queue = list(frontier)
+
+        # Logging and printing
+        logging.info(util.ColoredMsg.ok(f"[INFO] Processed edge property: input. [OK]"))
+        logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: prob. [OK]"))
 
     def _add_node_prop_to_graph(self, graph, p_name, default=None):
         """
@@ -596,8 +634,12 @@ class GraphicalModel:
 
         # Construct underlying graph for pointed construction
         if pointed is True:
-            logging.info(util.ColoredMsg.header(f"[INFO] Running single-core pointed graphify: {node_props}"))
-            self._gen_underlying_graph_pointed(graph)
+            if parallel:
+                logging.info(util.ColoredMsg.header(f"[INFO] Running multi-core pointed graphify: {node_props}"))
+                self._gen_underlying_graph_pointed_parallel(graph)
+            else:
+                logging.info(util.ColoredMsg.header(f"[INFO] Running single-core pointed graphify: {node_props}"))
+                self._gen_underlying_graph_pointed(graph)
 
         # Construct underlying graph for unpointed construction
         else:

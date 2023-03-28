@@ -75,7 +75,7 @@ class ActivePOMDP(models.Game):
         self._init_observation = kwargs["init_observation"] if "init_observation" in kwargs else None
 
     # TODO. Merge into obs_set: {(s, sigma): [P1 obs, P2 obs]}
-    @models.register_property(GRAPH_PROPERTY)
+    # @models.register_property(GRAPH_PROPERTY)
     def obs_set_1(self):  # CHECK: Returns a dictionary.
         """
         Implement algorithm to apply query from each state for P1.
@@ -83,8 +83,8 @@ class ActivePOMDP(models.Game):
         """
         observation_set = dict()
         for st, query in itertools.product(self.states(), self.sensor_query()):
-            unsecured_sensors = set(query).intersection(set(self.sensors_unsecured()))
-            observation_p1 = self.observation(st, query)
+            unsecured_sensors = set(self.sensor_query()[query]).intersection(set(self.sensors_unsecured()))
+            observation_p1 = self.observation(st, self.sensor_query()[query])
             observation_p2 = self.observation(st, unsecured_sensors)
             observation_set[(st, query)] = [observation_p1, observation_p2]
         return observation_set
@@ -282,11 +282,13 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
         post_belief = set()
 
         if type(belief[1]) == int:
-            post = self._game.delta(belief, a)
+            # post = self._game.delta(belief, a)
+            post = self._game.out_edges(belief, a)
             post_belief = post_belief.union(set(post))
         else:
             for s in belief:
-                post = self._game.delta(s, a)
+                # post = self._game.delta(s, a)
+                post = self._game.out_edges(s, a)
                 post_belief = post_belief.union(set(post))
 
         return list(post_belief)
@@ -295,11 +297,13 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
         post_belief = set()
         for a in self._game.actions():
             if type(belief[1]) == int:
-                post = self._game.delta(belief, a)
+                # post = self._game.delta(belief, a)
+                post = self._game.out_edges(belief, a)
                 post_belief = post_belief.union(set(post))
             else:
                 for s in belief:
-                    post = self._game.delta(s, a)
+                    # post = self._game.delta(s, a)
+                    post = self._game.out_edges(s, a)
                     post_belief = post_belief.union(set(post))
 
         return list(post_belief)
@@ -320,7 +324,8 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
             else:
                 b2 = list(b2)
 
-            next_states = self._game.delta(st, a)
+            # next_states = self._game.delta(st, a)
+            next_states = self._game.out_edges(st, a)
             post_b1 = self.belief_one_dash(b1, action)
             post_b2 = self.belief_two_dash(b2)
 

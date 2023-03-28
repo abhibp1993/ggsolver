@@ -13,9 +13,10 @@ import itertools
 import os
 import random
 from scipy.spatial.distance import cityblock
+from time import perf_counter
 
 import ggsolver.gridworld.util as util
-import ggsolver.dtptb as dtptb
+import ggsolver.dtptb.pgsolver as dtptb
 import ggsolver.logic as logic
 import ggsolver.graph as graph
 import ggsolver.models as models
@@ -133,14 +134,22 @@ def solve(game: mod_opacity.BeliefGame, gamename):
         print("graphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
-    swin_reach_p1 = dtptb.SWinReach(game_graph, save_output=True)
-    print("P1's SWinReach object created")
+    # swin_reach_p1 = dtptb.SWinReach(game_graph, save_output=True)
+    # print("P1's SWinReach object created")
 
-    # Solve the safety game.
-    swin_reach_p1.solve()
-    print("P1's SWinReach object solved..")
+    # # Solve the safety game.
+    # t1_start = perf_counter()
+    # # swin_reach_p1.solve()
+    # swin_reach_p1.process_pgsolver_dot(dot_file="out/pgzlk_2023_03_28_17_42_46.dot")
+    # t1_stop = perf_counter()
+    # print("Elapsed time during the calculation for P1 in s:",
+    #       t1_stop - t1_start, 's')
+    #
+    # solution = swin_reach_p1._solution
+    # solution.save("out/solution_1.solution")
+    # print("P1's SWinReach object solved..")
 
-    print(f"{len(swin_reach_p1.winning_states(1))=}")
+    # print(f"{len(swin_reach_p1.winning_states(1))=}")
 
     # Define reachability solver for P2 (see Thm. 2)
     # final = {game_graph["state"] for uid in game_graph.nodes() if game.final_p2(game_graph["state"][uid])}
@@ -157,13 +166,24 @@ def solve(game: mod_opacity.BeliefGame, gamename):
         print("P2's SWinReach object created")
 
         # Solve the safety game.
-        swin_reach_p2.solve()
+        t2_start = perf_counter()
+        # swin_reach_p2.solve()
+        swin_reach_p2.process_pgsolver_dot(dot_file="out/pgzlk_2023_03_28_17_57_28.dot")
+        t2_stop = perf_counter()
+        print("Elapsed time during the calculation for P2 in s:",
+              t2_start - t2_stop, 's')
+
+        # solution = swin_reach_p2.solution()
+        # solution.save("out/solution_2.solution")
+
+        solution = swin_reach_p2._solution
+        solution.save("out/solution_2.solution")
         print("P2's SWinReach object solved..")
 
         print(f"{len(swin_reach_p2.winning_states(1))=}")
 
     # Return solution to reachability game.
-    return swin_reach_p1
+    return swin_reach_p2.winning_actions()
 
 
 if __name__ == "__main__":
@@ -181,10 +201,10 @@ if __name__ == "__main__":
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
 
-    def run_profiler():
-        solve(belief_game, "4by4_rng1_fixed.gm")
+    # def run_profiler():
+    solve(belief_game, "4by4_rng1_fixed.gm")
 
-    import cProfile
-    cProfile.run('run_profiler()', filename='my_profile_results.txt')
+    # import cProfile
+    # cProfile.run('run_profiler()', filename='my_profile_results.txt')
 
     # Analyze the output (see API for models.Solver)

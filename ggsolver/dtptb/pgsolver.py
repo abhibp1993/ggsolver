@@ -128,12 +128,15 @@ class SWinReach(models.Solver):
                 win2.add(int(obj[0]))
         return win1, win2
 
-    def _process_pgsolver_dot(self):
+    def process_pgsolver_dot(self, dot_file=None):
         # Read the DOT file as a networkx graph
-        dot_graph = read_dot(os.path.join(self._path, f"{self._filename}.dot"))
+        if dot_file is None:
+            dot_graph = read_dot(os.path.join(self._path, f"{self._filename}.dot"))
+        else:
+            dot_graph = read_dot(dot_file)
 
         # Iterate over nodes to extract information.
-        for node, data in dot_graph.nodes(data=True):
+        for node, data in tqdm(dot_graph.nodes(data=True)):
             # Get node id
             uid = int(node[1:])
 
@@ -204,7 +207,7 @@ class SWinReach(models.Solver):
 
             # Process PGSolver output to mark node, edge winners
             #   (PGSolver generates dot file and console output. The following code uses dot)
-            self._process_pgsolver_dot()
+            self.process_pgsolver_dot()
 
         except Exception as err:
             logger.error(f"dtptb.pgsolver.SWinReach.solve:: {err}")
@@ -223,6 +226,8 @@ class SWinReach(models.Solver):
 
             if os.path.exists(dot_file):
                 os.remove(dot_file)
+
+        self._is_solved = True
 
 
 class SWinReach2(models.Solver):

@@ -12,6 +12,8 @@ Generate a random gridworld arena of size N_ROWS, N_COLS.
 import itertools
 import os
 import random
+import time
+
 from scipy.spatial.distance import cityblock
 from time import perf_counter
 
@@ -24,10 +26,18 @@ import ggsolver.models as models
 import models as mod_opacity
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
 
+# Size of gridworld
+DIM = (4, 4)
+# Goal cells
+GOAL_CELLS = [(0, 3), (3, 3)]
+# Sensor range
+SENSOR_RANGE = 1
+# Output file name
+DIRECTORY = "out"
+FILENAME = "4by4_rng1_fixed"
 
-# TODO: Define state object. Make it hashable.
+logging.basicConfig(level=logging.DEBUG, filename=os.path.join(DIRECTORY, f"{FILENAME}.log"))
 
 
 class RndGridworld(mod_opacity.Arena):
@@ -118,19 +128,19 @@ class RndGridworld(mod_opacity.Arena):
         return self._goal_cells
 
 
-def solve(game: mod_opacity.BeliefGame, gamename):
+def solve(game: mod_opacity.BeliefGame, game_name):
     """
     Solver for Reach-Avoid Game.
     :return:
     """
     # Graphify the game
     # PATCH
-    if os.path.exists("out/"+ gamename):
-        game_graph = graph.Graph.load("out/"+ gamename)
+    if os.path.exists("out/" + game_name):
+        game_graph = graph.Graph.load("out/" + game_name)
         print("Loaded existing game graph.")
     else:
         game_graph = game.graphify(pointed=True)
-        game_graph.save("out/"+ gamename)
+        game_graph.save("out/" + game_name)
         print("graphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
@@ -186,25 +196,30 @@ def solve(game: mod_opacity.BeliefGame, gamename):
     return swin_reach_p2.winning_actions()
 
 
-if __name__ == "__main__":
-    # Instantiate MyGame here
+def main():
+    # Instantiate random game here
     game = RndGridworld(dim=(4, 4), goal_cells=[(0, 3), (3, 3)], sense_rng=1)
     game.initialize((0, 0, 3, 0, 1))
-    aut = game.formula1().translate()
 
+    # Generate objective automaton
+    aut = game.formula1().translate()
     aut_graph = aut.graphify()
     aut_graph.to_png("out/aut_graph.png", nlabel=["state", "final"], elabel=["input"])
+
+    # Generate and save the base game
     base_graph = game.graphify()
     base_graph.save("out/base_game.gm", overwrite=True)
-    # graph.to_png("graph.png", nlabel=["state"], elabel=["input", "attacker_observation"])
 
+    # Define the belief game
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
 
-    # def run_profiler():
-    solve(belief_game, "4by4_rng1_fixed.gm")
+    # Solve the game
+    start = time.perf_counter()
+    solve(belief_game, game_name=os.path.join(DIRECTORY, f"{FILENAME}.gm"))
+    end = time.perf_counter()
+    print(f"Total solution time: {end - start}")
 
-    # import cProfile
-    # cProfile.run('run_profiler()', filename='my_profile_results.txt')
 
-    # Analyze the output (see API for models.Solver)
+if __name__ == "__main__":
+    main()

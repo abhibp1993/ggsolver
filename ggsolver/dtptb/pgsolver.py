@@ -194,7 +194,8 @@ class SWinReach(models.Solver):
         try:
             if self._save_output:
                 self._graph.save(os.path.join(self._path, f"{self._filename}.ggraph"))
-        finally:
+        except FileExistsError as err:
+            logger.warning(f"dtptb.pgsolver.SWinReach.solve:: {err}")
             pass
 
         try:

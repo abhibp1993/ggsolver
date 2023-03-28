@@ -180,11 +180,6 @@ if __name__ == "__main__":
 
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
-
-    def run_profiler():
-        solve(belief_game)
-
-    import cProfile
-    cProfile.run('run_profiler()', filename='my_profile_results.txt')
+    solve(belief_game)
 
     # Analyze the output (see API for models.Solver)

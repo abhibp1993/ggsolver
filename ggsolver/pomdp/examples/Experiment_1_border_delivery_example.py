@@ -1,7 +1,7 @@
 """
 Experiment 1. (border delivery example)
 """
-from ggsolver.pomdp.models import ActivePOMDP, ProductWithDFA, OpacityEnforcingGame
+from ggsolver.pomdp.models import ActivePOMDP, ProductWithDFA, OpacityEnforcingGame, OpacityNotEnforcingGame
 from ggsolver.pomdp.reach import ASWinReach
 # import sys
 import ggsolver.logic as logic
@@ -71,7 +71,8 @@ if __name__ == '__main__':
 
     )
 
-    aut = logic.ltl.ScLTL("F(s11)", atoms=['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11']).translate()
+    aut = logic.ltl.ScLTL("F(s11)",
+                          atoms=['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11']).translate()
 
     prod_POMDP_M = ProductWithDFA(M, aut)
     prod_POMDP_M.initialize(M.init_state)
@@ -81,15 +82,50 @@ if __name__ == '__main__':
     opacity_game_G.initialize(prod_POMDP_M.init_state())
     opacity_game_G_graph = opacity_game_G.graphify(pointed=True)
 
-    # Running the solver.
+    # # Running the solver.
     win = ASWinReach(opacity_game_G_graph)
     win.solve()
-    print("********************** ASW Region ***********************************")
-    print(win.win_region(1))
+    # print("********************** ASW Region ***********************************")
+    # print(win.win_region(1))
+    #
+    # print("*************** Winning Actions **************************************")
+    # for st in win.win_region(1):
+    #     print("State: ", st)
+    #     print("Winning actions: ", win.win_acts(st))
 
-    print("*************** Winning Actions **************************************")
-    for st in win.win_region(1):
-        print("State: ", st)
-        print("Winning actions: ", win.win_acts(st))
+    # Saving a set of winning initial states.
+    p1_win_init_states_opacity = set()
+    for i in win.win_region(1):
+        st, b1, b2 = i
+        if type(b1[1]) == int:
+            p1_win_init_states_opacity.add(st[0])
+
+
+    print("******************** Number of ASW with opacity enforcing *******************")
+    print(len(p1_win_init_states_opacity))
+
+    # Solving for Opacity not enforcing.
+
+    opacity_not_game_G = OpacityNotEnforcingGame(prod_POMDP_M)
+
+    opacity_not_game_G.initialize(prod_POMDP_M.init_state())
+    opacity_not_game_G_graph = opacity_not_game_G.graphify(pointed=True)
+
+    win_not_opacity = ASWinReach(opacity_not_game_G_graph)
+    win_not_opacity.solve()
+
+    # Saving set of winning initial states.
+    p1_win_init_states_no_opacity = set()
+
+
+    for j in win_not_opacity.win_region(1):
+        stn, bn1, bn2 = j
+        if type(bn1[1]) == int:
+            p1_win_init_states_no_opacity.add(stn[0])
+
+
+    print("***************** Number of ASW without enforcing opacity *********************")
+    print(len(p1_win_init_states_no_opacity))
+
 
 

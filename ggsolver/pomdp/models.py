@@ -373,3 +373,182 @@ class OpacityEnforcingGame(mdp.QualitativeMDP):
                     equivalence_cls[fin_item + 1] = list(new_keys)
         equivalence_cls.pop(0)
         return equivalence_cls
+
+
+class OpacityNotEnforcingGame(mdp.QualitativeMDP):
+    GRAPH_PROPERTY = mdp.QualitativeMDP.GRAPH_PROPERTY.copy()
+
+    def __init__(self, game: ProductWithDFA):
+        super(OpacityNotEnforcingGame, self).__init__()
+        self._game = game
+
+    # def states(self):
+    #     states = list()
+    #     belief_list = list()
+    #
+    #     for (state, query), value in self._game.obs_set_1():
+    #
+    #         power_set_of_belief = powerset(value)
+    #         for B in power_set_of_belief:
+    #             if state in B:
+    #                 belief_list.append(B)
+    #
+    #         for B1, B2 in itertools.product(belief_list, belief_list):
+    #             states.append(
+    #                 (state, B1, B2))  # TODO: Check if B1 and B2 should be sent in as list itself or as sets/frozensets?
+    #
+    #         belief_list = list()
+    #
+    #     return states
+    def states(self):
+        raise NotImplementedError("Due to exploding belief states, only pointed graphify must be used.")
+
+    def actions(self):
+        return list(itertools.product(self._game.actions(), self._game.sensor_query()))
+
+    def init_state(self):
+        initial_obs = self._game.init_observation()
+        initial_state = (self._game.init_state(), tuple(initial_obs[0]), tuple(initial_obs[1]))
+        return initial_state
+
+    def final(self, state):
+        st, b1, b2 = state
+
+        if type(b1[1]) == int:
+            b1 = b1
+        else:
+            b1 = list(b1)
+
+        # if type(b2[1]) == int:
+        #     b2 = b2
+        # else:
+        #     b2 = list(b2)
+
+        p1_flag = 1
+        # p2_flag = 1
+
+        if type(b1[1]) == int:
+            if self._game.final(b1) == 0:
+                p1_flag = 0
+        else:
+            for s in list(b1):
+                if self._game.final(s) == 0:
+                    p1_flag = 0
+                    break
+
+        if p1_flag == 0:
+            return False
+        else:
+            return True
+
+        # if type(b2[1]) == int:
+        #     if self._game.final(b2) == 0:
+        #         p2_flag = 0
+        # else:
+        #     for state in list(b2):
+        #         if self._game.final(state) == 0:
+        #             p2_flag = 0
+        #             break
+
+        # if p1_flag == 1 and p2_flag == 0:
+        #     return True
+        # else:
+        #     return False
+
+    def belief_one_dash(self, belief, action):
+        a, X = action
+        post_belief = set()
+
+        if type(belief[1]) == int:
+            post = self._game.delta(belief, a)
+            post_belief = post_belief.union(set(post))
+        else:
+            for s in belief:
+                post = self._game.delta(s, a)
+                post_belief = post_belief.union(set(post))
+
+        return list(post_belief)
+
+    def belief_two_dash(self, belief):
+        post_belief = set()
+        for a in self._game.actions():
+            if type(belief[1]) == int:
+                post = self._game.delta(belief, a)
+                post_belief = post_belief.union(set(post))
+            else:
+                for s in belief:
+                    post = self._game.delta(s, a)
+                    post_belief = post_belief.union(set(post))
+
+        return list(post_belief)
+
+    def delta(self, state, action):
+        a, X = action
+        delta_states = list()
+        if not self.final(state):
+            st, b1, b2 = state
+
+            if type(b1[1]) == int:
+                b1 = b1
+            else:
+                b1 = list(b1)
+
+            if type(b2[1]) == int:
+                b2 = b2
+            else:
+                b2 = list(b2)
+
+            next_states = self._game.delta(st, a)
+            post_b1 = self.belief_one_dash(b1, action)
+            post_b2 = self.belief_two_dash(b2)
+
+            for nx_st in next_states:
+                observation_1, observation_2 = self._game.observation(nx_st, X)
+                b1_dash = set(post_b1).intersection(set(observation_1))
+                b2_dash = set(post_b2).intersection(set(observation_2))
+                if len(b1_dash) == 1:
+                    b1_dash = tuple(b1_dash)[0]
+                else:
+                    b1_dash = tuple(b1_dash)
+
+                if len(b2_dash) == 1:
+                    b2_dash = tuple(b2_dash)[0]
+                else:
+                    b2_dash = tuple(b2_dash)
+
+                delta_states.append((nx_st, b1_dash, b2_dash))
+
+        else:
+            delta_states.append(state)
+
+        return delta_states
+
+    # PATCH. We need a way to store belief equivalence
+    @models.register_property(GRAPH_PROPERTY)
+    def belief_equivalent(self):
+        states = self._GraphicalModel__states
+        equivalence_cls = {0: {}}
+        for (s, b1, b2), (t, c1, c2) in itertools.product(states, states):
+            if b1 == c1 and b2 == c2:
+                uid = states[(s, b1, b2)]
+                vid = states[(t, c1, c2)]
+                flag = 0
+                fin_item = 0
+                for items in equivalence_cls:
+                    if uid in equivalence_cls[items] or vid in equivalence_cls[items]:
+                        new_keys = set(equivalence_cls[items])
+                        new_keys.add(uid)
+                        new_keys.add(vid)
+                        equivalence_cls[items] = list(new_keys)
+                        flag = 0
+                        break
+                    else:
+                        flag = 1
+                        fin_item = items
+
+                if flag == 1:
+                    new_keys = {uid, vid}
+                    equivalence_cls[fin_item + 1] = list(new_keys)
+        equivalence_cls.pop(0)
+        return equivalence_cls
+

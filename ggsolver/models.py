@@ -527,9 +527,9 @@ class GraphicalModel:
             if not (inspect.isfunction(p_func) or inspect.ismethod(p_func)):
                 raise TypeError(f"Edge property {p_func} is not a function.")
             for uid, vid, key in graph.edges():
-                p_map[(uid, vid, key)] = p_func(graph["states"][uid],
+                p_map[(uid, vid, key)] = p_func(graph["state"][uid],
                                                 graph["input"][(uid, vid, key)],
-                                                graph["states"][vid])
+                                                graph["state"][vid])
             graph[p_name] = p_map
             logging.info(util.ColoredMsg.ok(f"[INFO] Processed edge property: {p_name}. [OK]"))
         except NotImplementedError:

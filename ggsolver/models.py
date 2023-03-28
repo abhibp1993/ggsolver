@@ -7,6 +7,8 @@ from functools import partial
 from ggsolver import util
 from ggsolver.graph import NodePropertyMap, EdgePropertyMap, Graph, SubGraph
 from tqdm import tqdm
+import concurrent.futures
+
 
 # try:
 #     import ggsolver.logic.pl as pl
@@ -50,7 +52,7 @@ class GraphicalModel:
         # Caching variables during serializing and deserializing the model.
         self.__graph = None
         self.__is_graphified = False
-        self.__states = list()
+        self.__states = dict()
         self.__state2node = dict()
 
     def __str__(self):
@@ -122,6 +124,10 @@ class GraphicalModel:
 
         return edges
 
+    def _gen_edges_parallel(self, data):
+        delta, state, inp = data
+        return self._gen_edges(delta, state, inp)
+
     def _gen_underlying_graph_unpointed(self, graph):
         """
         Programmer's notes:
@@ -131,12 +137,12 @@ class GraphicalModel:
         """
         # Get states
         states = getattr(self, "states")
-        states = list(states())
+        states = list(states())                             # TODO. Remove list requirement.
 
         # Add states to graph
-        node_ids = list(graph.add_nodes(len(states)))
+        node_ids = list(graph.add_nodes(len(states)))       # TODO. Merge with dict() creation in next line.
 
-        # Cache states as a dictionary {state: uid}
+        # Cache states as a dictionary {state: uid}         # TODO. Merge with np_state step. Iterate over states once.
         self.__states = dict(zip(states, node_ids))
 
         # Node property: state
@@ -187,6 +193,7 @@ class GraphicalModel:
         #                        total=len(self.__states) * len(inputs),
         #                        desc="Unpointed graphify adding edges"):
 
+        # TODO. Parallelize this loop. Multiprocessing. Remember, all dicts must be thread-safe.
         for state in tqdm(self.__states.keys(), desc="Unpointed graphify adding edges"):
             # Get the enabled inputs at the state. If enabled_acts is not defined, then use entire inputs set.
             if enabled_acts is not None:
@@ -208,8 +215,77 @@ class GraphicalModel:
                     ep_prob[uid, vid, key] = prob
 
         # Add edge properties to graph
+        # Bookkeeping, update all properties.
         graph["input"] = ep_input
         graph["prob"] = ep_prob
+        logging.info(util.ColoredMsg.ok(f"[INFO] Processed edge property: input. [OK]"))
+        logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: prob. [OK]"))
+
+    def _gen_underlying_graph_unpointed_parallel(self, graph):
+        """
+        Programmer's notes:
+        1. Caches states (returned by `self.states()`) in self.__states variable.
+        2. Assumes all states to be hashable.
+        3. (in v0.1.7) Handles `enabled_acts` optional function.
+        """
+        # Get functions to construct underlying graph
+        states = getattr(self, "states")
+        input_func = getattr(self, self._input_domain)
+        enabled_inputs = getattr(self, "enabled_inputs", None)
+        delta = getattr(self, "delta")
+
+        # Define node, edge and graph properties
+        graph["state"] = np_state = NodePropertyMap(graph=graph)
+        graph["input"] = ep_input = EdgePropertyMap(graph=graph)
+        graph["prob"] = ep_prob = EdgePropertyMap(graph=graph, default=None)
+        graph["input_domain"] = self._input_domain
+
+        # Logging and printing
+        logging.info(util.ColoredMsg.ok(f"[INFO] Input domain function detected as '{self._input_domain}'. [OK]"))
+        logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: input_domain. [OK]"))
+
+        # Add states to graph and cache them
+        for state in tqdm(states(), "Adding nodes to graph"):
+            uid = graph.add_node()
+            np_state[uid] = state
+            self.__states[state] = uid
+
+        # Logging and printing
+        logging.info(util.ColoredMsg.ok(f"[INFO] Processed node property: states. Added {len(np_state)} states. [OK]"))
+
+        # Extract inputs and define enabled_inputs function (only for graphification), if undefined.
+        inputs = list(input_func())
+        try:
+            # Check if enabled_inputs is implemented by user.
+            arbitrary_key, st = list(self.__states.items())[0]
+            enabled_inputs(st)
+
+            # Create enabled inputs map.
+            graph["enabled_inputs"] = np_enabled_inputs = NodePropertyMap(graph=graph, default=inputs)
+            for state in tqdm(self.__states.keys(), desc="Generating map {state: enabled_inputs}"):
+                np_enabled_inputs[self.__states[state]] = enabled_inputs(state)
+            logging.info(util.ColoredMsg.ok(f"[INFO] Processed node property: enabled_inputs. [OK]"))
+
+        except NotImplementedError:
+            def enabled_inputs(state_):
+                return inputs
+
+        # Generate edges for each node-input pair.
+        #   This is parallelized using concurrent.futures module.
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            state_input_pairs = ((delta, st, inp) for st in states() for inp in enabled_inputs(st))
+            results = tqdm(executor.map(self._gen_edges_parallel, state_input_pairs),
+                           desc="Unpointed graphify constructing edges.")
+
+        for edges in tqdm(results, desc="Unpointed graphify constructing edges."):
+            for src, dst, inp, prob in edges:
+                uid = self.__states[src]
+                vid = self.__states[dst]
+                key = graph.add_edge(uid, vid)
+                ep_input[uid, vid, key] = inp
+                ep_prob[uid, vid, key] = prob
+
+        # Logging and printing
         logging.info(util.ColoredMsg.ok(f"[INFO] Processed edge property: input. [OK]"))
         logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: prob. [OK]"))
 
@@ -416,6 +492,9 @@ class GraphicalModel:
         """
         raise NotImplementedError(f"{self.__class__.__name__}.states() is not implemented.")
 
+    def enabled_inputs(self, state):
+        raise NotImplementedError(f"{self.__class__.__name__}.enabled_input() is not implemented.")
+
     def delta(self, state, inp) -> typing.Union[util.Distribution, typing.Iterable, object]:
         pass
 
@@ -430,7 +509,7 @@ class GraphicalModel:
         """
         self._init_state = state
 
-    def graphify(self, pointed=False, base_only=False):
+    def graphify(self, pointed=False, base_only=False, parallel=True):
         """
         Constructs the underlying graph of the graphical model.
 
@@ -468,11 +547,17 @@ class GraphicalModel:
 
         # Construct underlying graph for pointed construction
         if pointed is True:
+            logging.info(util.ColoredMsg.header(f"[INFO] Running single-core pointed graphify: {node_props}"))
             self._gen_underlying_graph_pointed(graph)
 
         # Construct underlying graph for unpointed construction
         else:
-            self._gen_underlying_graph_unpointed(graph)
+            if parallel:
+                logging.info(util.ColoredMsg.header(f"[INFO] Running parallel unpointed graphify: {node_props}"))
+                self._gen_underlying_graph_unpointed_parallel(graph)
+            else:
+                logging.info(util.ColoredMsg.header(f"[INFO] Running single-core unpointed graphify: {node_props}"))
+                self._gen_underlying_graph_unpointed(graph)
 
         if not base_only:
             # Add node properties

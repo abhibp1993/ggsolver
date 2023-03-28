@@ -15,6 +15,10 @@ class JobstmannGame(models.Game):
     def states(self):
         return list(range(8))
 
+    def enabled_inputs(self, state):
+        actions = self.actions()
+        return ((s, t) for s, t in actions if s == state)
+
     def actions(self):
         return [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4), (2, 2), (3, 0), (3, 4), (3, 5), (4, 1), (4, 3), (5, 3),
                 (5, 6), (6, 6), (6, 7), (7, 0), (7, 3)]

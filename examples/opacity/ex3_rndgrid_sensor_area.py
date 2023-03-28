@@ -128,13 +128,8 @@ class RndGridworld(mod_opacity.Arena):
         return self._goal_cells
 
 
-def solve(game: mod_opacity.BeliefGame, game_name):
-    """
-    Solver for Reach-Avoid Game.
-    :return:
-    """
+def solve(game: mod_opacity.BeliefGame, game_name: str):
     # Graphify the game
-    # PATCH
     if os.path.exists("out/" + game_name):
         game_graph = graph.Graph.load("out/" + game_name)
         print("Loaded existing game graph.")
@@ -216,7 +211,7 @@ def main():
 
     # Solve the game
     start = time.perf_counter()
-    solve(belief_game, game_name=os.path.join(DIRECTORY, f"{FILENAME}.gm"))
+    solve(belief_game, game_name=FILENAME))
     end = time.perf_counter()
     print(f"Total solution time: {end - start}")
 

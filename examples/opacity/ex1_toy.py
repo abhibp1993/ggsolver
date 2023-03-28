@@ -121,6 +121,10 @@ def solve(game: mod_opacity.BeliefGame):
     print(f"{swin_reach.winning_states(1)=}")
     print(f"{swin_reach_p2.winning_states(1)=}")
 
+    print(f"{len(swin_reach.winning_states(1))=}")
+    print(f"{len(swin_reach_p2.winning_states(1))=}")
+    print(f"{len(game_graph.nodes()) = }")
+
     # Return solution to reachability game.
     return swin_reach
 

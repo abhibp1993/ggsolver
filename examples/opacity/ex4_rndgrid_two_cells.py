@@ -15,7 +15,7 @@ import random
 from scipy.spatial.distance import cityblock
 
 import ggsolver.gridworld.util as util
-import ggsolver.dtptb.pgsolver as dtptb
+import ggsolver.dtptb as dtptb
 import ggsolver.logic as logic
 import ggsolver.graph as graph
 import ggsolver.models as models
@@ -102,34 +102,42 @@ class RndGridworld(mod_opacity.Arena):
 
         if turn == 1:
             if cityblock([p2r, p2c], [p1r_prime, p1c_prime]) <= self._sense_rng:
-                return f"o1:{(p1r_prime, p1c_prime)}"
+                return f"o1:{(p1r_prime, p1c_prime)}" + f"o2:{(p2r, p2c)}"
             else:
-                return f"o1 not: {(p2r, p2c)}"
+                if p1r_prime + 1 <= self._dim[0]:
+                    return f"o1:{(p1r_prime, p1c_prime)}" + f"o2:{(p2r, p2c)}" \
+                        + f"o1:{(p1r_prime + 1, p1c_prime)}" + f"o2:{(p2r, p2c)}"
+                else:
+                    return f"o1:{(p1r_prime, p1c_prime)}" + f"o2:{(p2r, p2c)}"
 
         else:
             if cityblock([p2r_prime, p2c_prime], [p1r, p1c]) <= self._sense_rng:
-                return f"o2:{(p1r, p1c)}"
+                return f"o1:{(p1r, p1c)}" + f"o2:{(p2r_prime, p2c_prime)}"
             else:
-                return f"o2 not: {(p2r_prime, p2c_prime)}"
+                if p1r + 1 <= self._dim[0]:
+                    return f"o1:{(p1r, p1c)}" + f"o2:{(p2r_prime, p2c_prime)}" \
+                        + f"o1:{(p1r + 1, p1c)}" + f"o2:{(p2r_prime, p2c_prime)}"
+                else:
+                    return f"o1:{(p1r, p1c)}" + f"o2:{(p2r_prime, p2c_prime)}"
 
     @models.register_property(GRAPH_PROPERTY)
     def goal_cells(self):
         return self._goal_cells
 
 
-def solve(game: mod_opacity.BeliefGame):
+def solve(game: mod_opacity.BeliefGame, gamename):
     """
     Solver for Reach-Avoid Game.
     :return:
     """
     # Graphify the game
     # PATCH
-    if os.path.exists("out/belief_game.gm"):
-        game_graph = graph.Graph.load("out/belief_game.gm")
+    if os.path.exists("out/"+ gamename):
+        game_graph = graph.Graph.load("out/"+ gamename)
         print("Loaded existing game graph.")
     else:
         game_graph = game.graphify(pointed=True)
-        game_graph.save("out/belief_game.gm")
+        game_graph.save("out/"+ gamename)
         print("graphify done.")
 
     # Define a reachability solver (see dtptb.solvers.SWinReach)
@@ -168,8 +176,8 @@ def solve(game: mod_opacity.BeliefGame):
 
 if __name__ == "__main__":
     # Instantiate MyGame here
-    game = RndGridworld(dim=(3, 3), goal_cells=[(1, 1), (0, 0)], sense_rng=1)
-    game.initialize((0, 1, 1, 0, 1))
+    game = RndGridworld(dim=(6, 6), goal_cells=[(0, 4), (1, 3)], sense_rng=1)
+    game.initialize((0, 0, 5, 0, 1))
     aut = game.formula1().translate()
 
     aut_graph = aut.graphify()
@@ -182,7 +190,7 @@ if __name__ == "__main__":
     belief_game.initialize(belief_game.init_state())
 
     def run_profiler():
-        solve(belief_game)
+        solve(belief_game, "6by6_rng1_two_cells.gm")
 
     import cProfile
     cProfile.run('run_profiler()', filename='my_profile_results.txt')

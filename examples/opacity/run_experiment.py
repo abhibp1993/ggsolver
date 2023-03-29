@@ -76,11 +76,13 @@ def run_experiment(game, game_init_set=None, config=None):
     if game_init_set is None:
         s0 = belief_game.initialize(belief_game.init_state())
         belief_game_init_set.add(s0)
+        print(f"belief_game_init_set.add({s0})")
     else:
         for st_ in game_init_set:
             game.initialize(st_)
             s0 = belief_game.init_state()
             belief_game_init_set.add(s0)
+        print(f"{belief_game_init_set=}")
 
     # Define P2's final state function
     p2final = partial(belief_game.final_p2)
@@ -94,6 +96,7 @@ def run_experiment(game, game_init_set=None, config=None):
     else:
         # Graphify belief fame
         start = time.perf_counter()
+        print(f"belief_game.graphify(pointed=True, init_set={belief_game_init_set})")
         game_graph = belief_game.graphify(pointed=True, init_set=belief_game_init_set)
         end = time.perf_counter()
         logger.info(f"Time for graphification: {end - start} seconds.")

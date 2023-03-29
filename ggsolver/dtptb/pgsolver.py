@@ -35,7 +35,7 @@ class SWinReach(models.Solver):
         self._player = 1  # For PGSolver, we can only solve for P1's reachability.
         self._final = {self.state2node(st) for st in final} if final is not None else self.get_final_states()
         if len(self._final) == 0:
-            logging.warning(f"dtptb.SWinReach.__init__(): Final state set is empty.")
+            logger.warning(f"dtptb.SWinReach.__init__(): Final state set is empty.")
 
         self._turn = self._solution["turn"]
         self._rank = mod_graph.NodePropertyMap(self._solution, default=float("inf"))
@@ -128,15 +128,9 @@ class SWinReach(models.Solver):
                 win2.add(int(obj[0]))
         return win1, win2
 
-    def process_pgsolver_dot(self, dot_file=None):
-        # Read the DOT file as a networkx graph
-        if dot_file is None:
-            dot_graph = read_dot(os.path.join(self._path, f"{self._filename}.dot"))
-        else:
-            dot_graph = read_dot(dot_file)
-
+    def _process_pgsolver_dot2(self, dot_graph):
         # Iterate over nodes to extract information.
-        for node, data in tqdm(dot_graph.nodes(data=True)):
+        for node, data in tqdm(dot_graph.nodes(data=True), desc="Processing dot file to extract solution."):
             # Get node id
             uid = int(node[1:])
 
@@ -176,6 +170,56 @@ class SWinReach(models.Solver):
                         else:
                             self._edge_winner[uid, vid, key] = 1
 
+    def _process_pgsolver_dot(self, dot_graph):
+        # Iterate over nodes to extract information.
+        for node, data in tqdm(dot_graph.nodes(data=True), total=dot_graph.number_of_nodes(),
+                               desc="Extracting node winners from PGSolver solution."):
+            # Get node id
+            uid = int(node[1:])
+
+            # Mark node winner
+            if data["color"] == 'green':
+                self._node_winner[uid] = 1
+            else:  # if data["color"] == 'red':
+                self._node_winner[uid] = 2
+
+        # Iterate over edges to extract information
+        for uid, vid, key in tqdm(self._solution.edges(), total=self.graph().number_of_edges(),
+                                  desc="Extracting edge winners from PGSolver solution."):
+            # Programmer's note: dot_graph is a nx.MultiDigraph instance.
+            #   Hence, the edges of dot_graph have format: (u, v, k).
+            #   The key here may not correspond to that in self._solution.
+            #   Such confusion should be avoided.
+            # We use 0-th key because the color of all parallel edge between fixed pair of nodes
+            # is same for Zielonka's algorithm.
+            data = dot_graph.get_edge_data(f"N{uid}", f"N{vid}", 0)
+
+            # If uid is P1 state, any black edge is losing.
+            if self._solution["turn"][uid] == 1:
+                if data["color"] == "green":
+                    self._edge_winner[uid, vid, key] = 1
+                else:
+                    self._edge_winner[uid, vid, key] = 2
+
+            # If uid is P2 state, any black edge is losing.
+            # Programmer's Note: PGSolver (as far as I understand) only determines "a" strategy
+            #   for P2 to win from its winning state. If more winning edges exist at a P2 win node,
+            #   then they may be black. In this case, we use permissive strategy to determine their winner.
+            else:  # self._graph["turn"][uid] == 2:
+                if data["color"] == "red":
+                    self._edge_winner[uid, vid, key] = 2
+                else:
+                    if self._node_winner[vid] == 2:
+                        self._edge_winner[uid, vid, key] = 2
+                    else:
+                        self._edge_winner[uid, vid, key] = 1
+
+    def load_solution_from_dot(self, dot_file=None):
+        # Read the DOT file as a networkx graph
+        dot_graph = read_dot(dot_file)
+        self._process_pgsolver_dot(dot_graph)
+        self._is_solved = True
+
     def reset(self):
         """ Resets the solver to initial state. """
         super(SWinReach, self).reset()
@@ -189,7 +233,7 @@ class SWinReach(models.Solver):
     def solve(self):
         # If game is solved, do not resolve it.
         if self._is_solved:
-            logging.warning(
+            logger.warning(
                 f"dtptb.pgsolver.SWinReach.solve:: Game is solved. To resolve, call `reset` before `solve`.")
             return
 
@@ -203,11 +247,15 @@ class SWinReach(models.Solver):
 
         try:
             # Invoke PGSolver using command-line tool to solve the game.
+            logger.info(f"Invoking PGSolver... This may take a few minutes.")
             self._run_pgsolver()
+            logger.info(f"PGSolver completed execution.")
 
             # Process PGSolver output to mark node, edge winners
             #   (PGSolver generates dot file and console output. The following code uses dot)
-            self.process_pgsolver_dot()
+            # Read the DOT file as a networkx graph
+            dot_graph = read_dot(os.path.join(self._path, f"{self._filename}.dot"))
+            self._process_pgsolver_dot(dot_graph)
 
         except Exception as err:
             logger.error(f"dtptb.pgsolver.SWinReach.solve:: {err}")
@@ -262,7 +310,7 @@ class SWinReach2(models.Solver):
         self._solution["rank"] = self._rank
 
         if len(self._final) == 0:
-            logging.warning(f"dtptb.SWinReach.__init__(): Final state set is empty.")
+            logger.warning(f"dtptb.SWinReach.__init__(): Final state set is empty.")
 
     def reset(self):
         """ Resets the solver to initial state. """

@@ -213,7 +213,13 @@ class GraphicalModel:
         logging.info(util.ColoredMsg.ok(f"[INFO] Processed edge property: input. [OK]"))
         logging.info(util.ColoredMsg.ok(f"[INFO] Processed graph property: prob. [OK]"))
 
-    def _gen_underlying_graph_pointed(self, graph):
+    def _gen_underlying_graph_pointed(self, graph, init_set=None):
+        """
+        Generates underlying graph using initial set.
+        :param graph:
+        :param init_set: A set of initial states.
+        :return:
+        """
         logging.info(util.ColoredMsg.ok(f"[INFO] Running graphify UNPOINTED."))
 
         # Get input function
@@ -255,11 +261,14 @@ class GraphicalModel:
             # logging.info(util.ColoredMsg.ok(f"[INFO] Processed node property: enabled_acts. [OK]"))
 
         # BFS traversal until all reachable states are visited.
-        uid = graph.add_node()
-        self.__states[s0] = uid
-        np_state[uid] = s0
+        init_states = {s0} if init_set is None else set(init_set)
 
-        queue = [s0]
+        for state_ in init_states:
+            uid = graph.add_node()
+            self.__states[state_] = uid
+            np_state[uid] = state_
+
+        queue = list(init_states)
         visited = set()
 
         # Generate edges
@@ -430,7 +439,7 @@ class GraphicalModel:
         """
         self._init_state = state
 
-    def graphify(self, pointed=False, base_only=False):
+    def graphify(self, pointed=False, base_only=False, init_set=None):
         """
         Constructs the underlying graph of the graphical model.
 
@@ -443,7 +452,7 @@ class GraphicalModel:
         self._clear_cache()
 
         # Input parameter validation
-        if pointed is True and self._init_state is None:
+        if pointed is True and (init_set is None and self._init_state is None):
             raise ValueError(f"{self.__class__.__name__} is not initialized. "
                              f"Did you forget to call {self.__class__.__name__}.initialize() function?")
 
@@ -468,7 +477,7 @@ class GraphicalModel:
 
         # Construct underlying graph for pointed construction
         if pointed is True:
-            self._gen_underlying_graph_pointed(graph)
+            self._gen_underlying_graph_pointed(graph, init_set)
 
         # Construct underlying graph for unpointed construction
         else:

@@ -6,6 +6,7 @@ import ggsolver.gridworld.util as gw_util
 import ggsolver.logic as logic
 import ggsolver.models as gg_models
 
+import os
 
 # Game Parameters
 DIM = (4, 4)
@@ -111,11 +112,31 @@ class RndGridworld(opac_models.Arena):
 
 if __name__ == "__main__":
     # Instantiate random game here
-    game = RndGridworld(dim=(4, 4), goal_cells=[(0, 3), (3, 3)], sense_rng=1)
-    game.initialize((0, 0, 3, 0, 1))
+    # game = RndGridworld(dim=(4, 4), goal_cells=[(0, 3), (3, 3)], sense_rng=1)
+    # game.initialize((0, 0, 3, 0, 1))
+    #
+    # # Run the experiment
+    # exp.run_experiment(game, config=config)
 
-    # Run the experiment
-    exp.run_experiment(game, config=config)
+    # TODO 1. Divide the original game into two parts. 2. Get the trace of actions.
+
+    initial_states_set = [(i, j, 3, 0, 1) for i in range(DIM[0]) for j in range(DIM[1])]
+
+    for initial_state in initial_states_set:
+        game = RndGridworld(dim=(4, 4), goal_cells=[(0, 3), (3, 3)], sense_rng=1)
+        game.initialize(initial_state)
+        # Define configuration
+        config = {
+            "directory": f"out/{initial_state}",
+            "filename": "4by4_rng1_fixed",
+            "sensor_range": 1,
+            "force_belief_graphify": False,
+            "force_resolve": False,
+        }
+        os.mkdir(config["directory"])
+        exp.run_experiment(game, config=config)
+
+
 
 
 

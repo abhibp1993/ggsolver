@@ -14,18 +14,18 @@ import os
 import random
 import time
 
-from scipy.spatial.distance import cityblock
-from time import perf_counter
+from functools import partial
 
+from scipy.spatial.distance import cityblock
 import ggsolver.gridworld.util as util
 import ggsolver.dtptb.pgsolver as dtptb
 import ggsolver.logic as logic
 import ggsolver.graph as graph
 import ggsolver.models as models
+import ggsolver.util
 
 import models as mod_opacity
 import logging
-
 
 # Size of gridworld
 DIM = (4, 4)
@@ -36,8 +36,14 @@ SENSOR_RANGE = 1
 # Output file name
 DIRECTORY = "out"
 FILENAME = "4by4_rng1_fixed"
+# Force regraphification of belief game?
+FORCE_REGEN = False
+# Force games solutions to be recomputed, in case they exist.
+FORCE_RESOLVE = False
 
-logging.basicConfig(level=logging.DEBUG, filename=os.path.join(DIRECTORY, f"{FILENAME}.log"))
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
 
 class RndGridworld(mod_opacity.Arena):
@@ -128,67 +134,47 @@ class RndGridworld(mod_opacity.Arena):
         return self._goal_cells
 
 
-def solve(game: mod_opacity.BeliefGame, game_name: str):
-    # Graphify the game
-    if os.path.exists("out/" + game_name):
-        game_graph = graph.Graph.load("out/" + game_name)
-        print("Loaded existing game graph.")
+def solve_p1game(game_graph: graph.Graph, dot_file: str = None):
+    # Define a reachability solver
+    swin_reach_p1 = dtptb.SWinReach(game_graph, save_output=True, path=DIRECTORY, filename=f"{FILENAME}_p1")
+    logging.info("P1's SWinReach object created...")
+
+    # Solve the reachability game
+    if dot_file:
+        logging.info(f"Loading solution of P1's game from {dot_file}.")
+        swin_reach_p1.load_solution_from_dot(dot_file)
     else:
-        game_graph = game.graphify(pointed=True)
-        game_graph.save("out/" + game_name)
-        print("graphify done.")
+        t1_start = time.perf_counter()
+        swin_reach_p1.solve()
+        t1_stop = time.perf_counter()
+        logging.info(f"Time for solving P1's game: {t1_stop - t1_start} seconds")
 
-    # Define a reachability solver (see dtptb.solvers.SWinReach)
-    # swin_reach_p1 = dtptb.SWinReach(game_graph, save_output=True)
-    # print("P1's SWinReach object created")
+    return swin_reach_p1
 
-    # # Solve the safety game.
-    # t1_start = perf_counter()
-    # # swin_reach_p1.solve()
-    # swin_reach_p1.process_pgsolver_dot(dot_file="out/pgzlk_2023_03_28_17_42_46.dot")
-    # t1_stop = perf_counter()
-    # print("Elapsed time during the calculation for P1 in s:",
-    #       t1_stop - t1_start, 's')
-    #
-    # solution = swin_reach_p1._solution
-    # solution.save("out/solution_1.solution")
-    # print("P1's SWinReach object solved..")
 
-    # print(f"{len(swin_reach_p1.winning_states(1))=}")
+def solve_p2game(game_graph: graph.Graph, p2final, dot_file: str = None):
+    # Generate final states
+    # final = set(map(p2final, (game_graph["state"][uid] for uid in game_graph.nodes())))
+    final = {game_graph["state"][uid] for uid in game_graph.nodes() if p2final(game_graph["state"][uid])}
 
-    # Define reachability solver for P2 (see Thm. 2)
-    # final = {game_graph["state"] for uid in game_graph.nodes() if game.final_p2(game_graph["state"][uid])}
-    final = set()
-    for uid in game_graph.nodes():
-        if game.final_p2(game_graph["state"][uid]):
-            final.add(game_graph["state"][uid])
-
+    # When final is empty, there are no revealing winning states.
     if len(final) == 0:
-        print("There is no revealing winning states")
+        logging.info(f"There is no revealing winning states")
 
+    # Create P2's solver
+    swin_reach_p2 = dtptb.SWinReach(game_graph, final=final, save_output=True, path=DIRECTORY, filename=f"{FILENAME}_p2")
+
+    # Solve P2's game
+    if dot_file:
+        logging.info(f"Loading solution of P2's game from {dot_file}.")
+        swin_reach_p2.load_solution_from_dot(dot_file)
     else:
-        swin_reach_p2 = dtptb.SWinReach(game_graph, final=final, save_output=True)
-        print("P2's SWinReach object created")
+        t2_start = time.perf_counter()
+        swin_reach_p2.solve()
+        t2_stop = time.perf_counter()
+        logging.info(f"Time for solving P2's game: {t2_stop - t2_start} seconds")
 
-        # Solve the safety game.
-        t2_start = perf_counter()
-        # swin_reach_p2.solve()
-        swin_reach_p2.process_pgsolver_dot(dot_file="out/pgzlk_2023_03_28_17_57_28.dot")
-        t2_stop = perf_counter()
-        print("Elapsed time during the calculation for P2 in s:",
-              t2_start - t2_stop, 's')
-
-        # solution = swin_reach_p2.solution()
-        # solution.save("out/solution_2.solution")
-
-        solution = swin_reach_p2._solution
-        solution.save("out/solution_2.solution")
-        print("P2's SWinReach object solved..")
-
-        print(f"{len(swin_reach_p2.winning_states(1))=}")
-
-    # Return solution to reachability game.
-    return swin_reach_p2.winning_actions()
+    return swin_reach_p2
 
 
 def main():
@@ -199,21 +185,69 @@ def main():
     # Generate objective automaton
     aut = game.formula1().translate()
     aut_graph = aut.graphify()
-    aut_graph.to_png("out/aut_graph.png", nlabel=["state", "final"], elabel=["input"])
+    aut_graph.to_png(os.path.join(DIRECTORY, f"{FILENAME}_aut.png"), nlabel=["state", "final"], elabel=["input"])
 
     # Generate and save the base game
     base_graph = game.graphify()
-    base_graph.save("out/base_game.gm", overwrite=True)
+    base_graph.save(os.path.join(DIRECTORY, f"{FILENAME}_base.ggraph"), overwrite=True)
 
     # Define the belief game
     belief_game = mod_opacity.BeliefGame(game, aut)
     belief_game.initialize(belief_game.init_state())
 
-    # Solve the game
-    start = time.perf_counter()
-    solve(belief_game, game_name=FILENAME))
-    end = time.perf_counter()
-    print(f"Total solution time: {end - start}")
+    # Define P2's final state function
+    p2final = partial(belief_game.final_p2)
+
+    # If game is saved, load it. Else graphify it.
+    fpath = os.path.join(DIRECTORY, f"{FILENAME}.ggraph")
+    if os.path.exists(fpath) and not FORCE_REGEN:
+        game_graph = graph.Graph.load(fpath)
+        logging.info(f"Loaded existing game graph from {fpath}...")
+
+    else:
+        # Graphify belief fame
+        start = time.perf_counter()
+        game_graph = belief_game.graphify(pointed=True)
+        end = time.perf_counter()
+        logging.info(f"Time for graphification: {end - start} seconds.")
+
+        # Save the game.
+        game_graph.save(fpath)
+        logging.info(f"Saved the graphified belief game graph at {fpath}...")
+
+    # Solve P1's game
+    fpath = os.path.join(DIRECTORY, f"{FILENAME}_p1.dot")
+    if os.path.exists(fpath) and not FORCE_RESOLVE:
+        logging.info(f"Loading P1's game solution from {fpath}...")
+        swin_reach_p1 = solve_p1game(game_graph, dot_file=fpath)
+        logging.info(f"Loaded P1's game solution from {fpath}.")
+    else:
+        logging.info(f"Solving P1 game from scratch...")
+        start = time.perf_counter()
+        swin_reach_p1 = solve_p1game(game_graph)
+        end = time.perf_counter()
+        logging.info(f"Solution time for P1's game: {end - start} seconds.")
+
+    fpath = os.path.join(DIRECTORY, f"{FILENAME}_p2.dot")
+    if os.path.exists(fpath) and not FORCE_RESOLVE:
+        logging.info(f"Loading P2's game solution from {fpath}...")
+        swin_reach_p2 = solve_p2game(game_graph, p2final, fpath)
+        logging.info(f"Loaded P2's game solution from {fpath}.")
+    else:
+        logging.info(f"Solving P2 game from scratch...")
+        start = time.perf_counter()
+        swin_reach_p2 = solve_p2game(game_graph, p2final)
+        end = time.perf_counter()
+        logging.info(f"Solution time for P2's game: {end - start} seconds.")
+
+    # Save the generated solutions
+    fpath = os.path.join(DIRECTORY, f"{FILENAME}_p1.solution")
+    swin_reach_p1.solution().save(fpath, overwrite=True)
+    logging.info(f"Saved P1's game solution in '{fpath}'")
+
+    fpath = os.path.join(DIRECTORY, f"{FILENAME}_p2.solution")
+    swin_reach_p2.solution().save(fpath, overwrite=True)
+    logging.info(f"Saved P2's game solution in '{fpath}'")
 
 
 if __name__ == "__main__":

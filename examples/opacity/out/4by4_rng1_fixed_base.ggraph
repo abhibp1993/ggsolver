@@ -1,7 +1,7 @@
 {
   "type": "Graph",
   "ggsolver.version": "0.1.6",
-  "serialization_time": "2023-03-29 01:50:01.665517+00:00",
+  "serialization_time": "2023-03-29 02:24:35.192692+00:00",
   "nodes": 512,
   "edges": [
     "(0, 129, 0)",
@@ -2065,13 +2065,13 @@
   ],
   "graph_properties": [
     "input_domain",
-    "is_deterministic",
     "goal_cells",
-    "atoms",
     "is_probabilistic",
     "is_turn_based",
     "init_state",
-    "actions"
+    "is_deterministic",
+    "actions",
+    "atoms"
   ],
   "np.state": {
     "type": "NodePropertyMap",
@@ -10941,7 +10941,6 @@
     }
   },
   "gp.input_domain": "actions",
-  "gp.is_deterministic": true,
   "gp.goal_cells": [
     [
       0,
@@ -10952,10 +10951,6 @@
       3
     ]
   ],
-  "gp.atoms": [
-    "g0",
-    "g1"
-  ],
   "gp.is_probabilistic": false,
   "gp.is_turn_based": true,
   "gp.init_state": [
@@ -10965,10 +10960,15 @@
     0,
     1
   ],
+  "gp.is_deterministic": true,
   "gp.actions": [
     "N",
     "E",
     "S",
     "W"
+  ],
+  "gp.atoms": [
+    "g0",
+    "g1"
   ]
 }

@@ -1,110 +1,108 @@
-ef367a5be16f:python3 -u /opt/project/examples/opacity/ex3_rndgrid_sensor_area.py
+54f589c0fdd8:python3 -u /opt/project/examples/opacity/ex5_4x4grid.py
 pygame 2.1.2 (SDL 2.0.16, Python 3.9.2)
 Hello from the pygame community. https://www.pygame.org/contribute.html
 [INFO] Translating Fg0 & Fg1 with options=('Buchi', 'Deterministic', 'High', 'Complete', 'Unambiguous', 'SBAcc').
 INFO:root:[INFO] Globbed node properties: {'final'}
 INFO:root:[INFO] Globbed edge properties: set()
-INFO:root:[INFO] Globbed graph properties: {'acc_type', 'is_complete', 'is_inherently_weak', 'num_acc_sets', 'acc_cond', 'init_state', 'is_deterministic', 'atoms', 'formula', 'is_state_based_acc', 'is_weak', 'is_probabilistic', 'acc_name', 'spot_acc_cond', 'is_semi_deterministic'}
+INFO:root:[INFO] Globbed graph properties: {'is_weak', 'acc_name', 'is_probabilistic', 'num_acc_sets', 'init_state', 'is_state_based_acc', 'is_complete', 'spot_acc_cond', 'acc_cond', 'is_deterministic', 'formula', 'is_inherently_weak', 'acc_type', 'is_semi_deterministic', 'atoms'}
 INFO:root:[INFO] Duplicate node, edge properties: set()
 INFO:root:[INFO] Duplicate edge, graph properties: set()
 INFO:root:[INFO] Duplicate graph, node properties: set()
 INFO:root:[INFO] Processed node property: states. Added 4 states. [OK]
 INFO:root:[INFO] Input domain function detected as 'atoms'. [OK]
 INFO:root:[INFO] Processed graph property: input_domain. [OK]
-Specialized unpointed graphify adding edges for automaton : 100%|██████████| 16/16 [00:00<00:00, 630.53it/s]
+Specialized unpointed graphify adding edges for automaton : 100%|██████████| 16/16 [00:00<00:00, 632.80it/s]
 INFO:root:[INFO] Processed edge property: input. [OK]
 INFO:root:[INFO] Processed graph property: prob. [OK]
 INFO:root:[INFO] Processed node property: final. [OK]
-INFO:root:[INFO] Processed graph property: acc_type. [OK]
-INFO:root:[INFO] Processed graph property: is_complete. [OK]
-INFO:root:[INFO] Processed graph property: is_inherently_weak. [OK]
-INFO:root:[INFO] Processed graph property: num_acc_sets. [OK]
-INFO:root:[INFO] Processed graph property: acc_cond. [OK]
-INFO:root:[INFO] Processed graph property: init_state. [OK]
-INFO:root:[INFO] Processed graph property: is_deterministic. [OK]
-INFO:root:[INFO] Processed graph property: atoms. [OK]
-INFO:root:[INFO] Processed graph property: formula. [OK]
-INFO:root:[INFO] Processed graph property: is_state_based_acc. [OK]
 INFO:root:[INFO] Processed graph property: is_weak. [OK]
-INFO:root:[INFO] Processed graph property: is_probabilistic. [OK]
 INFO:root:[INFO] Processed graph property: acc_name. [OK]
+INFO:root:[INFO] Processed graph property: is_probabilistic. [OK]
+INFO:root:[INFO] Processed graph property: num_acc_sets. [OK]
+INFO:root:[INFO] Processed graph property: init_state. [OK]
+INFO:root:[INFO] Processed graph property: is_state_based_acc. [OK]
+INFO:root:[INFO] Processed graph property: is_complete. [OK]
 INFO:root:[INFO] Processed graph property: spot_acc_cond. [OK]
+INFO:root:[INFO] Processed graph property: acc_cond. [OK]
+INFO:root:[INFO] Processed graph property: is_deterministic. [OK]
+INFO:root:[INFO] Processed graph property: formula. [OK]
+INFO:root:[INFO] Processed graph property: is_inherently_weak. [OK]
+INFO:root:[INFO] Processed graph property: acc_type. [OK]
 INFO:root:[INFO] Processed graph property: is_semi_deterministic. [OK]
+INFO:root:[INFO] Processed graph property: atoms. [OK]
  [SUCCESS] <Graph with |V|=4, |E|=9> generated.
-INFO:root:[INFO] Globbed node properties: {'turn', 'enabled_acts', 'final', 'label'}
+INFO:root:[INFO] Globbed node properties: {'final', 'enabled_acts', 'label', 'turn'}
 INFO:root:[INFO] Globbed edge properties: {'attacker_observation'}
-INFO:root:[INFO] Globbed graph properties: {'actions', 'is_turn_based', 'goal_cells', 'init_state', 'is_deterministic', 'atoms', 'formula', 'is_probabilistic', 'p1_acts', 'win_cond', 'p2_acts'}
+INFO:root:[INFO] Globbed graph properties: {'goal_cells', 'win_cond', 'p1_acts', 'is_probabilistic', 'is_turn_based', 'init_state', 'is_deterministic', 'formula', 'actions', 'atoms', 'p2_acts'}
 INFO:root:[INFO] Duplicate node, edge properties: set()
 INFO:root:[INFO] Duplicate edge, graph properties: set()
 INFO:root:[INFO] Duplicate graph, node properties: set()
 INFO:root:[INFO] Processed node property: states. Added 512 states. [OK]
 INFO:root:[INFO] Input domain function detected as 'actions'. [OK]
 INFO:root:[INFO] Processed graph property: input_domain. [OK]
-Unpointed graphify adding edges: 100%|██████████| 512/512 [00:00<00:00, 12576.99it/s]
+Unpointed graphify adding edges: 100%|██████████| 512/512 [00:00<00:00, 21032.11it/s]
 INFO:root:[INFO] Processed edge property: input. [OK]
 INFO:root:[INFO] Processed graph property: prob. [OK]
-INFO:root:[INFO] Processed node property: turn. [OK]
-WARNING:root:[WARN] Node property function not implemented: enabled_acts. [IGNORED]
 WARNING:root:[WARN] Node property function not implemented: final. [IGNORED]
+WARNING:root:[WARN] Node property function not implemented: enabled_acts. [IGNORED]
 INFO:root:[INFO] Processed node property: label. [OK]
+INFO:root:[INFO] Processed node property: turn. [OK]
 INFO:root:[INFO] Processed edge property: attacker_observation. [OK]
-INFO:root:[INFO] Processed graph property: actions. [OK]
-INFO:root:[INFO] Processed graph property: is_turn_based. [OK]
 INFO:root:[INFO] Processed graph property: goal_cells. [OK]
+WARNING:root:[WARN] Graph property is not implemented: win_cond. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: p1_acts. [IGNORED]
+INFO:root:[INFO] Processed graph property: is_probabilistic. [OK]
+INFO:root:[INFO] Processed graph property: is_turn_based. [OK]
 INFO:root:[INFO] Processed graph property: init_state. [OK]
 INFO:root:[INFO] Processed graph property: is_deterministic. [OK]
-INFO:root:[INFO] Processed graph property: atoms. [OK]
 WARNING:root:[WARN] Graph property is not implemented: formula. [IGNORED]
-INFO:root:[INFO] Processed graph property: is_probabilistic. [OK]
-WARNING:root:[WARN] Graph property is not implemented: p1_acts. [IGNORED]
-WARNING:root:[WARN] Graph property is not implemented: win_cond. [IGNORED]
+INFO:root:[INFO] Processed graph property: actions. [OK]
+INFO:root:[INFO] Processed graph property: atoms. [OK]
 WARNING:root:[WARN] Graph property is not implemented: p2_acts. [IGNORED]
  [SUCCESS] <Graph with |V|=512, |E|=2048> generated.
-INFO:root:[INFO] Globbed node properties: {'turn', 'enabled_acts', 'final', 'label'}
+INFO:root:[INFO] Globbed node properties: {'final', 'enabled_acts', 'label', 'turn'}
 INFO:root:[INFO] Globbed edge properties: set()
-INFO:root:[INFO] Globbed graph properties: {'actions', 'p2_acts', 'is_turn_based', 'init_state', 'is_deterministic', 'atoms', 'formula', 'p1_acts', 'win_cond', 'is_probabilistic'}
+INFO:root:[INFO] Globbed graph properties: {'p1_acts', 'is_probabilistic', 'init_state', 'is_deterministic', 'actions', 'atoms', 'p2_acts', 'win_cond', 'is_turn_based', 'formula'}
 INFO:root:[INFO] Duplicate node, edge properties: set()
 INFO:root:[INFO] Duplicate edge, graph properties: set()
 INFO:root:[INFO] Duplicate graph, node properties: set()
 INFO:root:[INFO] Running graphify UNPOINTED.
 INFO:root:[INFO] Input domain function detected as 'actions'. [OK]
 INFO:root:[INFO] Processed graph property: input_domain. [OK]
-Pointed graphify adding edges: 100%|██████████| 10064/10064 [04:23<00:00, 38.12it/s]
+Pointed graphify adding edges: 100%|██████████| 10064/10064 [05:00<00:00, 33.55it/s]
 INFO:root:[INFO] Processed edge property: input. [OK]
 INFO:root:[INFO] Processed graph property: prob. [OK]
-INFO:root:[INFO] Processed node property: turn. [OK]
-WARNING:root:[WARN] Node property function not implemented: enabled_acts. [IGNORED]
 INFO:root:[INFO] Processed node property: final. [OK]
+WARNING:root:[WARN] Node property function not implemented: enabled_acts. [IGNORED]
 WARNING:root:[WARN] Node property function not implemented: label. [IGNORED]
-INFO:root:[INFO] Processed graph property: actions. [OK]
-WARNING:root:[WARN] Graph property is not implemented: p2_acts. [IGNORED]
-INFO:root:[INFO] Processed graph property: is_turn_based. [OK]
+INFO:root:[INFO] Processed node property: turn. [OK]
+WARNING:root:[WARN] Graph property is not implemented: p1_acts. [IGNORED]
+INFO:root:[INFO] Processed graph property: is_probabilistic. [OK]
 INFO:root:[INFO] Processed graph property: init_state. [OK]
 INFO:root:[INFO] Processed graph property: is_deterministic. [OK]
+INFO:root:[INFO] Processed graph property: actions. [OK]
 WARNING:root:[WARN] Graph property is not implemented: atoms. [IGNORED]
-WARNING:root:[WARN] Graph property is not implemented: formula. [IGNORED]
-WARNING:root:[WARN] Graph property is not implemented: p1_acts. [IGNORED]
+WARNING:root:[WARN] Graph property is not implemented: p2_acts. [IGNORED]
 WARNING:root:[WARN] Graph property is not implemented: win_cond. [IGNORED]
-INFO:root:[INFO] Processed graph property: is_probabilistic. [OK]
+INFO:root:[INFO] Processed graph property: is_turn_based. [OK]
+WARNING:root:[WARN] Graph property is not implemented: formula. [IGNORED]
+INFO:run_experiment:Time for graphification: 300.38238910000655 seconds.
  [SUCCESS] <Graph with |V|=10064, |E|=40256> generated.
-INFO:root:Time for graphification: 264.3899710000114 seconds.
-INFO:root:Saved the graphified belief game graph at out/4by4_rng1_fixed.ggraph...
-INFO:root:Solving P1 game from scratch...
-INFO:root:P1's SWinReach object created...
+INFO:run_experiment:Saved the graphified belief game graph at out/4by4_rng1_fixed.ggraph...
+INFO:run_experiment:Solving P1 game from scratch...
+INFO:run_experiment:P1's SWinReach object created...
 INFO:ggsolver.dtptb.pgsolver:Invoking PGSolver... This may take a few minutes.
 INFO:ggsolver.dtptb.pgsolver:PGSolver completed execution.
-Extracting node winners from PGSolver solution.: 100%|██████████| 10064/10064 [00:00<00:00, 137296.76it/s]
-Extracting edge winners from PGSolver solution.: 100%|██████████| 40256/40256 [00:00<00:00, 63183.60it/s]
-INFO:root:Time for solving P1's game: 7.084418499987805 seconds
-INFO:root:Solving P2 game from scratch...
-Solution time for P1's game: 7.142851000011433 seconds.
+Extracting node winners from PGSolver solution.: 100%|██████████| 10064/10064 [00:00<00:00, 200833.93it/s]
+Extracting edge winners from PGSolver solution.: 100%|██████████| 40256/40256 [00:00<00:00, 67527.91it/s]
+INFO:run_experiment:Solution time for P1's game: 6.780608499990194 seconds.
+INFO:run_experiment:Solving P2 game from scratch...
 INFO:ggsolver.dtptb.pgsolver:Invoking PGSolver... This may take a few minutes.
 INFO:ggsolver.dtptb.pgsolver:PGSolver completed execution.
-Extracting node winners from PGSolver solution.: 100%|██████████| 10064/10064 [00:00<00:00, 203736.12it/s]
-Extracting edge winners from PGSolver solution.: 100%|██████████| 40256/40256 [00:00<00:00, 73030.90it/s]
-INFO:root:Time for solving P2's game: 6.730546699996921 seconds
-Solution time for P2's game: 7.082454800009145 seconds.
-INFO:root:Saved P1's game solution in 'out/4by4_rng1_fixed_p1.solution'
-INFO:root:Saved P2's game solution in 'out/4by4_rng1_fixed_p2.solution'
+Extracting node winners from PGSolver solution.: 100%|██████████| 10064/10064 [00:00<00:00, 176832.36it/s]
+Extracting edge winners from PGSolver solution.: 100%|██████████| 40256/40256 [00:00<00:00, 70060.48it/s]
+INFO:run_experiment:Solution time for P2's game: 6.858077299999422 seconds.
+INFO:run_experiment:Saved P1's game solution in 'out/4by4_rng1_fixed_p1.solution'
+INFO:run_experiment:Saved P2's game solution in 'out/4by4_rng1_fixed_p2.solution'
 
 Process finished with exit code 0

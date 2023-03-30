@@ -8,6 +8,7 @@ from ggsolver import util
 from ggsolver.graph import NodePropertyMap, EdgePropertyMap, Graph, SubGraph
 from tqdm import tqdm
 import concurrent.futures
+import multiprocessing
 
 
 # try:
@@ -127,6 +128,12 @@ class GraphicalModel:
     def _gen_edges_parallel(self, data):
         delta, state, inp = data
         return self._gen_edges(delta, state, inp)
+
+    def _gen_edges_parallel_bunch(self, data):
+        edges = set()
+        for delta, state, inp in data:
+            edges.update(self._gen_edges(delta, state, inp))
+        return edges
 
     def _gen_underlying_graph_unpointed(self, graph):
         """
@@ -272,10 +279,20 @@ class GraphicalModel:
 
         # Generate edges for each node-input pair.
         #   This is parallelized using concurrent.futures module.
+        def split_list(lst, n):
+            k, m = divmod(len(lst), n)
+            return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
+        
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            state_input_pairs = ((delta, st, inp) for st in states() for inp in enabled_inputs(st))
-            results = tqdm(executor.map(self._gen_edges_parallel, state_input_pairs),
+            num_cpu = multiprocessing.cpu_count()
+            state_input_pairs = [(delta, st, inp) for st in states() for inp in enabled_inputs(st)]
+            results = tqdm(executor.map(self._gen_edges_parallel_bunch, split_list(state_input_pairs, num_cpu)),
                            desc="Unpointed graphify constructing edges.")
+
+        # with concurrent.futures.ProcessPoolExecutor() as executor:
+        #     state_input_pairs = ((delta, st, inp) for st in states() for inp in enabled_inputs(st))
+        #     results = tqdm(executor.map(self._gen_edges_parallel, state_input_pairs),
+        #                    desc="Unpointed graphify constructing edges.")
 
         for edges in tqdm(results, desc="Unpointed graphify constructing edges."):
             for src, dst, inp, prob in edges:
@@ -596,7 +613,7 @@ class GraphicalModel:
         """
         self._init_state = state
 
-    def graphify(self, pointed=False, base_only=False, parallel=True):
+    def graphify(self, pointed=False, base_only=False, parallel=False):
         """
         Constructs the underlying graph of the graphical model.
 

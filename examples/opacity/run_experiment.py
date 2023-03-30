@@ -67,7 +67,7 @@ def run_experiment(game, game_init_set=None, config=None):
                      nlabel=["state", "final"], elabel=["input"])
 
     # Generate and save the base game
-    base_graph = game.graphify()
+    base_graph = game.graphify(pointed=True)
     base_graph.save(os.path.join(config["directory"], f"{config['filename']}_base.ggraph"), overwrite=True)
 
     # Define the belief game

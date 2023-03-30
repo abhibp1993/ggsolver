@@ -121,53 +121,6 @@ class RndGridworld(opac_models.Arena):
         return self._goal_cells
 
 
-def main_single_inits():
-    # Instantiate random game here
-    game = RndGridworld(dim=DIM, goal_cells=GOAL_CELLS, sense_rng=SENSOR_RNG)
-
-    # Iterate over initial states. Fix P2's state, P1's state variable. P1 plays first.
-    p2r, p2c = P2_INIT
-    for p1r, p1c in itertools.product(range(DIM[0]), range(DIM[1])):
-        # Initialize the game
-        game.initialize((p1r, p1c, p2r, p2c, 1))
-
-        # Update the config
-        config["filename"] = f"{pathlib.Path(__file__).name.split('.')[0]}_{p1r}_{p1c}"
-        dirpath = config["directory"] = os.path.join("out", f"{p1r}_{p1c}")
-        if os.path.exists(dirpath) and os.path.isdir(dirpath):
-            shutil.rmtree(dirpath)
-        os.mkdir(dirpath)
-
-        # Run the experiment
-        exp.run_experiment(game, config=config)
-
-
-def main_single_inits_multiprocessing():
-    # Instantiate random game here
-    game = RndGridworld(dim=DIM, goal_cells=GOAL_CELLS, sense_rng=SENSOR_RNG, obs=OBS_CELLS)
-
-    # Iterate over initial states. Fix P2's state, P1's state variable. P1 plays first.
-    p2r, p2c = P2_INIT
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = list()
-        for p1r, p1c in itertools.product(range(DIM[0]), range(DIM[1])):
-            # Initialize the game
-            s0 = (p1r, p1c, p2r, p2c, 1)
-
-            # Update the config
-            config["filename"] = f"{pathlib.Path(__file__).name.split('.')[0]}_{p1r}_{p1c}"
-            dirpath = config["directory"] = os.path.join("out", "multiprocessing_close_goal", f"{p1r}_{p1c}")
-            if os.path.exists(dirpath) and os.path.isdir(dirpath):
-                shutil.rmtree(dirpath)
-            os.mkdir(dirpath)
-
-            # Add argument
-            futures.append(executor.submit(exp.run_experiment, game, {s0}, config.copy()))
-
-        for future in concurrent.futures.as_completed(futures):
-            print(future.result())
-
-
 def main_multiple_init():
     # Instantiate random game here
     game = RndGridworld(dim=DIM, goal_cells=GOAL_CELLS, sense_rng=SENSOR_RNG)
@@ -190,6 +143,4 @@ def main_multiple_init():
 
 
 if __name__ == "__main__":
-    # main_single_inits()
-    # main_multiple_init()
-    main_single_inits_multiprocessing()
+    main_multiple_init()

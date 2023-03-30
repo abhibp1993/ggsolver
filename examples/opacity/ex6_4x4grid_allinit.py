@@ -14,9 +14,14 @@ import ggsolver.models as gg_models
 
 # Game Parameters
 DIM = (4, 4)
-GOAL_CELLS = [(0, 3), (3, 3)]
+GOAL_CELLS = [(0, 3), (1, 3)]
 SENSOR_RNG = 1
 P2_INIT = (3, 0)
+
+# DIM = (5, 4)
+# GOAL_CELLS = [(1, 3), (0, 2)]
+# SENSOR_RNG = 1
+# P2_INIT = (4, 0)
 
 # Define configuration
 config = {
@@ -150,7 +155,7 @@ def main_single_inits_multiprocessing():
 
             # Update the config
             config["filename"] = f"{pathlib.Path(__file__).name.split('.')[0]}_{p1r}_{p1c}"
-            dirpath = config["directory"] = os.path.join("out", "multiprocessing", f"{p1r}_{p1c}")
+            dirpath = config["directory"] = os.path.join("out", "multiprocessing_close_goal", f"{p1r}_{p1c}")
             if os.path.exists(dirpath) and os.path.isdir(dirpath):
                 shutil.rmtree(dirpath)
             os.mkdir(dirpath)

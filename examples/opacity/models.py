@@ -2,11 +2,14 @@
 Models implementing paper on Opacity, CDC'23.
 """
 import itertools
+import logging
 
 import ggsolver.util as util
 import ggsolver.dtptb as dtptb
 import ggsolver.logic as logic
 import ggsolver.models as models
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class Arena(dtptb.DTPTBGame):
@@ -57,6 +60,11 @@ class BeliefGame(dtptb.DTPTBGame):
             p_b = self._aut.delta(q_b, self._game.label(t_b))
             if o == self._game.attacker_observation(s_b, a_b, t_b):
                 c.add((t_b, p_b))
+
+        # PATCH
+        if len(c) > 16:
+            logging.warning(util.ColoredMsg.warn(f"Big Belief Alert {c}"))
+
         return t, p, tuple(sorted(list(c)))
 
     def final(self, state):

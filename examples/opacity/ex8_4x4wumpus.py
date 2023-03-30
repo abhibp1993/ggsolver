@@ -95,17 +95,17 @@ class RndGridworld(opac_models.Arena):
 
         # Collision checking
         if (p1r, p1c) == (p2r, p2c):
-            return
+            return state
 
         if turn == 1:
             p1r_prime, p1c_prime = gw_util.move((p1r, p1c), act)
-            # p1r_prime, p1c_prime = gw_util.bouncy_obstacle((p1r, p1c), [(p1r_prime, p1c_prime)], self._obs)[0]
-            # p1r_prime, p1c_prime = gw_util.bouncy_wall((p1r, p1c), [(p1r_prime, p1c_prime)], self._dim)[0]
+            p1r_prime, p1c_prime = gw_util.bouncy_obstacle((p1r, p1c), [(p1r_prime, p1c_prime)], self._obs)[0]
+            p1r_prime, p1c_prime = gw_util.bouncy_wall((p1r, p1c), [(p1r_prime, p1c_prime)], self._dim)[0]
             next_state = (p1r_prime, p1c_prime, p2r, p2c, 2)
         else:
             p2r_prime, p2c_prime = gw_util.move((p2r, p2c), act)
-            # p2r_prime, p2c_prime = gw_util.bouncy_obstacle((p2r, p2c), [(p2r_prime, p2c_prime)], self._obs)[0]
-            # p2r_prime, p2c_prime = gw_util.bouncy_wall((p2r, p2c), [(p2r_prime, p2c_prime)], self._dim)[0]
+            p2r_prime, p2c_prime = gw_util.bouncy_obstacle((p2r, p2c), [(p2r_prime, p2c_prime)], self._obs)[0]
+            p2r_prime, p2c_prime = gw_util.bouncy_wall((p2r, p2c), [(p2r_prime, p2c_prime)], self._dim)[0]
             next_state = (p1r, p1c, p2r_prime, p2c_prime, 1)
 
         return next_state

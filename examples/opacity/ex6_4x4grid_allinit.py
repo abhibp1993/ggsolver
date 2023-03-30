@@ -14,9 +14,10 @@ import ggsolver.models as gg_models
 
 # Game Parameters
 DIM = (4, 4)
-GOAL_CELLS = [(0, 3), (1, 3)]
+GOAL_CELLS = [(3, 0), (3, 3)]
+OBS_CELLS = [(1, 0), (1, 1), (1, 2)]
 SENSOR_RNG = 1
-P2_INIT = (3, 0)
+P2_INIT = (0, 0)
 
 # DIM = (5, 4)
 # GOAL_CELLS = [(1, 3), (0, 2)]
@@ -47,7 +48,7 @@ class RndGridworld(opac_models.Arena):
         """
         super(RndGridworld, self).__init__()
         self._dim = dim
-        self._obs = obs
+        self._obs = obs if obs is not None else list()
         self._actions = actions
         self._init_state = init_state
         self._sense_rng = sense_rng
@@ -71,18 +72,18 @@ class RndGridworld(opac_models.Arena):
         return [gw_util.GW_ACT_N, gw_util.GW_ACT_E, gw_util.GW_ACT_S, gw_util.GW_ACT_W]
 
     def delta(self, state, act):
-        # TODO. No obstacle for now.
         p1r, p1c, p2r, p2c, turn = state
-        next_state = state
 
         if turn == 1:
             p1r_prime, p1c_prime = gw_util.move((p1r, p1c), act)
-            if 0 <= p1r_prime < self._dim[0] and 0 <= p1c_prime < self._dim[1]:
-                next_state = (p1r_prime, p1c_prime, p2r, p2c, 2)
+            p1r_prime, p1c_prime = gw_util.bouncy_obstacle((p1r, p1c), [(p1r_prime, p1c_prime)], self._obs)[0]
+            p1r_prime, p1c_prime = gw_util.bouncy_wall((p1r, p1c), [(p1r_prime, p1c_prime)], self._dim)[0]
+            next_state = (p1r_prime, p1c_prime, p2r, p2c, 2)
         else:
             p2r_prime, p2c_prime = gw_util.move((p2r, p2c), act)
-            if 0 <= p2r_prime < self._dim[0] and 0 <= p2c_prime < self._dim[1]:
-                next_state = (p1r, p1c, p2r_prime, p2c_prime, 1)
+            p2r_prime, p2c_prime = gw_util.bouncy_obstacle((p2r, p2c), [(p2r_prime, p2c_prime)], self._obs)[0]
+            p2r_prime, p2c_prime = gw_util.bouncy_wall((p2r, p2c), [(p2r_prime, p2c_prime)], self._dim)[0]
+            next_state = (p1r, p1c, p2r_prime, p2c_prime, 1)
 
         return next_state
 
@@ -143,7 +144,7 @@ def main_single_inits():
 
 def main_single_inits_multiprocessing():
     # Instantiate random game here
-    game = RndGridworld(dim=DIM, goal_cells=GOAL_CELLS, sense_rng=SENSOR_RNG)
+    game = RndGridworld(dim=DIM, goal_cells=GOAL_CELLS, sense_rng=SENSOR_RNG, obs=OBS_CELLS)
 
     # Iterate over initial states. Fix P2's state, P1's state variable. P1 plays first.
     p2r, p2c = P2_INIT

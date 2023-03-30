@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 DIM = (4, 4)
 GOAL_CELLS = [(0, 3), (1, 3)]
 SENSOR_RNG = 1
-P2_INIT = (3, 0)
+P2_INIT = (0, 0)
+
 
 # DIM = (5, 4)
 # GOAL_CELLS = [(1, 3), (0, 2)]
@@ -55,14 +56,13 @@ def load_p2_solution():
 
 
 def print_init_winners(win1):
-
     # Iterate over initial states. Fix P2's state, P1's state variable. P1 plays first.
     p2r, p2c = P2_INIT
     p1r = int(CONFIG["filename"][-3])
     p1c = int(CONFIG["filename"][-1])
     s0 = (p1r, p1c, p2r, p2c, 1)
     q0 = 2
-    v0 = (s0, q0, ((s0, q0), ))
+    v0 = (s0, q0, ((s0, q0),))
 
     print(f"{v0}: {win1.state_winner(v0)=}")
 
@@ -84,9 +84,7 @@ def generate_play(win, v0):
     return path
 
 
-
 if __name__ == '__main__':
-
     # for i, j in itertools.product(range(DIM[0]), range(DIM[1])):
     #     CONFIG = {
     #         "directory": "out/multiprocessing_close_goal/" + str(i) + "_" +  str(j),
@@ -111,7 +109,7 @@ if __name__ == '__main__':
     #     print_init_winners(swin_p2)
 
     CONFIG = {
-        "directory": "out/multiprocessing_close_goal/0_0",
+        "directory": "out/multiprocessing/0_0",
         "filename": "ex6_4x4grid_allinit_0_0",
     }
 

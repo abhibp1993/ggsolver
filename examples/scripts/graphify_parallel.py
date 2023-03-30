@@ -40,3 +40,15 @@ if __name__ == '__main__':
     end = time.perf_counter()
     print(f"Unpointed multi-core graphify in {end - start} seconds.")
 
+    start = time.perf_counter()
+    game.initialize("s0")
+    game.graphify(pointed=True, parallel=False)
+    end = time.perf_counter()
+    print(f"Pointed single-core graphify in {end - start} seconds.")
+
+    start = time.perf_counter()
+    game.initialize("s0")
+    game.graphify(pointed=True, parallel=True)
+    end = time.perf_counter()
+    print(f"Pointed multi-core graphify in {end - start} seconds.")
+

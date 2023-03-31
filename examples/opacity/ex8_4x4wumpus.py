@@ -152,6 +152,9 @@ def main_single_inits_multiprocessing():
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = list()
         for p1r, p1c in itertools.product(range(DIM[0]), range(DIM[1])):
+            if (p1r, p1c) in OBS_CELLS:
+                continue
+
             # Initialize the game
             s0 = (p1r, p1c, p2r, p2c, 1)
             game.initialize(s0)

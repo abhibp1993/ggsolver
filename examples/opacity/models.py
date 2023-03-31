@@ -103,7 +103,7 @@ class BeliefGame(dtptb.DTPTBGame):
     def final(self, state):
         s, q, b = state
         if_final = 0 in self._aut.final(q)
-        if any(0 not in self._aut.final(q_b) for s_b, q_b in b):
+        9if any(0 not in self._aut.final(q_b) for s_b, q_b in b):
             return if_final
         return False
 

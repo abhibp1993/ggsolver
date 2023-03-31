@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 # }
 
 # Game Parameters
-DIM = (4, 4)
-GOAL_CELLS = [(3, 0), (3, 3), (0, 3)]
-OBS_CELLS = []
+DIM = (5, 5)
+GOAL_CELLS = [(0, 0), (0, 4), (4, 4)]
+# OBS_CELLS = [(0, 1), (0, 3), (1, 4), (1, 0), (2, 3), (2, 4), (3, 4), (3, 0), (4, 3), (4, 4)]
 SENSOR_RNG = 1
 P2_INIT = (0, 0)
 
@@ -88,8 +88,8 @@ def generate_play(win, v0):
 if __name__ == '__main__':
     for i, j in itertools.product(range(DIM[0]), range(DIM[1])):
         CONFIG = {
-            "directory": f"out/ex12_4x4wumpus/{i}_{j}",
-            "filename": f"ex12_4x4wumpus_{i}_{j}",
+            "directory": f"out/{3}_{2}",
+            "filename": f"ex9_5x5wumpus_{3}_{2}",
         }
 
         try:

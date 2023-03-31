@@ -88,7 +88,7 @@ if __name__ == '__main__':
     for i, j in itertools.product(range(DIM[0]), range(DIM[1])):
         CONFIG = {
             "directory": f"out/{i}_{j}",
-            "filename": f"ex8_4x4wumpus_{i}_{j}",
+            "filename": f"ex9_5x5wumpus_{i}_{j}",
         }
 
         try:

@@ -3,13 +3,14 @@ Models implementing paper on Opacity, CDC'23.
 """
 import itertools
 import logging
+# import loguru
 
 import ggsolver.util as util
 import ggsolver.dtptb as dtptb
 import ggsolver.logic as logic
 import ggsolver.models as models
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(filename="out/belief.log", level=logging.DEBUG)
 
 
 class Arena(dtptb.DTPTBGame):
@@ -45,12 +46,16 @@ class BeliefGame(dtptb.DTPTBGame):
     def actions(self):
         return self._game.actions()
 
+    def enabled_acts(self, state):
+        s, q, b = state
+        return self._game.enabled_acts(s)
+
     def delta(self, state, act):
         s, q, b = state
         t = self._game.delta(s, act)
         p = self._aut.delta(q, self._game.label(t))
 
-        if t is None:
+        if t is None or q == 0:
             return
 
         c = set()
@@ -62,8 +67,12 @@ class BeliefGame(dtptb.DTPTBGame):
                 c.add((t_b, p_b))
 
         # PATCH
-        if len(c) > 16:
-            logging.warning(util.ColoredMsg.warn(f"Big Belief Alert {c}"))
+        if len(c) > 10:
+            with open("belief.log", "a") as file:
+                file.writelines([f"\n{state=} \n{act=}\n"] + [f"\t{st}\n" for st in c])
+            # logging.warning(util.ColoredMsg.warn(
+            #     f"\nGame({self._game.init_state()}) {state=} {act=} belief:{c}")
+            # )
 
         return t, p, tuple(sorted(list(c)))
 

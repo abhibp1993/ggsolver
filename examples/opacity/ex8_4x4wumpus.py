@@ -87,7 +87,7 @@ class RndGridworld(opac_models.Arena):
             if (p2r, p2c) == (self._dim[0] - 1, self._dim[1] - 1):
                 actions.remove(gw_util.GW_ACT_NE)
 
-        print(state, actions)
+        # print(state, actions)
         return actions
 
     def delta(self, state, act):

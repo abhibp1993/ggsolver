@@ -31,6 +31,7 @@ class BeliefGame(dtptb.DTPTBGame):
         super(BeliefGame, self).__init__()
         self._game = game
         self._aut = aut
+        self._cache = dict()        # maps {state, {act: n_state}}
 
     # def states(self):
     #     T = itertools.product(self._game.states(), self._aut.states())
@@ -55,7 +56,16 @@ class BeliefGame(dtptb.DTPTBGame):
         if q == 0:
             return state
 
-        t = self._game.delta(s, act)
+        # Check cache. If unavailable, use game.delta
+        if s in self._cache and act in self._cache[s]:
+            t = self._cache[s][act]
+        else:
+            t = self._game.delta(s, act)
+            if s in self._cache:
+                self._cache[s][act] = t
+            else:
+                self._cache[s] = {act: t}
+
         p = self._aut.delta(q, self._game.label(t))
 
         if t is None:
@@ -64,7 +74,15 @@ class BeliefGame(dtptb.DTPTBGame):
         c = set()
         o = self._game.attacker_observation(s, act, t)
         for (s_b, q_b), a_b in itertools.product(b, self.actions()):
-            t_b = self._game.delta(s_b, a_b)
+            if s_b in self._cache and a_b in self._cache[s_b]:
+                t_b = self._cache[s_b][a_b]
+            else:
+                t_b = self._game.delta(s_b, a_b)
+                if s_b in self._cache:
+                    self._cache[s_b][a_b] = t_b
+                else:
+                    self._cache[s_b] = {a_b: t_b}
+
             p_b = self._aut.delta(q_b, self._game.label(t_b))
             if o == self._game.attacker_observation(s_b, a_b, t_b):
                 c.add((t_b, p_b))

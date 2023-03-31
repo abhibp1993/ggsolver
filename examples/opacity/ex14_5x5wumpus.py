@@ -8,6 +8,7 @@ Goals placed in such a way that P1 wins if it starts within 2-steps from G0.
 """
 
 import concurrent.futures
+import logging
 import os.path
 import pathlib
 import shutil
@@ -20,18 +21,23 @@ import ggsolver.gridworld.util as gw_util
 import ggsolver.logic as logic
 import ggsolver.models as gg_models
 
-from loguru import logger
+# from loguru import logger
 import sys
 
+logger = logging.getLogger(__name__)
+
+sys.path.append('/home/ggsolver')
 FILENAME = pathlib.Path(__file__).name.split('.')[0]
 
-logger.remove()
-logger.add(sys.stderr, format="[{level}]:: {message}", level="ERROR")
-logger.add(f"out/{FILENAME}.log", format="[{level}]:: {message}", level="DEBUG")
+# logger.remove()
+# logger.add(sys.stderr, format="[{level}]:: {message}", level="ERROR")
+# logger.add(f"out/{FILENAME}.log", format="[{level}]:: {message}", level="DEBUG")
 
 # Game Parameters
 DIM = (5, 5)
-GOAL_CELLS = [(0, 4), (3, 1), (1, 3)]
+# GOAL_CELLS = [(0, 4), (3, 1), (1, 3)]
+# GOAL_CELLS = [(0, 4), (1, 1), (3, 3)]
+GOAL_CELLS = [(4, 0), (1, 1), (3, 3)]
 OBS_CELLS = []
 SENSOR_RNG = 1
 P2_INIT = (0, 0)
@@ -248,5 +254,5 @@ def main_single_inits():
 
 if __name__ == "__main__":
     logger.info("loguru says hi!")
-    main_single_inits()
-    # main_single_inits_multiprocessing()
+    # main_single_inits()
+    main_single_inits_multiprocessing()

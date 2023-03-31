@@ -74,7 +74,7 @@ def run_experiment(game, game_init_set=None, config=None):
     belief_game = opac_models.BeliefGame(game, aut)
     belief_game_init_set = set()
     if game_init_set is None:
-        s0 = belief_game.initialize(belief_game.init_state())
+        s0 = belief_game.init_state()
         belief_game_init_set.add(s0)
         print(f"belief_game_init_set.add({s0})")
     else:

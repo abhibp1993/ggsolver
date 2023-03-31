@@ -52,10 +52,13 @@ class BeliefGame(dtptb.DTPTBGame):
 
     def delta(self, state, act):
         s, q, b = state
+        if q == 0:
+            return state
+
         t = self._game.delta(s, act)
         p = self._aut.delta(q, self._game.label(t))
 
-        if t is None or q == 0:
+        if t is None:
             return
 
         c = set()

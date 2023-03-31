@@ -169,8 +169,31 @@ def main_single_inits_multiprocessing():
             futures.append(executor.submit(exp.run_experiment, game, {s0}, config.copy()))
 
         for future in concurrent.futures.as_completed(futures):
-            print(future.result())
+            print(f"{future}: {future.result()=}")
+
+
+def main_single_inits():
+    # Instantiate random game here
+    game = RndGridworld(dim=DIM, goal_cells=GOAL_CELLS, sense_rng=SENSOR_RNG)
+
+    # Iterate over initial states. Fix P2's state, P1's state variable. P1 plays first.
+    p2r, p2c = P2_INIT
+    for p1r, p1c in itertools.product(range(DIM[0]), range(DIM[1])):
+        # Initialize the game
+        game.initialize((p1r, p1c, p2r, p2c, 1))
+
+        # Update the config
+        config = BASE_CONFIG.copy()
+        config["filename"] = f"{pathlib.Path(__file__).name.split('.')[0]}_{p1r}_{p1c}"
+        dirpath = config["directory"] = os.path.join("out", f"{p1r}_{p1c}")
+        if os.path.exists(dirpath) and os.path.isdir(dirpath):
+            shutil.rmtree(dirpath)
+        os.mkdir(dirpath)
+
+        # Run the experiment
+        exp.run_experiment(game, config=config)
 
 
 if __name__ == "__main__":
+    # main_single_inits()
     main_single_inits_multiprocessing()

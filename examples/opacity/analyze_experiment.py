@@ -61,7 +61,7 @@ def print_init_winners(win1):
     p1r = int(CONFIG["filename"][-3])
     p1c = int(CONFIG["filename"][-1])
     s0 = (p1r, p1c, p2r, p2c, 1)
-    q0 = 2
+    q0 = 1
     v0 = (s0, q0, ((s0, q0),))
 
     print(f"{v0}: {win1.state_winner(v0)=}")
@@ -85,39 +85,43 @@ def generate_play(win, v0):
 
 
 if __name__ == '__main__':
-    # for i, j in itertools.product(range(DIM[0]), range(DIM[1])):
-    #     CONFIG = {
-    #         "directory": "out/multiprocessing_close_goal/" + str(i) + "_" +  str(j),
-    #         "filename": "ex6_4x4grid_allinit_" + str(i) + "_" +  str(j),
-    #     }
-    #
-    #     # if i != 0 or j != 3:
-    #     swin_p1 = load_p1_solution()
-    #     swin_p2 = load_p2_solution()
-    #
-    #     init_state = swin_p1.graph()["init_state"]
-    #
-    #     print(f"{len(swin_p1.winning_nodes(1))=}")
-    #     print(f"{len(swin_p1.winning_nodes(2))=}")
-    #     print(f"{len(swin_p2.winning_nodes(1))=}")
-    #     print(f"{len(swin_p2.winning_nodes(2))=}")
-    #
-    #     print(f"{swin_p1.winning_actions(swin_p1.node2state(0))=}")
-    #     print(f"{swin_p2.winning_actions(swin_p2.node2state(0))=}")
-    #
-    #     print_init_winners(swin_p1)
-    #     print_init_winners(swin_p2)
+    for i, j in itertools.product(range(DIM[0]), range(DIM[1])):
+        CONFIG = {
+            "directory": f"out/{i}_{j}",
+            "filename": f"ex8_4x4wumpus_{i}_{j}",
+        }
 
-    CONFIG = {
-        "directory": "out/multiprocessing/0_0",
-        "filename": "ex6_4x4grid_allinit_0_0",
-    }
+        try:
+            # if i != 0 or j != 3:
+            swin_p1 = load_p1_solution()
+            swin_p2 = load_p2_solution()
 
-    # if i != 0 or j != 3:
-    swin_p1 = load_p1_solution()
-    # swin_p2 = load_p2_solution()
-    init_state = swin_p1.graph()["init_state"]
-    print("Start generating plays")
+            init_state = swin_p1.graph()["init_state"]
 
-    play = generate_play(swin_p1, init_state)
-    print(play)
+            print(f"{len(swin_p1.winning_nodes(1))=}")
+            print(f"{len(swin_p1.winning_nodes(2))=}")
+            print(f"{len(swin_p2.winning_nodes(1))=}")
+            print(f"{len(swin_p2.winning_nodes(2))=}")
+
+            print(f"{swin_p1.winning_actions(swin_p1.node2state(0))=}")
+            print(f"{swin_p2.winning_actions(swin_p2.node2state(0))=}")
+
+            print_init_winners(swin_p1)
+            print_init_winners(swin_p2)
+        except Exception as err:
+            print(f"++++++++++++++++++ NO RESULT FOR {i, j} ++++++++++++++++++")
+            print(err)
+
+    # CONFIG = {
+    #     "directory": "out/multiprocessing/0_0",
+    #     "filename": "ex6_4x4grid_allinit_0_0",
+    # }
+    #
+    # # if i != 0 or j != 3:
+    # swin_p1 = load_p1_solution()
+    # # swin_p2 = load_p2_solution()
+    # init_state = swin_p1.graph()["init_state"]
+    # print("Start generating plays")
+    #
+    # play = generate_play(swin_p1, init_state)
+    # print(play)

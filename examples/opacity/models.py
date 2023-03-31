@@ -53,7 +53,7 @@ class BeliefGame(dtptb.DTPTBGame):
 
     def delta(self, state, act):
         s, q, b = state
-        if q == 0:
+        if 0 in self._aut.final(q):
             return state
 
         # Check cache. If unavailable, use game.delta
@@ -74,6 +74,9 @@ class BeliefGame(dtptb.DTPTBGame):
         c = set()
         o = self._game.attacker_observation(s, act, t)
         for (s_b, q_b), a_b in itertools.product(b, self.actions()):
+            if a_b not in self._game.enabled_acts(s_b):
+                continue
+
             if s_b in self._cache and a_b in self._cache[s_b]:
                 t_b = self._cache[s_b][a_b]
             else:

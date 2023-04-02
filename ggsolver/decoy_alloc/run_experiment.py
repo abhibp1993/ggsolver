@@ -3,6 +3,7 @@ import ggsolver.graph as gg_graph
 from itertools import combinations
 import os
 import datetime
+import concurrent.futures
 
 CONFIG = {
     "directory": "out",
@@ -25,8 +26,8 @@ def calc_win_region_sink_states(graph, final_states):
     # TODO add different metrics to determine value of deception
     return solver.winning_states(1)
 
-def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=float("inf")):
-    decoy_winning_regions = set()
+def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf")):
+    decoy_winning_regions = list()
     arena_points = decoy_subsets.keys()
 
     decoy_combinations = combinations(arena_points, max_decoys)
@@ -42,8 +43,8 @@ def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=float("inf")):
     highest_value_decoy_set = max(decoy_winning_regions, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
     return highest_value_decoy_set
 
-def exhaustive_search(graph, max_decoys=float("inf")):
-    decoy_value_of_deceptions = set()
+def exhaustive_search(graph, max_decoys=int("inf")):
+    decoy_value_of_deceptions = list()
 
     decoy_combinations = combinations(graph.nodes(), max_decoys)
     for decoy_combination in decoy_combinations:

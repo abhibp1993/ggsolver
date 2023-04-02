@@ -75,5 +75,5 @@ def solve_trap_exhaustive(game, max_decoys=int("inf"), decoy_subsets=None):
         return exhaustive_search(base_graph, max_decoys)
 
 if __name__ == '__main__':
-    graph = gg_graph.Graph()
-    graph.add_node(100)
+    g_graph = gg_graph.Graph()
+    g_graph.add_node(100)

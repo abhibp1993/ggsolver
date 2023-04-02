@@ -11,12 +11,20 @@ CONFIG = {
     "solution_counter": 0,
 }
 
-def calc_win_region_sink_states(graph, final_states):
-    """ Returns the winning region of a given graph with the final states as sink states"""
+def get_value_of_deception_pair(graph, decoy_combination, decoy_subsets=None):
+    """ Returns the (decoy,vod) pair for a given decoy combination"""
+    final_states = set()
+    if decoy_subsets is not None:
+        for decoy in decoy_combination:
+            final_states = final_states + decoy_subsets[decoy]
+    else:
+        for decoy in decoy_combination:
+            set.add(decoy)
+    # Create sub graph with final states as sink states
     out_going_final_edges = [graph.out_edges(state) for state in final_states]
     sink_graph = gg_graph.SubGraph(graph)
     sink_graph.hide_edges(out_going_final_edges)
-
+    # Solve new game
     solver = SWinReach(sink_graph, final=final_states)
     solver.solve()
     solver.solution().save(os.path.join(CONFIG["directory"],
@@ -24,7 +32,8 @@ def calc_win_region_sink_states(graph, final_states):
     CONFIG["solution_counter"] += 1
 
     # TODO add different metrics to determine value of deception
-    return solver.winning_states(1)
+    pair = {"decoys": decoy_combination, "value_of_deception": solver.winning_states(1)}
+    return pair
 
 def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf")):
     decoy_winning_regions = list()
@@ -33,11 +42,7 @@ def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf")):
     decoy_combinations = combinations(arena_points, max_decoys)
 
     for decoy_combination in decoy_combinations:
-        final_states = set()
-        for decoy in decoy_combination:
-            final_states = final_states + decoy_subsets[decoy]
-
-        pair = {"decoys": decoy_combination, "value_of_deception": calc_win_region_sink_states(graph, final_states)}
+        pair = get_value_of_deception_pair(graph, decoy_combination, decoy_subsets)
         decoy_winning_regions.append(pair)
 
     highest_value_decoy_set = max(decoy_winning_regions, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
@@ -48,10 +53,7 @@ def exhaustive_search(graph, max_decoys=int("inf")):
 
     decoy_combinations = combinations(graph.nodes(), max_decoys)
     for decoy_combination in decoy_combinations:
-        final_states = set()
-        for decoy in decoy_combination:
-            set.add(decoy)
-        pair = {"decoys": decoy_combination, "value_of_deception": calc_win_region_sink_states(graph, final_states)}
+        pair = get_value_of_deception_pair(graph, decoy_combination)
         decoy_value_of_deceptions.append(pair)
 
     highest_value_decoy_set = max(decoy_value_of_deceptions, key=lambda decoy_set: len(decoy_set["value_of_deception"]))

@@ -50,8 +50,6 @@ def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf")):
         return highest_value_decoy_set
 
 def exhaustive_search(graph, max_decoys=int("inf")):
-    decoy_value_of_deceptions = list()
-
     decoy_combinations = combinations(graph.nodes(), max_decoys)
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         futures = [executor.submit(get_value_of_deception_pair, graph, decoy_combination)
@@ -76,4 +74,9 @@ def solve_trap_exhaustive(game, max_decoys=int("inf"), decoy_subsets=None):
 
 if __name__ == '__main__':
     g_graph = gg_graph.Graph()
-    g_graph.add_node(100)
+    g_graph.add_nodes(100)
+    for node in g_graph.nodes():
+        for node2 in g_graph.nodes():
+            g_graph.add_edge(node, node2)
+    decoys = exhaustive_search(g_graph, 2)
+    print(decoys)

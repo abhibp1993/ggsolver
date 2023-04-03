@@ -36,8 +36,8 @@ FILENAME = pathlib.Path(__file__).name.split('.')[0]
 # Game Parameters
 DIM = (5, 5)
 # GOAL_CELLS = [(0, 4), (3, 1), (1, 3)]
-# GOAL_CELLS = [(0, 4), (1, 1), (3, 3)]
-GOAL_CELLS = [(4, 0), (1, 1), (3, 3)]
+GOAL_CELLS = [(0, 4), (1, 1), (3, 3)]
+# GOAL_CELLS = [(4, 0), (1, 1), (3, 3)]
 OBS_CELLS = []
 SENSOR_RNG = 1
 P2_INIT = (0, 0)

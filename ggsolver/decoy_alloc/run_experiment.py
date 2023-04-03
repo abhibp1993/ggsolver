@@ -11,6 +11,7 @@ CONFIG = {
     "solution_counter": 0,
 }
 
+
 def get_value_of_deception_pair(graph, decoy_combination, decoy_subsets=None):
     """ Returns the (decoy,vod) pair for a given decoy combination"""
     final_states = set()
@@ -35,7 +36,8 @@ def get_value_of_deception_pair(graph, decoy_combination, decoy_subsets=None):
     pair = {"decoys": decoy_combination, "value_of_deception": solver.winning_states(1)}
     return pair
 
-def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf")):
+
+def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=float("inf")):
     arena_points = decoy_subsets.keys()
     decoy_combinations = combinations(arena_points, max_decoys)
 
@@ -49,7 +51,8 @@ def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf")):
         highest_value_decoy_set = max(decoy_winning_regions, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
         return highest_value_decoy_set
 
-def exhaustive_search(graph, max_decoys=int("inf")):
+
+def exhaustive_search(graph, max_decoys=float("inf")):
     decoy_combinations = combinations(graph.nodes(), max_decoys)
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         futures = [executor.submit(get_value_of_deception_pair, graph, decoy_combination)
@@ -60,7 +63,9 @@ def exhaustive_search(graph, max_decoys=int("inf")):
         # Return the decoy combination with the highest value of deception
         highest_value_decoy_set = max(decoy_winning_regions, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
         return highest_value_decoy_set
-def solve_trap_exhaustive(game, max_decoys=int("inf"), decoy_subsets=None):
+
+
+def solve_trap_exhaustive(game, max_decoys=float("inf"), decoy_subsets=None):
     """
     decoy_subsets is a dict mapping arena points to the states that become decoys if that arena point is a decoy
     """
@@ -71,6 +76,7 @@ def solve_trap_exhaustive(game, max_decoys=int("inf"), decoy_subsets=None):
         return exhaustive_search_subsets(base_graph, decoy_subsets, max_decoys)
     else:
         return exhaustive_search(base_graph, max_decoys)
+
 
 if __name__ == '__main__':
     g_graph = gg_graph.Graph()

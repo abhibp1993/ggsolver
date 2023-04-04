@@ -15,11 +15,10 @@ import random
 
 import ggsolver.gridworld as gw
 import ggsolver.gridworld.util as gw_utils
-import ggsolver.decoy_alloc.models as decoy_models
-import ggsolver.decoy_alloc.solvers as solvers
+import ggsolver.decoy_alloc.cleanup.models as decoy_models
+import ggsolver.decoy_alloc.cleanup.solvers as solvers
 import ggsolver.dtptb.reach as reach
 import ggsolver.graph as gg_graph
-from collections import namedtuple
 
 from ggsolver import dtptb
 

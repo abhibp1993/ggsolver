@@ -13,8 +13,7 @@
     "max_out_degree": null,
     "hubs": null,
     "save": true,
-    "save_png": false,
-    "name": null
+    "save_png": false
   },
   "log": true,
   "save_intermediate_solutions": true,

@@ -3,19 +3,22 @@
 The simulation is run according to `.config` file saved in `configurations` folder. 
 The components of `.config` are defined below. 
 
-* `directory`: Directory where simulation output will be saved. Default is `<pwd>/out`. 
-   If the directory is not empty and `overwrite` is `false`, an error will be raised.     
-* `overwrite`: If `directory` exists, overwrite the existing files? Default `false`.    
+* `directory`: Directory where simulation output will be saved. 
+  Default is `<pwd>/out/<name>_<count>`. 
+  If the directory is not empty and `overwrite` is `false`, an exception is raised.    
+* `overwrite`: If `directory` exists, overwrite the existing files? Default `false`.  
 * `type`: Type of experiment to run. Options: `enumeration`, `greedy`.
 * `name`: Name of experiment. 
 * `num_trials`: Number of times the experiment should be run. 
-* `use_multiprocessing`: Use single-core or multi-core processing.
+* `use_multiprocessing`: Use single-core or multi-core processing. 
+  Value can be an integer denoting number of CPUs to use, or "all" to use maximum cores.
 * `max_traps`: Number of traps available.
 * `max_fakes`: Number of fake targets available.
 * `graph`: Parameters using which the base game graph is generated.
     - `topology`: Topology of graph. Supported options `mesh, ring, star, tree` and `hybrid`. 
     - `nodes`: Number of nodes. 
     - `max_out_degree`: For applicable topologies, maximum out-degree of any node. Default `null`.   
+    - `hubs`: For "star" topology, gives number of hubs. Default `null`.   
     - `save`: Should the base game graph be saved?
     - `save_png`: Should the base game graph be saved in image format (PNG)?  
     - `name`: Name of file to use for saving. Default `<filename>_base`. 

@@ -1,7 +1,6 @@
 import json
 import itertools
-from ggsolver.decoy_alloc.models import ReachabilityGame
-import networkx as nx
+from ggsolver.decoy_alloc.cleanup.models import ReachabilityGame
 from networkx.readwrite import json_graph
 
 class CBSGame(ReachabilityGame):

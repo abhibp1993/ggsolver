@@ -1,0 +1,22 @@
+{
+  "name": "exp1_2trap",
+  "directory": null,
+  "overwrite": false,
+  "type": "exhaustive",
+  "num_trials": 1,
+  "use_multiprocessing": true,
+  "max_traps": 2,
+  "max_fakes": 0,
+  "graph": {
+    "topology": "mesh",
+    "nodes": 100,
+    "max_out_degree": null,
+    "save": true,
+    "save_png": false,
+    "name": null
+  },
+  "log": true,
+  "save_intermediate_solutions": true,
+  "console_log_level": "debug",
+  "report": []
+}

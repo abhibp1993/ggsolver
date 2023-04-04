@@ -39,7 +39,7 @@ def get_value_of_deception_pair(graph, decoy_combination, decoy_subsets=None, me
         raise NotImplementedError
 
 
-def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=float("inf")):
+def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf")):
     arena_points = decoy_subsets.keys()
     decoy_combinations = combinations(arena_points, max_decoys)
 
@@ -54,7 +54,7 @@ def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=float("inf")):
         return highest_value_decoy_set
 
 
-def exhaustive_search(graph, max_decoys=float("inf")):
+def exhaustive_search(graph, max_decoys=int("inf")):
     decoy_combinations = combinations(graph.nodes(), max_decoys)
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         futures = [executor.submit(get_value_of_deception_pair, graph, decoy_combination)
@@ -67,7 +67,7 @@ def exhaustive_search(graph, max_decoys=float("inf")):
         return highest_value_decoy_set
 
 
-def solve_trap_exhaustive(game, max_decoys=float("inf"), decoy_subsets=None):
+def solve_trap_exhaustive(game, max_decoys=int("inf"), decoy_subsets=None):
     """
     decoy_subsets is a dict mapping arena points to the states that become decoys if that arena point is a decoy
     """

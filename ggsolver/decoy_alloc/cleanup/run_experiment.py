@@ -12,7 +12,7 @@ CONFIG = {
 }
 
 
-def get_value_of_deception_pair(graph, decoy_combination, decoy_subsets=None):
+def get_value_of_deception_pair(graph, decoy_combination, decoy_subsets=None, metric="winning_states"):
     """ Returns the (decoy,vod) pair for a given decoy combination"""
     final_states = set()
     if decoy_subsets is not None:
@@ -32,9 +32,11 @@ def get_value_of_deception_pair(graph, decoy_combination, decoy_subsets=None):
                                         f"{CONFIG['filename']}_{CONFIG['solution_counter']}.solution"), overwrite=True)
     CONFIG["solution_counter"] += 1
 
-    # TODO add different metrics to determine value of deception
-    pair = {"decoys": decoy_combination, "value_of_deception": solver.winning_states(1)}
-    return pair
+    if metric == "winning_states":
+        pair = {"decoys": decoy_combination, "value_of_deception": solver.winning_states(1)}
+        return pair
+    else:
+        raise NotImplementedError
 
 
 def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=float("inf")):

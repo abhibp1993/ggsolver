@@ -50,7 +50,8 @@ def exhaustive_search_subsets(graph, decoy_subsets, max_decoys=int("inf"), use_m
             completed_futures, _ = concurrent.futures.wait(futures)
             decoy_winning_regions = [future.result() for future in completed_futures]
             # Return the decoy combination with the highest value of deception
-            highest_value_decoy_set = max(decoy_winning_regions, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+            highest_value_decoy_set = max(decoy_winning_regions,
+                                          key=lambda decoy_set: len(decoy_set["value_of_deception"]))
             return highest_value_decoy_set
     else:
         decoy_value_of_deceptions = list()
@@ -72,7 +73,8 @@ def exhaustive_search(graph, max_decoys=int("inf"), use_multiprocessing=False):
             completed_futures, _ = concurrent.futures.wait(futures)
             decoy_winning_regions = [future.result() for future in completed_futures]
             # Return the decoy combination with the highest value of deception
-            highest_value_decoy_set = max(decoy_winning_regions, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+            highest_value_decoy_set = max(decoy_winning_regions,
+                                          key=lambda decoy_set: len(decoy_set["value_of_deception"]))
             return highest_value_decoy_set
     else:
         decoy_value_of_deceptions = list()
@@ -83,6 +85,7 @@ def exhaustive_search(graph, max_decoys=int("inf"), use_multiprocessing=False):
                                       key=lambda decoy_set: len(decoy_set["value_of_deception"]))
         return highest_value_decoy_set
 
+
 def solve_trap_exhaustive(game, max_decoys=int("inf"), decoy_subsets=None):
     """
     decoy_subsets is a dict mapping arena points to the states that become decoys if that arena point is a decoy
@@ -90,10 +93,49 @@ def solve_trap_exhaustive(game, max_decoys=int("inf"), decoy_subsets=None):
     base_graph = game.graphify()
     base_graph.save(os.path.join(CONFIG["directory"], f"{CONFIG['filename']}.ggraph"), overwrite=True)
 
-    if decoy_subsets is not None:
-        return exhaustive_search_subsets(base_graph, decoy_subsets, max_decoys)
+    return allocate_traps(base_graph, max_decoys=max_decoys, decoy_subsets=decoy_subsets, use_multiprocessing=False)
+    # if decoy_subsets is not None:
+    #     return exhaustive_search_subsets(base_graph, decoy_subsets, max_decoys)
+    # else:
+    #     return exhaustive_search(base_graph, max_decoys)
+
+
+def allocate_traps(graph, max_decoys=int("inf"), decoy_subsets=None, use_multiprocessing=False):
+    if decoy_subsets is None:
+        decoy_combinations = combinations(graph.nodes(), max_decoys)
     else:
-        return exhaustive_search(base_graph, max_decoys)
+        arena_points = decoy_subsets.keys()
+        decoy_combinations = combinations(arena_points, max_decoys)
+    if use_multiprocessing:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+            if decoy_subsets is None:
+                futures = [executor.submit(get_value_of_deception_pair, graph, decoy_combination)
+                           for decoy_combination in decoy_combinations]
+            else:
+                futures = [executor.submit(get_value_of_deception_pair, graph, decoy_combination, decoy_subsets)
+                           for decoy_combination in decoy_combinations]
+            # Wait for all value of deception pairs to be calculated
+            completed_futures, _ = concurrent.futures.wait(futures)
+            decoy_winning_regions = [future.result() for future in completed_futures]
+            # Return the decoy combination with the highest value of deception
+            highest_value_decoy_set = max(decoy_winning_regions,
+                                          key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+            return highest_value_decoy_set
+    else:
+        decoy_value_of_deceptions = list()
+        if decoy_subsets is None:
+            for decoy_combination in decoy_combinations:
+                pair = get_value_of_deception_pair(graph, decoy_combination)
+                decoy_value_of_deceptions.append(pair)
+            highest_value_decoy_set = max(decoy_value_of_deceptions,
+                                          key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+        else:
+            for decoy_combination in decoy_combinations:
+                pair = get_value_of_deception_pair(graph, decoy_combination, decoy_subsets)
+                decoy_value_of_deceptions.append(pair)
+            highest_value_decoy_set = max(decoy_value_of_deceptions,
+                                          key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+        return highest_value_decoy_set
 
 
 if __name__ == '__main__':

@@ -127,7 +127,8 @@ def process_console_logging(cfg_dict):
     logger.add(sys.stdout,
                level=cfg_dict["console_log_level"].upper(),
                format=log_format,
-               colorize=True
+               colorize=True,
+               enqueue=True
                )
 
     logger.info(f"Console logger initialized to '{cfg_dict['console_log_level'].upper()}'.")

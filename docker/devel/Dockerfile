@@ -49,3 +49,25 @@ RUN pip3 install tqdm
 
 # Install sphinx documentation packages
 RUN pip3 install cloud-sptheme
+
+# Install OCaml
+RUN apt-get update && \
+    RUNLEVEL=1 DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+    opam && \
+    apt-get clean
+
+RUN opam init -a -y --disable-sandboxing
+RUN opam switch create 4.03.0 \
+    && eval 'opam config env' \
+    && opam install ocamlbuild ocamlfind -y
+RUN opam install TCSLib extlib ocaml-sat-solvers minisat -y
+RUN opam install ounit -y
+
+## Install PGSolver
+RUN rm -rf pgsolver
+RUN git clone https://github.com/tcsprojects/pgsolver
+RUN cd pgsolver  \
+    && eval $(opam env) \
+    && ocaml setup.ml -configure \
+    && ocaml setup.ml -build

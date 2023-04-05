@@ -373,6 +373,13 @@ class Graph(IGraph):
     def __str__(self):
         return f"<Graph with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
 
+    def __getstate__(self):
+        return self.serialize()
+
+    def __setstate__(self, obj_dict):
+        obj = self.__class__.deserialize(obj_dict)
+        self.__dict__.update(obj.__dict__)
+
     def add_node(self):
         """
         Adds a new node to the graph.
@@ -1325,8 +1332,16 @@ class SubGraph(Graph):
     # SERIALIZATION
     # =====================================================================================
     def serialize(self):
+        # PATCH. See expected format in JIRA.
         graph = self.base_graph.serialize()
+        graph["hidden_nodes"] = self._hidden_nodes.serialize()
+        graph["hidden_edges"] = self._hidden_nodes.serialize()
+        graph["node_properties"] = {k: v.serialize() for k, v in self._node_properties.items()}
+        graph["edge_properties"] = {k: v.serialize() for k, v in self._edge_properties.items()}
+        graph["graph_properties"] = self._graph_properties
+        return graph
 
     @classmethod
     def deserialize(cls, obj_dict):
+        # TODO.
         pass

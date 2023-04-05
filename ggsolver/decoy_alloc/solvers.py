@@ -6,7 +6,7 @@ import concurrent.futures
 import os
 import math
 from itertools import combinations
-from ggsolver.dtptb import SWinReach
+from ggsolver.dtptb.pgsolver import SWinReach
 import loguru
 
 logger = loguru.logger
@@ -29,19 +29,22 @@ class EnumerativeTrapsAllocator(models.Solver):
         self.directory = directory
         self.fname = fname
 
+        self._value_of_deception = self._solution["value_of_deception"] = dict()
+
     def _multicore_solve(self, decoy_combinations):
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.cpu_count) as executor:
-            args = (
-                (self.graph(), [self._graph["state"][uid] for uid in decoys],
-                 i, "winning_states", self.directory, self.fname)
-                for i, decoys in enumerate(decoy_combinations)
-            )
-            results = executor.map(get_value_of_deception_pair, args)
-
-            for result in results:
-                print(result)
-
-            return max(result, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+        # with concurrent.futures.ProcessPoolExecutor(max_workers=self.cpu_count) as executor:
+        #     args = (
+        #         (self.graph(), [self._graph["state"][uid] for uid in decoys],
+        #          i, "winning_states", self.directory, self.fname)
+        #         for i, decoys in enumerate(decoy_combinations)
+        #     )
+        #     results = executor.map(get_value_of_deception_pair, args)
+        #
+        #     for result in results:
+        #         print(result)
+        #
+        #     return max(result, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+        raise NotImplementedError("Multicore is not supported due to pickling issues with SubGraph class.")
 
     def _singlecore_solve(self, decoy_combinations):
         results = []
@@ -75,23 +78,6 @@ class EnumerativeTrapsAllocator(models.Solver):
             self._singlecore_solve(decoy_combinations)
 
         self._is_solved = True
-
-        # else:
-        #     decoy_value_of_deceptions = list()
-        #     solution_count = 0
-        #
-        #     for decoy_combination in decoy_combinations:
-        #         if self.decoy_subsets is None:
-        #             pair = get_value_of_deception_pair(self.graph, decoy_combination, solution_count=solution_count)
-        #         else:
-        #             pair = get_value_of_deception_pair(self.graph, decoy_combination, self.decoy_subsets,
-        #                                                solution_count=solution_count)
-        #         decoy_value_of_deceptions.append(pair)
-        #         solution_count += 1
-        #
-        #     highest_value_decoy_set = max(decoy_value_of_deceptions,
-        #                                   key=lambda decoy_set: len(decoy_set["value_of_deception"]))
-        #     return highest_value_decoy_set
 
 
 class GreedyTrapsAllocator(models.Solver):

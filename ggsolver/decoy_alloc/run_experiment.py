@@ -39,11 +39,12 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> gmodels.Solver:
     cpu_count = cfg_dict['use_multiprocessing']
 
     if type_ == "enumerative" and num_traps > 0 and num_fakes == 0:
+        logger.info("Running EnumerativeTrapsAllocator...")
         solution = solvers.EnumerativeTrapsAllocator(graph=graph,
                                                      num_decoys=num_traps,
                                                      cpu_count=cpu_count,
-                                                     directory=config['directory'],
-                                                     fname=config['name']
+                                                     directory=cfg_dict['directory'],
+                                                     fname=cfg_dict['name']
                                                      )
 
     elif type_ == "greedy" and num_traps > 0 and num_fakes == 0:
@@ -77,58 +78,88 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> gmodels.Solver:
     return solution
 
 
+def gen_reports(config):
+    """
+    Use files generated during solution to generate reports.
+    :param config: (dict) Configuration dictionary.
+    """
+    # 1. Generate colored graphs for all intermediate solutions, if option enabled.
+    # 2. Generate colored graphs for final allocation.
+    # 3.
+    pass
+
+
+def gen_hypergame(game_graph, swin_game, config):
+    """
+
+    :param game_graph:
+    :param swin_game:
+    :param config:
+    :return:
+    """
+    # FIXME. Depending on whether we are allocating only traps, only fakes or both, generate the hypergame.
+    #  The following code incorrectly generates hypergame for traps.
+    # TODO. Shall we move this generation into `EnumerativeTrapsAllocator` itself?
+    hidden_nodes = set()
+    hidden_edges = set()
+    for uid in swin_game.winning_nodes(1):
+        hidden_nodes.add(uid)
+        hidden_edges.update(set(swin_game.winning_edges(uid)))
+
+    hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
+
+
+def main():
+    # Load configuration file
+    config = cfg.process_cfg_file("configurations/config1.json")
+    logger.success("Configuration loaded successfully.")
+
+    # Generate base game
+    # TODO. Make game, generate hypergame and then graphify.
+    game = gen_game(config)
+    game_graph = game.graphify()
+    logger.success(f"Generated {game_graph=} successfully.")
+
+    # Logging and saving graph
+    directory = config['directory']
+    exp_name = config['name']
+    if config['graph']['save']:
+        game_graph.save(os.path.join(directory, f'{exp_name}_base.ggraph'))
+    if config['graph']['save_png']:
+        game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'), nlabel=["state"], elabel=["input"])
+    logger.success(f"Saved {game_graph=} successfully.")
+
+    # Solve base game
+    swin_game = dtptb.SWinReach(game_graph, p=2)
+    swin_game.solve()
+    path = os.path.join(config['directory'], f"{config['name']}_base.solution")
+    swin_game.solution().save(path)
+    logger.success(f"Solved {game_graph=} successfully.")
+
+    # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)
+    hgame_graph = gen_hypergame(game_graph, swin_game, config)
+    path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
+    hgame_graph.save(path)
+    logger.info(f"Constructed and saved {hgame_graph=} successfully.")
+
+    # Allocate decoys
+    solution = place_decoys(hgame_graph, config)
+    logger.success(f"Decoy placement completed.")
+
+    # Extract solution graph. Save it, log it.
+    sol_graph = solution.solution()
+    sol_graph.save(os.path.join(directory, f'{exp_name}_solution.ggraph'))
+
+    if config['graph']['save_png']:
+        game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'),
+                          nlabel=["state", "node_winner"],
+                          elabel=["input", "edge_winner"])
+
+    # Generate reports and charts
+    gen_reports(config)
+    logger.warning("Report and charts is not yet implemented.")
+
+
 if __name__ == '__main__':
     with logger.catch():
-        # Load configuration file
-        config = cfg.process_cfg_file("configurations/config1.json")
-        logger.success("Configuration loaded successfully.")
-
-        # Generate base game
-        # TODO. Make game, generate hypergame and then graphify.
-        game = gen_game(config)
-        game_graph = game.graphify()
-        logger.success(f"Generated {game_graph=} successfully.")
-
-        # Logging and saving graph
-        directory = config['directory']
-        exp_name = config['name']
-        if config['graph']['save']:
-            game_graph.save(os.path.join(directory, f'{exp_name}_base.ggraph'))
-        if config['graph']['save_png']:
-            game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'), nlabel=["state"], elabel=["input"])
-        logger.success(f"Saved {game_graph=} successfully.")
-
-        # Solve base game
-        swin_game = dtptb.SWinReach(game_graph, p=2)
-        swin_game.solve()
-        path = os.path.join(config['directory'], f"{config['name']}_base.solution")
-        swin_game.solution().save(path)
-        logger.success(f"Solved {game_graph=} successfully.")
-
-        # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)
-        hidden_nodes = set()
-        hidden_edges = set()
-        for uid in swin_game.winning_nodes(1):
-            hidden_nodes.add(uid)
-            hidden_edges.update(set(swin_game.winning_edges(uid)))
-
-        hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
-        path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
-        hgame_graph.save(path)
-        logger.info(f"Constructed and saved {hgame_graph=} successfully.")
-
-        # Allocate decoys
-        solution = place_decoys(hgame_graph, config)
-        logger.success(f"Decoy placement completed.")
-
-        # Extract solution graph. Save it, log it.
-        sol_graph = solution.solution()
-        sol_graph.save(os.path.join(directory, f'{exp_name}_solution.ggraph'))
-
-        if config['graph']['save_png']:
-            game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'),
-                              nlabel=["state", "node_winner"],
-                              elabel=["input", "edge_winner"])
-
-        # Generate reports and charts
-        logger.warning("Report and charts is not yet implemented.")
+        main()

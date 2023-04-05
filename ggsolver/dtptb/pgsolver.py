@@ -219,3 +219,6 @@ class SWinReach(models.Solver):
 
             if os.path.exists(dot_file):
                 os.remove(dot_file)
+
+        # Mark the game to be solved.
+        self._is_solved = True

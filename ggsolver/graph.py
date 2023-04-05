@@ -52,6 +52,7 @@ class IGraph:
         else:
             self._graph_properties[pname] = pmap
 
+
     @property
     def node_properties(self):
         """ Returns the node properties as a dictionary of {"property name": NodePropertyMap object}. """
@@ -243,7 +244,11 @@ class PMapView(PropertyMap):
         return self.pmap.__getitem__(item)
 
     def __setitem__(self, item, value):
-        raise PermissionError(f"Cannot set value of property in {self.__class__.__name__}.")
+        raise PermissionError(f"Cannot set value of property in {self.__class__.__name__}. "
+                              f"{item=}, {value=}.")
+
+    def __reduce__(self):
+        return self.__class__, (self.graph, self.pmap)
 
     def keys(self):
         return self.pmap.keys()
@@ -639,7 +644,7 @@ class Graph(IGraph):
             graph["ep." + pname] = pmap.serialize()
 
         for pname, pmap in self.graph_properties.items():
-            graph["gp." + pname] = pmap.serialize()
+            graph["gp." + pname] = pmap
 
         # Return serialized object
         return graph

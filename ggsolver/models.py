@@ -167,7 +167,7 @@ class GraphicalModel:
         if enabled_acts is not None:
             try:
                 # Check if enabled_acts is implemented by user.
-                arbitrary_key, st = list(self.__states.items())[0]
+                st, arbitrary_key = list(self.__states.items())[0]
                 enabled_acts(st)
             except NotImplementedError:
                 enabled_acts = None

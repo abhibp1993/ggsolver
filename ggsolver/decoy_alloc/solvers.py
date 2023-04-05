@@ -1,60 +1,97 @@
+import multiprocessing
+
 import ggsolver.graph as ggraph
 import ggsolver.models as models
-
-from ggsolver.dtptb import SWinReach
-
 import concurrent.futures
 import os
+import math
 from itertools import combinations
+from ggsolver.dtptb import SWinReach
+import loguru
+
+logger = loguru.logger
+
+MAX_COMBINATIONS = 100
 
 
 class EnumerativeTrapsAllocator(models.Solver):
-    def __init__(self, graph: ggraph.Graph, num_decoys, decoy_subsets=None, use_multiprocessing=False):
-        self.graph = graph
+    def __init__(self, graph: ggraph.Graph,
+                 num_decoys: int,
+                 max_combinations=MAX_COMBINATIONS,
+                 cpu_count=0,
+                 directory=None,
+                 fname=None
+                 ):
+        super(EnumerativeTrapsAllocator, self).__init__(graph)
         self.num_decoys = num_decoys
-        self.decoy_subsets = decoy_subsets
-        self.use_multiprocessing = use_multiprocessing
+        self.max_combinations = max_combinations
+        self.cpu_count = multiprocessing.cpu_count() if cpu_count == "all" else cpu_count
+        self.directory = directory
+        self.fname = fname
+
+    def _multicore_solve(self, decoy_combinations):
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.cpu_count) as executor:
+            args = (
+                (self.graph(), [self._graph["state"][uid] for uid in decoys],
+                 i, "winning_states", self.directory, self.fname)
+                for i, decoys in enumerate(decoy_combinations)
+            )
+            results = executor.map(get_value_of_deception_pair, args)
+
+            for result in results:
+                print(result)
+
+            return max(result, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+
+    def _singlecore_solve(self, decoy_combinations):
+        results = []
+        for i, decoys in enumerate(decoy_combinations):
+            decoys = [self._graph["state"][uid] for uid in decoys]
+            args = (self.graph(), decoys, i, "winning_states", self.directory, self.fname)
+            result = get_value_of_deception_pair(args)
+            results.append(result)
+            logger.debug(f"Solved deceptive planning for {decoys=}.")
+
+        return max(results, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
 
     def solve(self):
-        # Calculate all combinations of decoys
-        if self.decoy_subsets is None:
-            decoy_combinations = combinations(self.graph.nodes(), self.num_decoys)
+        """
+        # FIXME: Not checking node siblings for now. (decoy_subsets/arena_maping or so.)
+        :return:
+        """
+        # Check for computability
+        num_combinations = math.comb(self._graph.number_of_nodes(), self.num_decoys)
+        if num_combinations > self.max_combinations:
+            raise RuntimeError(f"Cannot process more than {self.max_combinations} games.")
+        logger.debug(f"Setting up solvers for {num_combinations} games.")
+
+        # Define combinations and extract the final states.
+        decoy_combinations = combinations(self._graph.nodes(), self.num_decoys)
+
+        # Based on multiprocessing, solve for each decoy placement.
+        if self.cpu_count > 1:
+            self._multicore_solve(decoy_combinations)
         else:
-            arena_points = self.decoy_subsets.keys()
-            decoy_combinations = combinations(arena_points, self.num_decoys)
-        # Evaluate value of deception for each decoy combination
-        if self.use_multiprocessing:
-            with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
-                if self.decoy_subsets is None:
-                    futures = [executor.submit(get_value_of_deception_pair, self.graph, decoy_combination)
-                               for decoy_combination in decoy_combinations]
-                else:
-                    futures = [executor.submit(get_value_of_deception_pair, self.graph, decoy_combination,
-                                               self.decoy_subsets) for decoy_combination in decoy_combinations]
-                # Wait for all value of deception pairs to be calculated
-                completed_futures, _ = concurrent.futures.wait(futures)
-                decoy_winning_regions = [future.result() for future in completed_futures]
-                # Return the decoy combination with the highest value of deception
-                highest_value_decoy_set = max(decoy_winning_regions,
-                                              key=lambda decoy_set: len(decoy_set["value_of_deception"]))
-                return highest_value_decoy_set
-        else:
-            decoy_value_of_deceptions = list()
-            solution_count = 0
+            self._singlecore_solve(decoy_combinations)
 
-            for decoy_combination in decoy_combinations:
-                if self.decoy_subsets is None:
-                    pair = get_value_of_deception_pair(self.graph, decoy_combination, solution_count=solution_count)
-                else:
-                    pair = get_value_of_deception_pair(self.graph, decoy_combination, self.decoy_subsets,
-                                                       solution_count=solution_count)
-                decoy_value_of_deceptions.append(pair)
-                solution_count += 1
+        self._is_solved = True
 
-            highest_value_decoy_set = max(decoy_value_of_deceptions,
-                                          key=lambda decoy_set: len(decoy_set["value_of_deception"]))
-            return highest_value_decoy_set
-
+        # else:
+        #     decoy_value_of_deceptions = list()
+        #     solution_count = 0
+        #
+        #     for decoy_combination in decoy_combinations:
+        #         if self.decoy_subsets is None:
+        #             pair = get_value_of_deception_pair(self.graph, decoy_combination, solution_count=solution_count)
+        #         else:
+        #             pair = get_value_of_deception_pair(self.graph, decoy_combination, self.decoy_subsets,
+        #                                                solution_count=solution_count)
+        #         decoy_value_of_deceptions.append(pair)
+        #         solution_count += 1
+        #
+        #     highest_value_decoy_set = max(decoy_value_of_deceptions,
+        #                                   key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+        #     return highest_value_decoy_set
 
 
 class GreedyTrapsAllocator(models.Solver):
@@ -97,28 +134,21 @@ class GreedyMixedAllocator(models.Solver):
         pass
 
 
-def get_value_of_deception_pair(graph, decoy_combination, cfg_dict: dict, decoy_subsets=None, metric="winning_states",
-                                solution_count=0):
+def get_value_of_deception_pair(args):
     """ Returns the (decoy,vod) pair for a given decoy combination"""
-    final_states = set()
-    if decoy_subsets is not None:
-        for decoy in decoy_combination:
-            final_states = final_states + decoy_subsets[decoy]
-    else:
-        for decoy in decoy_combination:
-            final_states.add(decoy)
-    # Create sub graph with final states as sink states
-    out_going_final_edges = [graph.out_edges(state) for state in final_states]
-    sink_graph = ggraph.SubGraph(graph)
-    sink_graph.hide_edges(out_going_final_edges)
+    logger.debug(f"{args}")
+    graph, decoys, solution_count, metric, directory, f_name = args
+
     # Solve new game
-    solver = SWinReach(sink_graph, final=final_states)
+    solver = SWinReach(graph, final=decoys)
     solver.solve()
-    solver.solution().save(os.path.join(cfg_dict['directory'],
-                                        f"{cfg_dict['name']}_{solution_count}.solution"), overwrite=True)
+    logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
+
+    if directory is not None and f_name is not None:
+        solver.solution().save(os.path.join(directory, f"{f_name}_{solution_count}.solution"))
 
     if metric == "winning_states":
-        pair = {"decoys": decoy_combination, "value_of_deception": solver.winning_states(1)}
+        pair = {"decoys": decoys, "value_of_deception": solver.winning_states(1), "solver": solver}
         return pair
     else:
         raise NotImplementedError

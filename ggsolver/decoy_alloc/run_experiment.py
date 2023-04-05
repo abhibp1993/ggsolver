@@ -6,9 +6,11 @@ import os.path
 import ggsolver.decoy_alloc.process_config as cfg
 import ggsolver.decoy_alloc.graph_generator as gen
 import ggsolver.decoy_alloc.solvers as solvers
+import ggsolver.decoy_alloc.models as models
 
 import ggsolver.graph as ggraph
-import ggsolver.models as models
+import ggsolver.models as gmodels
+import ggsolver.dtptb as dtptb
 
 import loguru
 
@@ -16,7 +18,7 @@ logger = loguru.logger
 logger.remove()
 
 
-def gen_graph(cfg_dict: dict) -> ggraph.Graph:
+def gen_game(cfg_dict: dict) -> dtptb.DTPTBGame:
     topology = cfg_dict['graph']['topology']
     if topology == "mesh":
         return gen.mesh(cfg_dict)
@@ -30,42 +32,45 @@ def gen_graph(cfg_dict: dict) -> ggraph.Graph:
         return gen.hybrid(cfg_dict)
 
 
-def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> models.Solver:
+def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> gmodels.Solver:
     type_ = cfg_dict['type']
     num_traps = cfg_dict['max_traps']
     num_fakes = cfg_dict['max_fakes']
-    use_multiprocessing = cfg_dict['use_multiprocessing']
+    cpu_count = cfg_dict['use_multiprocessing']
 
     if type_ == "enumerative" and num_traps > 0 and num_fakes == 0:
         solution = solvers.EnumerativeTrapsAllocator(graph=graph,
                                                      num_decoys=num_traps,
-                                                     use_multiprocessing=use_multiprocessing)
+                                                     cpu_count=cpu_count,
+                                                     directory=config['directory'],
+                                                     fname=config['name']
+                                                     )
 
     elif type_ == "greedy" and num_traps > 0 and num_fakes == 0:
         solution = solvers.GreedyTrapsAllocator(graph=graph,
                                                 num_decoys=num_traps,
-                                                use_multiprocessing=use_multiprocessing)
+                                                use_multiprocessing=cpu_count)
 
     elif type_ == "enumerative" and num_traps == 0 and num_fakes > 0:
         solution = solvers.EnumerativeFakesAllocator(graph=graph,
                                                      num_decoys=num_fakes,
-                                                     use_multiprocessing=use_multiprocessing)
+                                                     use_multiprocessing=cpu_count)
 
     elif type_ == "greedy" and num_traps == 0 and num_fakes > 0:
         solution = solvers.GreedyFakesAllocator(graph=graph,
                                                 num_decoys=num_fakes,
-                                                use_multiprocessing=use_multiprocessing)
+                                                use_multiprocessing=cpu_count)
 
     elif type_ == "enumerative" and num_traps > 0 and num_fakes > 0:
         solution = solvers.EnumerativeMixedAllocator(graph=graph,
                                                      num_decoys=(num_traps, num_fakes),
-                                                     use_multiprocessing=use_multiprocessing
+                                                     use_multiprocessing=cpu_count
                                                      )
 
     else:  # type_ == "greedy" and num_traps == 0 and num_fakes > 0:
         solution = solvers.GreedyMixedAllocator(graph=graph,
                                                 num_decoys=(num_traps, num_fakes),
-                                                use_multiprocessing=use_multiprocessing)
+                                                use_multiprocessing=cpu_count)
 
     # Solve the game
     solution.solve()
@@ -73,35 +78,57 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> models.Solver:
 
 
 if __name__ == '__main__':
-    # Load configuration file
-    config = cfg.process_cfg_file("configurations/config1.json")
-    logger.success("Configuration loaded successfully.")
+    with logger.catch():
+        # Load configuration file
+        config = cfg.process_cfg_file("configurations/config1.json")
+        logger.success("Configuration loaded successfully.")
 
-    # Generate graph
-    game_graph = gen_graph(config)
-    logger.success(f"Generated {game_graph=} successfully.")
+        # Generate base game
+        # TODO. Make game, generate hypergame and then graphify.
+        game = gen_game(config)
+        game_graph = game.graphify()
+        logger.success(f"Generated {game_graph=} successfully.")
 
-    # Logging and saving graph
-    directory = config['directory']
-    exp_name = config['name']
-    if config['graph']['save']:
-        game_graph.save(os.path.join(directory, f'{exp_name}_base.ggraph'))
+        # Logging and saving graph
+        directory = config['directory']
+        exp_name = config['name']
+        if config['graph']['save']:
+            game_graph.save(os.path.join(directory, f'{exp_name}_base.ggraph'))
+        if config['graph']['save_png']:
+            game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'), nlabel=["state"], elabel=["input"])
+        logger.success(f"Saved {game_graph=} successfully.")
 
-    if config['graph']['save_png']:
-        game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'), nlabel=["state"], elabel=["input"])
+        # Solve base game
+        swin_game = dtptb.SWinReach(game_graph, p=2)
+        swin_game.solve()
+        path = os.path.join(config['directory'], f"{config['name']}_base.solution")
+        swin_game.solution().save(path)
+        logger.success(f"Solved {game_graph=} successfully.")
 
-    # Allocate decoys
-    solution = place_decoys(game_graph, config)
-    logger.success(f"Decoy placement completed.")
+        # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)
+        hidden_nodes = set()
+        hidden_edges = set()
+        for uid in swin_game.winning_nodes(1):
+            hidden_nodes.add(uid)
+            hidden_edges.update(set(swin_game.winning_edges(uid)))
 
-    # Extract solution graph. Save it, log it.
-    sol_graph = solution.solution()
-    sol_graph.save(os.path.join(directory, f'{exp_name}_solution.ggraph'))
+        hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
+        path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
+        hgame_graph.save(path)
+        logger.info(f"Constructed and saved {hgame_graph=} successfully.")
 
-    if config['graph']['save_png']:
-        game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'),
-                          nlabel=["state", "node_winner"],
-                          elabel=["input", "edge_winner"])
+        # Allocate decoys
+        solution = place_decoys(hgame_graph, config)
+        logger.success(f"Decoy placement completed.")
 
-    # Generate reports and charts
-    logger.warning("Report and charts is not yet implemented.")
+        # Extract solution graph. Save it, log it.
+        sol_graph = solution.solution()
+        sol_graph.save(os.path.join(directory, f'{exp_name}_solution.ggraph'))
+
+        if config['graph']['save_png']:
+            game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'),
+                              nlabel=["state", "node_winner"],
+                              elabel=["input", "edge_winner"])
+
+        # Generate reports and charts
+        logger.warning("Report and charts is not yet implemented.")

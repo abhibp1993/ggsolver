@@ -371,7 +371,10 @@ class Graph(IGraph):
         self._graph = nx.MultiDiGraph()
 
     def __str__(self):
-        return f"<Graph with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
+        return f"<{self.__class__.__name__} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
 
     def __getstate__(self):
         return self.serialize()

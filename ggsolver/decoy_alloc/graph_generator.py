@@ -24,9 +24,13 @@ class Mesh(dtptb.DTPTBGame):
     def actions(self):
         return list()
 
+    def enabled_acts(self, state):
+        i = int(state[1:])
+        return [str((i, j)) for j in range(self.num_nodes) if j != i]
+
     def delta(self, state, act):
         i, j = eval(act)
-        if state == i:
+        if int(state[1:]) == i:
             return f"s{j}"
 
     def final(self, state):

@@ -89,6 +89,31 @@ def gen_reports(config):
     pass
 
 
+def gen_hypergame(game_graph, swin_game: dtptb.SWinReach, trap_states, config):
+    """
+    :param game_graph: base game graph
+    :param swin_game: solution to base game
+    :param config:
+    :param trap_states: set of states being allocated as traps
+    :return:
+    """
+    # FIXME. Depending on whether we are allocating only traps, only fakes or both, generate the hypergame.
+    hidden_nodes = set()
+    hidden_edges = set()
+    for uid in swin_game.winning_nodes(1):
+        hidden_nodes.add(uid)
+        hidden_edges.update(set(swin_game.winning_edges(uid)))
+
+    # Remove outgoing edges from final states
+    out_going_final_edges = [game_graph.out_edges(state) for state in swin_game.get_final_states()]
+    hidden_edges.add(out_going_final_edges)
+
+    hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
+    path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
+    hgame_graph.save(path)
+    return hgame_graph
+
+
 def main():
     # Load configuration file
     config = cfg.process_cfg_file("configurations/config1.json")

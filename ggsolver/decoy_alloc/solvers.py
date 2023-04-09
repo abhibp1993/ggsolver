@@ -15,6 +15,9 @@ MAX_COMBINATIONS = 100
 
 
 class EnumerativeTrapsAllocator(models.Solver):
+    """
+    :param graph: graph of hypergame
+    """
     def __init__(self, graph: ggraph.Graph,
                  num_decoys: int,
                  max_combinations=MAX_COMBINATIONS,
@@ -50,7 +53,14 @@ class EnumerativeTrapsAllocator(models.Solver):
         results = []
         for i, decoys in enumerate(decoy_combinations):
             decoys = [self._graph["state"][uid] for uid in decoys]
-            args = (self.graph(), decoys, i, "winning_states", self.directory, self.fname)
+            # Remove out going edges from decoy states
+            # (the hypergame only has out going edges removed from the original final states)
+            hidden_edges = set()
+            out_going_trap_edges = [self.graph().out_edges(state) for state in decoys]
+            hidden_edges.add(out_going_trap_edges)
+            sub_graph = ggraph.SubGraph(self.graph(), hidden_edges=hidden_edges)
+            # Solve the sub_graph
+            args = (sub_graph, decoys, i, "winning_states", self.directory, self.fname)
             result = get_value_of_deception_pair(args)
             results.append(result)
             logger.debug(f"Solved deceptive planning for {decoys=}.")
@@ -139,30 +149,3 @@ def get_value_of_deception_pair(args):
     else:
         raise NotImplementedError
 
-
-def gen_hypergame(game_graph, swin_game: SWinReach, trap_states, config):
-    """
-    :param game_graph: base game graph
-    :param swin_game: solution to base game
-    :param config:
-    :param trap_states: set of states being allocated as traps
-    :return:
-    """
-    # FIXME. Depending on whether we are allocating only traps, only fakes or both, generate the hypergame.
-    hidden_nodes = set()
-    hidden_edges = set()
-    for uid in swin_game.winning_nodes(1):
-        hidden_nodes.add(uid)
-        hidden_edges.update(set(swin_game.winning_edges(uid)))
-
-    # Remove outgoing edges from traps
-    out_going_trap_edges = [game_graph.out_edges(state) for state in trap_states]
-    hidden_edges.add(out_going_trap_edges)
-    # Remove outgoing edges from final states
-    out_going_final_edges = [game_graph.out_edges(state) for state in swin_game.get_final_states()]
-    hidden_edges.add(out_going_final_edges)
-
-    hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
-    path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
-    hgame_graph.save(path)
-    return hgame_graph

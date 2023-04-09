@@ -63,9 +63,10 @@ class EnumerativeTrapsAllocator(models.Solver):
             args = (sub_graph, decoys, i, "winning_states", self.directory, self.fname)
             result = get_value_of_deception_pair(args)
             results.append(result)
+            self._value_of_deception[result["decoys"]] = result["value_of_deception"]
             logger.debug(f"Solved deceptive planning for {decoys=}.")
 
-        return max(results, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+        return max(results, key=lambda decoy_set: decoy_set["value_of_deception"])
 
     def solve(self):
         """
@@ -144,7 +145,9 @@ def get_value_of_deception_pair(args):
         solver.solution().save(os.path.join(directory, f"{f_name}_{solution_count}.solution"))
 
     if metric == "winning_states":
-        pair = {"decoys": decoys, "value_of_deception": solver.winning_states(1), "solver": solver}
+        # FIXME Define value of deception based on paper instead of number of winning states
+        value_of_deception = len(solver.winning_states(1))
+        pair = {"decoys": decoys, "value_of_deception": value_of_deception, "solver": solver}
         return pair
     else:
         raise NotImplementedError

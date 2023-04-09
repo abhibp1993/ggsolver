@@ -89,26 +89,6 @@ def gen_reports(config):
     pass
 
 
-def gen_hypergame(game_graph, swin_game, config):
-    """
-
-    :param game_graph:
-    :param swin_game:
-    :param config:
-    :return:
-    """
-    # FIXME. Depending on whether we are allocating only traps, only fakes or both, generate the hypergame.
-    #  The following code incorrectly generates hypergame for traps.
-    # TODO. Shall we move this generation into `EnumerativeTrapsAllocator` itself?
-    hidden_nodes = set()
-    hidden_edges = set()
-    for uid in swin_game.winning_nodes(1):
-        hidden_nodes.add(uid)
-        hidden_edges.update(set(swin_game.winning_edges(uid)))
-
-    hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
-
-
 def main():
     # Load configuration file
     config = cfg.process_cfg_file("configurations/config1.json")

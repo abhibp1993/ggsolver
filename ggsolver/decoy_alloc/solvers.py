@@ -31,6 +31,7 @@ class EnumerativeTrapsAllocator(models.Solver):
         self.cpu_count = multiprocessing.cpu_count() if cpu_count == "all" else cpu_count
         self.directory = directory
         self.fname = fname
+        self.decoys = set()
 
         self._value_of_deception = self._solution["value_of_deception"] = dict()
 
@@ -84,9 +85,9 @@ class EnumerativeTrapsAllocator(models.Solver):
 
         # Based on multiprocessing, solve for each decoy placement.
         if self.cpu_count > 1:
-            self._multicore_solve(decoy_combinations)
+            self.decoys = self._multicore_solve(decoy_combinations)["decoys"]
         else:
-            self._singlecore_solve(decoy_combinations)
+            self.decoys = self._singlecore_solve(decoy_combinations)["decoys"]
 
         self._is_solved = True
 

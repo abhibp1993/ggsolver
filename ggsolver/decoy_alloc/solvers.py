@@ -89,6 +89,8 @@ class EnumerativeTrapsAllocator(models.Solver):
         else:
             self.decoys = self._singlecore_solve(decoy_combinations)["decoys"]
 
+        # TODO Associate winner (P1, P2, neither) with each state and edge
+
         self._is_solved = True
 
 

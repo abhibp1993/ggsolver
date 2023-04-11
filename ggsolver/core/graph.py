@@ -36,7 +36,6 @@ class PMap(dict):
         raise KeyError(f"{self.__class__.__name__}.__missing__:: {item} is not in {self.graph}.")
 
     def __getitem__(self, item):
-        # TODO. Replace with `if item in self.graph` after Graph.__contains__ is checked.
         if not self.__contains__(item):
             raise KeyError(f"[ERROR] {self.__class__.__name__}.__getitem__:: {item} is not in {self.graph}.")
 
@@ -46,8 +45,8 @@ class PMap(dict):
             return self.__missing__(item)
 
     def __setitem__(self, item, value):
-        # TODO. Replace with `if item in self.graph` after Graph.__contains__ is checked.
-        assert self.__contains__(item), f"[ERROR] {self.__class__.__name__}.__setitem__:: {item} not in {self.graph}."
+        if not self.__contains__(item):
+            raise KeyError(f"{self.__class__.__name__}.__setitem__:: {item} not in {self.graph}.")
         if value != self.default:
             super(PMap, self).__setitem__(item, value)
 

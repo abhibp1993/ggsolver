@@ -3,6 +3,7 @@ Notes:
     * Graph is implemented with NetworkX backend.
 """
 import ast
+import itertools
 import networkx as nx
 import ggsolver.version as version
 from loguru import logger
@@ -200,7 +201,7 @@ class Graph:
         - Each graph object is uniquely identified by its name.
     """
     def __init__(self, name=None):
-        self._name = name
+        self.name = name
         self._graph = nx.MultiDiGraph()
         self._np = dict()
         self._ep = dict()
@@ -210,8 +211,8 @@ class Graph:
         return f"<Graph with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
 
     def __str__(self):
-        if self._name is not None:
-            return f"Graph({self._name})"
+        if self.name is not None:
+            return f"Graph({self.name})"
         return self.__repr__()
 
     def __getitem__(self, pname):
@@ -252,10 +253,11 @@ class Graph:
         self._gp.pop(pname, None)
 
     def __getstate__(self):
-        pass
+        return self.serialize()
 
     def __setstate__(self, obj_dict):
-        pass
+        obj = self.__class__.deserialize(obj_dict)
+        self.__dict__.update(obj.__dict__)
 
     def __eq__(self, other: 'Graph'):
         # Equality of nodes
@@ -339,7 +341,7 @@ class Graph:
         :param num_nodes: (int) Number of nodes to be added.
         :return: (generator) IDs of added nodes.
         """
-        return (self.add_node() for _ in range(num_nodes))
+        return list(self.add_node() for _ in range(num_nodes))
 
     def add_edge(self, uid, vid, key=None):
         """
@@ -349,6 +351,9 @@ class Graph:
         :return: (int) Key of the added edge. Key = 0 means the first edge was added between the given nodes.
             If Key = k, then (k+1)-th edge was added.
         """
+        if not self.__contains__(uid) or not self.__contains__(vid):
+            raise KeyError(f"{self.__class__.__name__}.add_edge:: Adding edge from {uid=} to {vid=} failed."
+                           f"{not self.__contains__(uid)=}, {not self.__contains__(vid)=}")
         return self._graph.add_edge(uid, vid, key=key)
 
     def add_edges(self, edges):
@@ -359,7 +364,7 @@ class Graph:
         :return: (int) Key of the added edge. Key = 0 means the first edge was added between the given nodes.
             If Key = k, then (k+1)-th edge was added.
         """
-        return (self.add_edge(*edge) for edge in edges)
+        return list(self.add_edge(*edge) for edge in edges)
 
     def rem_node(self, uid):
         """
@@ -409,43 +414,43 @@ class Graph:
         """
         Generator of all successors of the node represented by uid.
         """
-        return self._graph.successors(uid)
+        return (uid for uid in self._graph.successors(uid))
 
     def predecessors(self, uid):
         """
-        Generator of all predecessors of the node represented by uid.
+        Iterator of all predecessors of the node represented by uid.
         """
-        return self._graph.predecessors(uid)
+        return (uid for uid in self._graph.predecessors(uid))
 
     def neighbors(self, uid):
         """
         Generator of all (in and out) neighbors of the node represented by uid.
         """
-        return self._graph.neighbors(uid)
+        return (uid for uid in itertools.chain(self.successors(uid), self.predecessors(uid)))
 
     def ancestors(self, uid):
         """
         Generator of all nodes from which the node represented by uid is reachable.
         """
-        return nx.ancestors(self._graph, uid)
+        return (uid for uid in nx.ancestors(self._graph, uid))
 
     def descendants(self, uid):
         """
         Generator of all nodes that can be reached from  the node represented by uid.
         """
-        return nx.descendants(self._graph, uid)
+        return (uid for uid in nx.descendants(self._graph, uid))
 
     def in_edges(self, uid):
         """
         Generator of all in edges to the node represented by uid.
         """
-        return self._graph.in_edges(uid, keys=True)
+        return (edge for edge in self._graph.in_edges(uid, keys=True))
 
     def out_edges(self, uid):
         """
         List of all out edges from the node represented by uid.
         """
-        return self._graph.out_edges(uid, keys=True)
+        return (edge for edge in self._graph.out_edges(uid, keys=True))
 
     def number_of_nodes(self):
         """
@@ -491,7 +496,7 @@ class Graph:
         """
         Clears all nodes, edges and the node, edge and graph properties.
         """
-        self._name = None
+        self.name = None
         self._graph.clear()
         self._np = dict()
         self._ep = dict()
@@ -587,7 +592,7 @@ class Graph:
         # Metadata
         graph["type"] = "Graph"
         graph["ggsolver.version"] = version.ggsolver_version()
-        graph["name"] = self._name
+        graph["name"] = self.name
 
         # Topology
         graph["nodes"] = self.number_of_nodes()
@@ -657,3 +662,7 @@ class Graph:
 
         # Return constructed object
         return graph
+
+
+class SubGraph(Graph):
+    pass

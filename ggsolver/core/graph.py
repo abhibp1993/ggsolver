@@ -62,6 +62,13 @@ class PMap(dict):
         if value != self.default:
             super(PMap, self).__setitem__(item, value)
 
+    def __getstate__(self):
+        return self.serialize()
+
+    def __setstate__(self, obj_dict):
+        tmp = self.__class__(graph=self.graph).deserialize(obj_dict)
+        self.__dict__.update(tmp.__dict__)
+
     def keys(self):
         """
         Returns all valid keys in property map. Typically, this includes all graph nodes or edges.

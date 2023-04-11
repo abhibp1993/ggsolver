@@ -1,0 +1,80 @@
+FROM debian:bullseye
+
+# The version is the same as ggsolver version. It is updated automatically by rebuild.py
+LABEL maintainer="Abhishek N. Kulkarni" \
+        email="abhi.bp1993@gmail.com" \
+		version="1.0.0"
+
+
+# Install python
+RUN apt-get update && \
+    RUNLEVEL=1 DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+    build-essential cmake \
+    python3-pip python3-setuptools python3-dev pkg-config  && \
+    apt-get clean
+
+
+# Install sphinx documentation packages
+RUN pip3 install sphinx myst-parser sphinx_rtd_theme recommonmark nbsphinx
+
+
+# Graphviz
+RUN apt-get update && \
+    RUNLEVEL=1 DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+    graphviz graphviz-dev && \
+    apt-get clean
+
+
+# Install spot
+# Reference: https://gitlab.lrde.epita.fr/spot/spot-web/-/blob/master/docker/Dockerfile
+RUN echo 'deb [trusted=true] http://www.lrde.epita.fr/repo/debian/ stable/' >> /etc/apt/sources.list && \
+    apt-get update && \
+    RUNLEVEL=1 DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+    spot libspot-dev spot-doc python3-spot && \
+    apt-get clean
+
+# Install git
+RUN apt-get update && \
+    RUNLEVEL=1 DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+    git && \
+    apt-get clean
+
+# Install OCaml
+RUN apt-get update && \
+    RUNLEVEL=1 DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+    opam && \
+    apt-get clean
+
+RUN opam init -a -y --disable-sandboxing
+RUN opam switch create 4.03.0 \
+    && eval 'opam config env' \
+    && opam install ocamlbuild ocamlfind -y
+RUN opam install TCSLib extlib ocaml-sat-solvers minisat -y
+RUN opam install ounit -y
+
+## Install PGSolver
+RUN rm -rf pgsolver
+RUN git clone https://github.com/tcsprojects/pgsolver
+RUN cd pgsolver  \
+    && eval $(opam env) \
+    && ocaml setup.ml -configure \
+    && ocaml setup.ml -build
+
+# Standard Python Packages
+RUN pip3 install numpy matplotlib pyzmq pydot networkx pygraphviz pytest
+RUN pip3 install scipy pygame pyyaml lark
+RUN pip3 install sortedcontainers
+RUN pip3 install jupyterlab
+RUN pip3 install loguru tqdm
+
+# Install dd (binary decision diagram tool)
+RUN pip3 install dd
+
+# Install sphinx documentation packages
+RUN pip3 install cloud-sptheme
+

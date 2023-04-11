@@ -273,12 +273,51 @@ class TestGraphTopology(unittest.TestCase):
         self.assertEqual(self.graph, graph1)
 
 
-class TestNodePMap(unittest.TestCase):
-    pass
+class TestNodeEdgePMap(unittest.TestCase):
+    def setUp(self):
+        self.graph = ggsolver.Graph()
 
+        # Add some nodes and edges to graph
+        self.graph.add_nodes(num_nodes=5)
+        self.graph.add_edges([(0, 1), (0, 1), (0, 1), (1, 2), (0, 2), (2, 3), (3, 0), (0, 0)])
 
-class TestEdgePMap(unittest.TestCase):
-    pass
+        # Graph properties
+        self.graph["gp1"] = "gp1"
+
+        # Node properties
+        p = self.graph.create_np(pname="np1")
+        p[0] = "s0"
+        p[1] = "s1"
+
+        # Edge properties
+        p = self.graph.create_ep(pname="ep1")
+        p[0, 0, 0] = "e0"
+        p[0, 1, 0] = "e1"
+        p[0, 1, 1] = "e2"
+
+    def test_node_pmap_serialize(self):
+        # Serialize property map
+        np1 = self.graph["np1"]
+        obj_dict = np1.serialize()
+        print(obj_dict)
+
+        # To deserialize, first create a node property map
+        np2 = self.graph.create_np("np2")
+        np2.deserialize(obj_dict)
+
+        self.assertEqual(np1, np2)
+
+    def test_edge_pmap_serialize(self):
+        # Serialize property map
+        ep1 = self.graph["ep1"]
+        obj_dict = ep1.serialize()
+        print(obj_dict)
+
+        # To deserialize, first create a edge property map
+        ep2 = self.graph.create_ep("ep2")
+        ep2.deserialize(obj_dict)
+
+        self.assertEqual(ep1, ep2)
 
 
 class TestPMapView(unittest.TestCase):

@@ -4,8 +4,10 @@ Notes:
 """
 import ast
 import itertools
+import pathlib
 import networkx as nx
 import ggsolver.version as version
+import ggsolver.ioutils as io
 from loguru import logger
 from functools import reduce
 
@@ -255,7 +257,7 @@ class Graph:
         return self.serialize()
 
     def __setstate__(self, obj_dict):
-        obj = self.__class__.deserialize(obj_dict)
+        obj = self.__class__().deserialize(obj_dict)
         self.__dict__.update(obj.__dict__)
 
     def __eq__(self, other: 'Graph'):
@@ -342,7 +344,7 @@ class Graph:
         """
         return list(self.add_node() for _ in range(num_nodes))
 
-    def add_edge(self, uid, vid, key=None):
+    def add_edge(self, uid, vid):
         """
         Adds a new edge between the give nodes.
         :warning: Duplication is NOT checked. Hence, calling the function twice adds two parallel edges between
@@ -353,7 +355,7 @@ class Graph:
         if not self.__contains__(uid) or not self.__contains__(vid):
             raise KeyError(f"{self.__class__.__name__}.add_edge:: Adding edge from {uid=} to {vid=} failed."
                            f"{not self.__contains__(uid)=}, {not self.__contains__(vid)=}")
-        return self._graph.add_edge(uid, vid, key=key)
+        return self._graph.add_edge(uid, vid)
 
     def add_edges(self, edges):
         """
@@ -401,13 +403,13 @@ class Graph:
         """
         Generator over nodes in the graph.
         """
-        return self._graph.nodes()
+        return (uid for uid in self._graph.nodes())
 
     def edges(self):
         """
         Generator of all edges in the graph. Each edge is represented as a 3-tuple (uid, vid, key).
         """
-        return self._graph.edges(keys=True)
+        return (edge for edge in self._graph.edges(keys=True))
 
     def successors(self, uid):
         """
@@ -615,18 +617,17 @@ class Graph:
         # Return serialized object
         return graph
 
-    @classmethod
-    def deserialize(cls, obj_dict):
+    def deserialize(self, obj_dict):
         """
         Constructs a graph from a serialized graph object. The format is described in :py:meth:`Graph.serialize`.
         :return: (Graph) A new :class:`Graph` object..
         """
-        # Instantiate new object
-        graph = cls()
+        # Clear graph
+        self.clear()
 
         # Process metadata
         if obj_dict["type"] != "Graph":
-            raise TypeError(f"Cannot construct {cls.__name__} object from {obj_dict['type']}. ")
+            raise TypeError(f"Cannot construct {self.__class__.__name__} object from {obj_dict['type']}.")
 
         obj_version = obj_dict["ggsolver.version"]
         obj_version = [int(part) for part in obj_version.split('.')]
@@ -635,32 +636,72 @@ class Graph:
             logger.warning(f"Attempting to deserialize Graph saved in {obj_version} in "
                            f"ggsolver ver. {version.ggsolver_version()} may lead to unexpected issues.")
 
+        # Update name
+        self.name = obj_dict["name"]
+
         # Add nodes
-        graph.add_nodes(num_nodes=int(obj_dict["nodes"]))
+        self.add_nodes(num_nodes=int(obj_dict["nodes"]))
 
         # Add edges
         edges = (ast.literal_eval(eid) for eid in obj_dict["edges"])
-        graph.add_edges(edges)
+        self._graph.add_edges_from(edges)
 
         # Property metadata
-        node_properties = obj_dict["node_properties"]
-        edge_properties = obj_dict["edge_properties"]
-        graph_properties = obj_dict["graph_properties"]
+        np = obj_dict["np"]
+        ep = obj_dict["ep"]
+        gp = obj_dict["gp"]
 
         # Deserialize properties
-        for pname in node_properties:
-            graph[pname] = NodePMap(graph)
-            graph[pname].deserialize(obj_dict["np." + pname])
+        for pname in np:
+            pmap = self.create_np(pname=pname)
+            pmap.deserialize(obj_dict["np." + pname])
+            # graph[pname] = NodePMap(graph)
+            # graph[pname].deserialize(obj_dict["np." + pname])
 
-        for pname in edge_properties:
-            graph[pname] = EdgePMap(graph)
-            graph[pname].deserialize(obj_dict["ep." + pname])
+        for pname in ep:
+            pmap = self.create_ep(pname=pname)
+            pmap.deserialize(obj_dict["ep." + pname])
+            # graph[pname] = EdgePMap(graph)
+            # graph[pname].deserialize(obj_dict["ep." + pname])
 
-        for pname in graph_properties:
-            graph[pname] = obj_dict["gp." + pname]
+        for pname in gp:
+            self[pname] = obj_dict["gp." + pname]
 
         # Return constructed object
-        return graph
+        return self
+
+    # =================================================================================================================
+    # SAVE AND LOAD
+    # =================================================================================================================
+    def save(self, fpath, protocol="json", overwrite=False):
+        if not overwrite and pathlib.Path(fpath).exists():
+            raise FileExistsError("File already exists. To overwrite, call Graph.save(..., overwrite=True).")
+
+        graph_dict = self.serialize()
+        if protocol == "json":
+            io.to_json(fpath, graph_dict)
+        elif protocol == "pickle":
+            io.to_pickle(fpath, graph_dict)
+        elif protocol == "dot":
+            io.to_dot(fpath, self)
+        elif protocol == "cosmograph":
+            io.to_cosmograph(fpath, self)
+        else:
+            raise TypeError(f"Graph.save() does not support {protocol=}.")
+
+    def load(self, fpath, protocol="json"):
+        if protocol == "json":
+            obj_dict = io.from_json(fpath)
+        elif protocol == "pickle":
+            obj_dict = io.from_pickle(fpath)
+        elif protocol == "dot":
+            obj_dict = io.from_dot(fpath, self)
+        elif protocol == "cosmograph":
+            raise TypeError(f"Graph.load() supports only saving to cosmograph. Cannot load from cosmograph files.")
+        else:
+            raise TypeError(f"Graph.load() does not support {protocol=}.")
+
+        return self.deserialize(obj_dict)
 
 
 class SubGraph(Graph):

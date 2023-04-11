@@ -28,6 +28,16 @@ class PMap(dict):
     def __str__(self):
         return self.__repr__()
 
+    def __eq__(self, other):
+        """
+        Two PMaps are equal if they are defined over same graph and store the same default and items.
+
+        .. note:: The two PMaps may have different names and be equal.
+        """
+        return self.graph == other.graph and self.default == other.default and set(self.items()) == set(other.items())
+
+    __hash__ = object.__hash__
+
     def __contains__(self, item):
         raise NotImplementedError("Abstract.")
 

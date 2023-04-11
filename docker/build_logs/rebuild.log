@@ -20,3 +20,31 @@
 2023-04-10 23:15:04.632 | INFO     | __main__:push_docker_image:60 - Running docker push abhibp1993/ggsolver:latest
 2023-04-10 23:15:14.397 | INFO     | __main__:push_docker_image:64 - SUCCESS!! Pushed abhibp1993/ggsolver:latest image.
 2023-04-10 23:15:14.398 | SUCCESS  | __main__:<module>:112 - abhibp1993/ggsolver:devel and abhibp1993/ggsolver:latest updated and pushed successfully...
+2023-04-11 14:48:05.690 | INFO     | __main__:<module>:74 - ********** Running dockerfile rebuild script w/ ver. 1.0.0 on 2023-04-11 14:48:05.690945 using /usr/bin/python3**********
+2023-04-11 14:48:05.697 | INFO     | __main__:update_dockerfile:37 - Updated /opt/project/docker/devel/Dockerfile with version 1.0.0.
+2023-04-11 14:48:05.705 | INFO     | __main__:update_dockerfile:37 - Updated /opt/project/docker/latest/Dockerfile with version 1.0.0.
+2023-04-11 14:48:05.705 | INFO     | __main__:build_docker_image:46 - Running docker build -t devel /opt/project/docker/devel
+2023-04-11 14:48:05.708 | ERROR    | __main__:build_docker_image:52 - PROBLEMS!! Did NOT update devel image. Did you, by mistake, try to build the image within docker?
+2023-04-11 14:48:05.708 | ERROR    | __main__:<module>:84 - Code terminated because 'devel' could not be built.
+2023-04-11 10:48:23.391 | INFO     | __main__:<module>:74 - ********** Running dockerfile rebuild script w/ ver. 1.0.0 on 2023-04-11 10:48:23.390593 using C:\Python310\python.exe**********
+2023-04-11 10:48:23.392 | INFO     | __main__:update_dockerfile:37 - Updated E:\Github-Repositories\ggsolver\docker\devel/Dockerfile with version 1.0.0.
+2023-04-11 10:48:23.393 | INFO     | __main__:update_dockerfile:37 - Updated E:\Github-Repositories\ggsolver\docker\latest/Dockerfile with version 1.0.0.
+2023-04-11 10:48:23.393 | INFO     | __main__:build_docker_image:46 - Running docker build -t devel E:\Github-Repositories\ggsolver\docker\devel
+2023-04-11 10:48:26.624 | ERROR    | __main__:build_docker_image:52 - PROBLEMS!! Did NOT update devel image. Did you, by mistake, try to build the image within docker?
+2023-04-11 10:48:26.624 | ERROR    | __main__:<module>:84 - Code terminated because 'devel' could not be built.
+2023-04-11 10:48:49.450 | INFO     | __main__:<module>:74 - ********** Running dockerfile rebuild script w/ ver. 1.0.0 on 2023-04-11 10:48:49.450393 using C:\Python310\python.exe**********
+2023-04-11 10:48:49.451 | INFO     | __main__:update_dockerfile:37 - Updated E:\Github-Repositories\ggsolver\docker\devel/Dockerfile with version 1.0.0.
+2023-04-11 10:48:49.452 | INFO     | __main__:update_dockerfile:37 - Updated E:\Github-Repositories\ggsolver\docker\latest/Dockerfile with version 1.0.0.
+2023-04-11 10:48:49.452 | INFO     | __main__:build_docker_image:46 - Running docker build -t devel E:\Github-Repositories\ggsolver\docker\devel
+2023-04-11 10:48:55.075 | INFO     | __main__:build_docker_image:50 - SUCCESS!! Updated devel image.
+2023-04-11 10:48:55.076 | INFO     | __main__:build_docker_image:46 - Running docker build -t abhibp1993/ggsolver:devel E:\Github-Repositories\ggsolver\docker\devel
+2023-04-11 10:48:56.619 | INFO     | __main__:build_docker_image:50 - SUCCESS!! Updated abhibp1993/ggsolver:devel image.
+2023-04-11 10:48:56.619 | INFO     | __main__:push_docker_image:60 - Running docker push abhibp1993/ggsolver:devel
+2023-04-11 10:49:01.193 | INFO     | __main__:push_docker_image:64 - SUCCESS!! Pushed abhibp1993/ggsolver:devel image.
+2023-04-11 10:49:01.193 | INFO     | __main__:build_docker_image:46 - Running docker build --no-cache -t latest E:\Github-Repositories\ggsolver\docker\latest
+2023-04-11 10:49:17.101 | INFO     | __main__:build_docker_image:50 - SUCCESS!! Updated latest image.
+2023-04-11 10:49:17.102 | INFO     | __main__:build_docker_image:46 - Running docker build --no-cache -t abhibp1993/ggsolver:latest E:\Github-Repositories\ggsolver\docker\latest
+2023-04-11 10:49:30.023 | INFO     | __main__:build_docker_image:50 - SUCCESS!! Updated abhibp1993/ggsolver:latest image.
+2023-04-11 10:49:30.023 | INFO     | __main__:push_docker_image:60 - Running docker push abhibp1993/ggsolver:latest
+2023-04-11 10:49:39.554 | INFO     | __main__:push_docker_image:64 - SUCCESS!! Pushed abhibp1993/ggsolver:latest image.
+2023-04-11 10:49:39.555 | SUCCESS  | __main__:<module>:112 - abhibp1993/ggsolver:devel and abhibp1993/ggsolver:latest updated and pushed successfully...

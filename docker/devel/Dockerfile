@@ -78,3 +78,6 @@ RUN pip3 install dd
 # Install sphinx documentation packages
 RUN pip3 install cloud-sptheme
 
+# Install simplejson library for serialization
+RUN pip3 install simplejson
+

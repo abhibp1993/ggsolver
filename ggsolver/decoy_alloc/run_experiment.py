@@ -84,5 +84,6 @@ if __name__ == '__main__':
     for node in g_graph.nodes():
         for node2 in g_graph.nodes():
             g_graph.add_edge(node, node2)
-    decoys = exhaustive_search(g_graph, 2)
-    print(decoys)
+    g_graph.save(os.path.join(CONFIG["directory"], "base_game.ggraph"))
+    # decoys = exhaustive_search(g_graph, 2)
+    # print(decoys)

@@ -1,6 +1,6 @@
 import random
 
-from ggsolver.decoy_alloc.models import *
+from ggsolver.decoy_alloc.cleanup.models import *
 
 
 class RandomReachabilityGame(ReachabilityGame):

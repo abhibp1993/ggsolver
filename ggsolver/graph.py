@@ -52,6 +52,7 @@ class IGraph:
         else:
             self._graph_properties[pname] = pmap
 
+
     @property
     def node_properties(self):
         """ Returns the node properties as a dictionary of {"property name": NodePropertyMap object}. """
@@ -243,7 +244,11 @@ class PMapView(PropertyMap):
         return self.pmap.__getitem__(item)
 
     def __setitem__(self, item, value):
-        raise PermissionError(f"Cannot set value of property in {self.__class__.__name__}.")
+        raise PermissionError(f"Cannot set value of property in {self.__class__.__name__}. "
+                              f"{item=}, {value=}.")
+
+    def __reduce__(self):
+        return self.__class__, (self.graph, self.pmap)
 
     def keys(self):
         return self.pmap.keys()
@@ -366,7 +371,17 @@ class Graph(IGraph):
         self._graph = nx.MultiDiGraph()
 
     def __str__(self):
-        return f"<Graph with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
+        return f"<{self.__class__.__name__} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
+
+    def __getstate__(self):
+        return self.serialize()
+
+    def __setstate__(self, obj_dict):
+        obj = self.__class__.deserialize(obj_dict)
+        self.__dict__.update(obj.__dict__)
 
     def add_node(self):
         """
@@ -639,7 +654,7 @@ class Graph(IGraph):
             graph["ep." + pname] = pmap.serialize()
 
         for pname, pmap in self.graph_properties.items():
-            graph["gp." + pname] = pmap.serialize()
+            graph["gp." + pname] = pmap
 
         # Return serialized object
         return graph
@@ -1320,8 +1335,16 @@ class SubGraph(Graph):
     # SERIALIZATION
     # =====================================================================================
     def serialize(self):
+        # PATCH. See expected format in JIRA.
         graph = self.base_graph.serialize()
+        graph["hidden_nodes"] = self._hidden_nodes.serialize()
+        graph["hidden_edges"] = self._hidden_nodes.serialize()
+        graph["node_properties"] = {k: v.serialize() for k, v in self._node_properties.items()}
+        graph["edge_properties"] = {k: v.serialize() for k, v in self._edge_properties.items()}
+        graph["graph_properties"] = self._graph_properties
+        return graph
 
     @classmethod
     def deserialize(cls, obj_dict):
+        # TODO.
         pass

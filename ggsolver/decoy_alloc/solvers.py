@@ -1,114 +1,166 @@
-from ggsolver.dtptb import SWinReach
-import ggsolver.graph as gg_graph
-from itertools import combinations
+import multiprocessing
+
+import ggsolver.graph as ggraph
+import ggsolver.models as models
+import concurrent.futures
 import os
-import datetime
-"""
-Algorithms and fact checking functions.
-"""
+import math
+from itertools import combinations
+from ggsolver.dtptb.pgsolver import SWinReach
+import loguru
+
+logger = loguru.logger
+
+MAX_COMBINATIONS = 100
 
 
-def solve_game(game):
+class EnumerativeTrapsAllocator(models.Solver):
     """
-    Solves the given game by applying the Zielonka's algorithm.
-    :return: (:class:`dtptb.SureWinReach` instance) Solution of game.
+    :param graph: graph of hypergame
     """
-    pass
+    def __init__(self, graph: ggraph.Graph,
+                 num_decoys: int,
+                 max_combinations=MAX_COMBINATIONS,
+                 cpu_count=0,
+                 directory=None,
+                 fname=None
+                 ):
+        super(EnumerativeTrapsAllocator, self).__init__(graph)
+        self.num_decoys = num_decoys
+        self.max_combinations = max_combinations
+        self.cpu_count = multiprocessing.cpu_count() if cpu_count == "all" else cpu_count
+        self.directory = directory
+        self.fname = fname
+
+        # dict with the decoys, VOD, and solver for the best decoy allocation
+        self.solution = None
+
+        self._value_of_deception = self._solution["value_of_deception"] = dict()
+
+    def _multicore_solve(self, decoy_combinations):
+        # with concurrent.futures.ProcessPoolExecutor(max_workers=self.cpu_count) as executor:
+        #     args = (
+        #         (self.graph(), [self._graph["state"][uid] for uid in decoys],
+        #          i, "winning_states", self.directory, self.fname)
+        #         for i, decoys in enumerate(decoy_combinations)
+        #     )
+        #     results = executor.map(get_value_of_deception_pair, args)
+        #
+        #     for result in results:
+        #         print(result)
+        #
+        #     return max(result, key=lambda decoy_set: len(decoy_set["value_of_deception"]))
+        raise NotImplementedError("Multicore is not supported due to pickling issues with SubGraph class.")
+
+    def _singlecore_solve(self, decoy_combinations):
+        results = []
+        for i, decoys in enumerate(decoy_combinations):
+            decoys = [self._graph["state"][uid] for uid in decoys]
+            # Remove out going edges from decoy states
+            # (the hypergame only has out going edges removed from the original final states)
+            hidden_edges = set()
+            out_going_trap_edges = [self.graph().out_edges(state) for state in decoys]
+            hidden_edges.add(out_going_trap_edges)
+            sub_graph = ggraph.SubGraph(self.graph(), hidden_edges=hidden_edges)
+            # Solve the sub_graph
+            args = (sub_graph, decoys, i, "winning_states", self.directory, self.fname)
+            result = get_value_of_deception_pair(args)
+            results.append(result)
+            self._value_of_deception[result["decoys"]] = result["value_of_deception"]
+            logger.debug(f"Solved deceptive planning for {decoys=}.")
+
+        return max(results, key=lambda decoy_set: decoy_set["value_of_deception"])
+
+    def solve(self):
+        """
+        # FIXME: Not checking node siblings for now. (decoy_subsets/arena_maping or so.)
+        :return:
+        """
+        # Check for computability
+        num_combinations = math.comb(self._graph.number_of_nodes(), self.num_decoys)
+        if num_combinations > self.max_combinations:
+            raise RuntimeError(f"Cannot process more than {self.max_combinations} games.")
+        logger.debug(f"Setting up solvers for {num_combinations} games.")
+
+        # Define combinations and extract the final states.
+        decoy_combinations = combinations(self._graph.nodes(), self.num_decoys)
+
+        # Based on multiprocessing, solve for each decoy placement.
+        if self.cpu_count > 1:
+            self.solution = self._multicore_solve(decoy_combinations)
+        else:
+            self.solution = self._singlecore_solve(decoy_combinations)
+
+        # Associate winner (P1, P2, neither) with each state and edge
+        for node in self._graph.nodes:
+            if node in self.solution["solver"].winning_nodes(1):
+                self.graph()["node_winner"][node] = 1
+            elif node in self.solution["solver"].winning_nodes(2):
+                self.graph()["node_winner"][node] = 2
+            else:
+                self.graph()["node_winner"][node] = 0
+        # TODO associate winner with each edge
+        self._is_solved = True
 
 
-def check_fact1(p1_game, p2_game):
-    """
-    Checks second bullet point in "we note the following facts".
-    Use assertions.
-    """
-    pass
+class GreedyTrapsAllocator(models.Solver):
+    def __init__(self, graph: ggraph.Graph, num_decoys, use_multiprocessing=False):
+        pass
+
+    def solve(self):
+        pass
 
 
-def check_lemma19(hypergame):
-    pass
+class EnumerativeFakesAllocator(models.Solver):
+    def __init__(self, graph: ggraph.Graph, num_decoys, use_multiprocessing=False):
+        pass
 
-def greedy_max(graph, trap_subsets, fake_subsets, max_traps=float("inf"), max_fakes=float("inf")):
-    # trap_subsets is a mapping of an arena point to a list of states that are sure winning for p1 if that arena point is a trap
-    # fake_subsets is a mapping of an arena point to a list of states that are sure winning for p1 if that arena point is a fake
+    def solve(self):
+        pass
 
-    states = set()
-    arena_points = set()
-    for arena_point, state_list in trap_subsets.items():
-        arena_points.add(arena_point)
-        for state in state_list:
-            states.add(state)
 
-    arena_traps = set() # set of arena points
-    arena_fakes = set() # set of arena points
+class GreedyFakesAllocator(models.Solver):
+    def __init__(self, graph: ggraph.Graph, num_decoys, use_multiprocessing=False):
+        pass
 
-    covered_states = set() # set of states
-    trap_states = set() # set of states
-    fake_states = set() # set of states
+    def solve(self):
+        pass
 
-    iter_count = 0
-    # Allocate traps
-    while len(states - covered_states) > 0 and len(arena_traps) < max_traps:
-        iter_count += 1
-        print(f"Iteration {iter_count}")
 
-        nontraps = arena_points - arena_traps
-        updated_winning_regions = list()
-        print(f"\tNon-traps: {nontraps}")
+class EnumerativeMixedAllocator(models.Solver):
+    def __init__(self, graph: ggraph.Graph, num_decoys, use_multiprocessing=False):
+        pass
 
-        for arena_point in nontraps:
-            # the list of final states if this arena point is made into a trap
-            final_states = list(trap_states) + trap_subsets[arena_point]
+    def solve(self):
+        pass
 
-            # TODO construct a new sub-graph based on the base graph where the final_states are sink states
-            out_going_final_edges = [graph.out_edges(state) for state in final_states]
-            sink_graph = gg_graph.SubGraph(graph)
-            sink_graph.hide_edges(out_going_final_edges)
 
-            solver = SWinReach(sink_graph, final=final_states)
-            solver.solve()
-            # TODO add different metrics to determine value of arena point as a trap
-            # pair = {"arena_point": arena_point, "value_of_trap": solver.win_region(1)}
-            pair = { "arena_point": arena_point, "winning_states": solver.win_region(1) }
+class GreedyMixedAllocator(models.Solver):
+    def __init__(self, graph: ggraph.Graph, num_decoys, use_multiprocessing=False):
+        pass
 
-            updated_winning_regions.append(pair)
+    def solve(self):
+        pass
 
-        next_trap = max(updated_winning_regions, key=lambda x: len(x["winning_states"]))
-        arena_traps.add(next_trap["arena_point"])
-        trap_states.update(trap_subsets[next_trap["arena_point"]])
-        covered_states.update(next_trap["winning_states"])
 
-        print(f"\tSelected Trap: {next_trap['arena_point']}")
-        print(f"\tNew total trap states: {len(trap_states)}")
-        print(f"\tNew total winning states: {len(covered_states)}")
+def get_value_of_deception_pair(args):
+    """ Returns the (decoy,vod) pair for a given decoy combination"""
+    logger.debug(f"{args}")
+    graph, decoys, solution_count, metric, directory, f_name = args
 
-    # Allocate fakes
-    while len(states - covered_states) > 0 and len(arena_fakes) < max_fakes:
-        iter_count += 1
-        print(f"Iteration {iter_count}")
+    # Solve new game
+    solver = SWinReach(graph, final=decoys)
+    solver.solve()
+    logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
 
-        # Potential points for fakes are all points that are not fakes OR TRAPS
-        non_allocated_points = arena_points - arena_traps - arena_fakes
-        updated_winning_regions = list()
-        print(f"\tnon_allocated_points: {non_allocated_points}")
+    if directory is not None and f_name is not None:
+        solver.solution().save(os.path.join(directory, f"{f_name}_{solution_count}.solution"))
 
-        for arena_point in non_allocated_points:
-            # the list of final states if this arena point is made into a fake (we must include states made winning by traps)
-            final_states = list(fake_states) + list(trap_states) + fake_subsets[arena_point]
+    if metric == "winning_states":
+        # FIXME Define value of deception based on paper instead of number of winning states
+        value_of_deception = len(solver.winning_states(1))
+        pair = {"decoys": decoys, "value_of_deception": value_of_deception, "solver": solver}
+        return pair
+    else:
+        raise NotImplementedError
 
-            solver = SWinReach(graph, final=final_states)
-            solver.solve()
-            pair = { "arena_point": arena_point, "winning_states": solver.win_region(1) }
-
-            updated_winning_regions.append(pair)
-
-        # TODO what to do if two traps/fakes give the same number of winning states? does it matter which we pick?
-        next_fake = max(updated_winning_regions, key=lambda x: len(x["winning_states"]))
-        arena_fakes.add(next_fake["arena_point"])
-        fake_states.update(fake_subsets[next_fake["arena_point"]])
-        covered_states.update(next_fake["winning_states"])
-
-        print(f"\tSelected Fake: {next_fake['arena_point']}")
-        print(f"\tNew total fake states: {len(fake_states)}")
-        print(f"\tNew total winning states: {len(covered_states)}")
-
-    return arena_traps, arena_fakes, covered_states, trap_states, fake_states

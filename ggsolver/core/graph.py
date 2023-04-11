@@ -206,35 +206,6 @@ class PMapView(PMap):
         return
 
 
-class NodePMap(PMap):
-    """
-    Implements a default dictionary that maps a node ID to its property value. To store data efficiently,
-    only the non-default values are stored in the dictionary.
-    Raises an error if the node ID is invalid.
-    """
-    def __contains__(self, item):
-        # TODO. Can be replaced with `return item in self.graph`.
-        return self.graph.has_node(item)
-
-    def keys(self):
-        return self.graph.nodes()
-
-
-class EdgePMap(PMap):
-    """
-    Implements a default dictionary that maps an edge (uid, vid, key) to its property value. To store data efficiently,
-    only the non-default values are stored in the dictionary.
-    Raises an error if the edge (uid, vid, key) is invalid.
-    """
-
-    def __contains__(self, item):
-        # TODO. Can be replaced with `return item in self.graph`.
-        return self.graph.has_edge(*item)
-
-    def keys(self):
-        return self.graph.edges()
-
-
 class Graph:
     """
     Graph represents a 5-tuple

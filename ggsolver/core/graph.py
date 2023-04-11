@@ -9,10 +9,10 @@ from loguru import logger
 from functools import reduce
 
 
-class PropertyMap(dict):
+class PMap(dict):
     """ Base class for NodePropertyMap and EdgePropertyMap. """
     def __init__(self, graph, pname=None, default=None):
-        super(PropertyMap, self).__init__()
+        super(PMap, self).__init__()
         self.pname = pname
         self.graph = graph
         self.default = default
@@ -40,7 +40,7 @@ class PropertyMap(dict):
             raise KeyError(f"[ERROR] {self.__class__.__name__}.__getitem__:: {item} is not in {self.graph}.")
 
         try:
-            return super(PropertyMap, self).__getitem__(item)
+            return super(PMap, self).__getitem__(item)
         except KeyError:
             return self.__missing__(item)
 
@@ -48,7 +48,7 @@ class PropertyMap(dict):
         # TODO. Replace with `if item in self.graph` after Graph.__contains__ is checked.
         assert self.__contains__(item), f"[ERROR] {self.__class__.__name__}.__setitem__:: {item} not in {self.graph}."
         if value != self.default:
-            super(PropertyMap, self).__setitem__(item, value)
+            super(PMap, self).__setitem__(item, value)
 
     def keys(self):
         """
@@ -66,13 +66,13 @@ class PropertyMap(dict):
         """
         Returns only the keys that are explicitly stored in property map.
         """
-        return super(PropertyMap, self).keys()
+        return super(PMap, self).keys()
 
     def local_items(self):
         """
         Returns only the items that are explicitly stored in property map.
         """
-        return super(PropertyMap, self).items()
+        return super(PMap, self).items()
 
     def update_default(self, new_default):
         """
@@ -81,10 +81,10 @@ class PropertyMap(dict):
         old_default = self.default
         for k, v in self.items():
             if v == old_default:
-                super(PropertyMap, self).__setitem__(k, v)
+                super(PMap, self).__setitem__(k, v)
 
             if v == new_default:
-                super(PropertyMap, self).pop(k)
+                super(PMap, self).pop(k)
 
     def serialize(self):
         # Construct a map of non-default values.
@@ -104,7 +104,7 @@ class PropertyMap(dict):
                 self[ast.literal_eval(k)] = v
 
 
-class PMapView(PropertyMap):
+class PMapView(PMap):
     def __init__(self, graph, pmap):
         super(PMapView, self).__init__(graph=graph, default=pmap.default)
         self.pmap = pmap
@@ -154,7 +154,7 @@ class PMapView(PropertyMap):
         return
 
 
-class NodePropertyMap(PropertyMap):
+class NodePMap(PMap):
     """
     Implements a default dictionary that maps a node ID to its property value. To store data efficiently,
     only the non-default values are stored in the dictionary.
@@ -168,7 +168,7 @@ class NodePropertyMap(PropertyMap):
         return self.graph.nodes()
 
 
-class EdgePropertyMap(PropertyMap):
+class EdgePMap(PMap):
     """
     Implements a default dictionary that maps an edge (uid, vid, key) to its property value. To store data efficiently,
     only the non-default values are stored in the dictionary.
@@ -227,16 +227,16 @@ class Graph:
     def __setitem__(self, pname, pmap):
         # Check if the property exists
         if pname in self._np.keys():
-            assert isinstance(pmap, NodePropertyMap)
+            assert isinstance(pmap, NodePMap)
 
         if pname in self._ep.keys():
-            assert isinstance(pmap, EdgePropertyMap)
+            assert isinstance(pmap, EdgePMap)
 
         # Update property value
-        if isinstance(pmap, NodePropertyMap):
+        if isinstance(pmap, NodePMap):
             pmap.name = pname
             self._np[pname] = pmap
-        elif isinstance(pmap, EdgePropertyMap):
+        elif isinstance(pmap, EdgePMap):
             pmap.name = pname
             self._ep[pname] = pmap
         else:
@@ -307,7 +307,7 @@ class Graph:
         if not overwrite:
             assert pname not in self._np, f"Node property: {pname} exists in graph:{self}. " \
                                           f"To overwrite pass parameter `overwrite=True` to this function."
-        np = NodePropertyMap(graph=self, pname=pname, default=default)
+        np = NodePMap(graph=self, pname=pname, default=default)
         self[pname] = np
         return np
 
@@ -315,7 +315,7 @@ class Graph:
         if not overwrite:
             assert pname not in self._ep, f"Edge property: {pname} exists in graph:{self}. " \
                                           f"To overwrite pass parameter `overwrite=True` to this function."
-        ep = EdgePropertyMap(graph=self, pname=pname, default=default)
+        ep = EdgePMap(graph=self, pname=pname, default=default)
         self[pname] = ep
         return ep
 
@@ -645,11 +645,11 @@ class Graph:
 
         # Deserialize properties
         for pname in node_properties:
-            graph[pname] = NodePropertyMap(graph)
+            graph[pname] = NodePMap(graph)
             graph[pname].deserialize(obj_dict["np." + pname])
 
         for pname in edge_properties:
-            graph[pname] = EdgePropertyMap(graph)
+            graph[pname] = EdgePMap(graph)
             graph[pname].deserialize(obj_dict["ep." + pname])
 
         for pname in graph_properties:

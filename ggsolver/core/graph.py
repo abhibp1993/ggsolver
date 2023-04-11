@@ -30,11 +30,11 @@ class PMap(dict):
 
     def __eq__(self, other):
         """
-        Two PMaps are equal if they are defined over same graph and store the same default and items.
+        Two PMaps are equal they store the same items and have the same defaults.
 
         .. note:: The two PMaps may have different names and be equal.
         """
-        return self.graph == other.graph and self.default == other.default and set(self.items()) == set(other.items())
+        return self.default == other.default and set(self.items()) == set(other.items())
 
     __hash__ = object.__hash__
 
@@ -167,6 +167,9 @@ class PMapView(PMap):
     def __str__(self):
         return self.__repr__()
 
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and super(PMapView, self).__eq__(other)
+
     def __contains__(self, item):
         return self.pmap.__contains__(item)
 
@@ -175,6 +178,12 @@ class PMapView(PMap):
 
     def __setitem__(self, item, value):
         raise PermissionError(f"Cannot set value of property in {self.__class__.__name__}.")
+
+    def __getstate__(self):
+        return self.serialize()
+
+    def __setstate__(self, obj_dict):
+        pass
 
     def keys(self):
         return self.pmap.keys()
@@ -196,6 +205,7 @@ class PMapView(PMap):
     def serialize(self):
         # Return serialization of underlying PMap.
         serialized_dict = self.pmap.serialize()
+        serialized_dict["type"] = self.__class__.__name__
         return serialized_dict
 
     def deserialize(self, obj_dict):
@@ -222,7 +232,7 @@ class Graph:
     Notes:
         - Each graph object is uniquely identified by its name.
     """
-    def __init__(self, name=None):
+    def __init__(self, name=None, **kwargs):
         self.name = name
         self._graph = nx.MultiDiGraph()
         self._np = dict()
@@ -633,7 +643,7 @@ class Graph:
             graph["ep." + pname] = pmap.serialize()
 
         for pname, pmap in self._gp.items():
-            graph["gp." + pname] = pmap.serialize()
+            graph["gp." + pname] = pmap
 
         # Return serialized object
         return graph

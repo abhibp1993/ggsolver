@@ -4,3 +4,7 @@
 ggsolver/__pycache__/
 
 ggsolver/ioutils/__pycache__/
+
+*/__pycache__/
+
+ggsolver/core/__pycache__/

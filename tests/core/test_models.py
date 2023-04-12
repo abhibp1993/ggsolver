@@ -23,7 +23,7 @@ class JobstmannGame(ggsolver.Game):
         i = int(state[1:])
         return self._en_acts[i]
 
-    def delta(self, state, act):
+    def delta(self, state: str, act: tuple) -> str:
         return f"s{act[1]}"
 
     def final(self, state):
@@ -46,6 +46,17 @@ class TestGameGraphify(unittest.TestCase):
     def test_graphify_p_sc(self):
         self.game.initialize("s0")
         graph = self.game.graphify(pointed=True)
+        edges = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4), (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3), (5, 6),
+                 (6, 6), (6, 7), (7, 0), (7, 3)]
+
+        self.assertEqual(set(graph["state"][i] for i in graph.nodes()), set(f"s{i}" for i in range(8)))
+        self.assertEqual(set((graph["state"][u], graph["state"][v]) for u, v, _ in graph.edges()),
+                         set((f"s{i}", f"s{j}") for i, j in edges))
+        self.assertEqual(graph["state"][0], "s0")
+        self.assertEqual(graph["state"][1], "s1")
+
+    def test_graphify_up_mc(self):
+        graph = self.game.graphify(cores=3)
         edges = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4), (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3), (5, 6),
                  (6, 6), (6, 7), (7, 0), (7, 3)]
 

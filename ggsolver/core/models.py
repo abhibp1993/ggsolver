@@ -1,3 +1,4 @@
+import concurrent.futures
 import inspect
 import multiprocessing
 from tqdm import tqdm
@@ -87,7 +88,6 @@ class GraphicalModel:
         :param pointed: (bool) If True, constructs pointed graphical model. Otherwise, constructs complete model.
         :param cores: (int) Number of cores to use. Must be a positive integer.
             If given value is larger than number of available cores, maximum cores will be used.
-        :param jit: (bool) If `True`, attempts just-in-time compilation to accelerate process.
         :param verbosity: (int) Accepted values:
             - 0: no messages,
             - 1: shows progress bars, critical warnings and messages. [Default]
@@ -103,7 +103,7 @@ class GraphicalModel:
         :return: Equivalent graph of game with given properties.
         """
         # Process arguments
-        pointed, cores, jit, verbosity, np, ep, gp = self._graphify_process_args(kwargs)
+        pointed, cores, verbosity, np, ep, gp = self._graphify_process_args(kwargs)
 
         # Configure key functions
         states = getattr(self, "states")
@@ -125,27 +125,21 @@ class GraphicalModel:
         graph.create_ep("prob")
 
         # Construct underlying graph
-        if not pointed and cores == 1 and not jit:
+        if not pointed and cores == 1:
             self._gen_graph_up_sc(graph=graph, states=states, inputs=inputs, delta=delta,
                                   en_inputs=en_inputs, verbosity=verbosity)
-        elif not pointed and cores > 1 and not jit:
+        elif not pointed and cores > 1:
             self._gen_graph_up_mc(graph=graph, states=states, inputs=inputs, delta=delta,
                                   en_inputs=en_inputs, verbosity=verbosity)
-        elif not pointed and cores == 1 and jit:
-            self._gen_graph_up_jit(graph=graph, states=states, inputs=inputs, delta=delta,
-                                   en_inputs=en_inputs, verbosity=verbosity)
-        elif pointed and cores == 1 and not jit:
+        elif pointed and cores == 1:
             self._gen_graph_p_sc(graph=graph, inputs=inputs, delta=delta, init_state=init_state,
                                  en_inputs=en_inputs, verbosity=verbosity)
-        elif pointed and cores > 1 and not jit:
+        elif pointed and cores > 1:
             self._gen_graph_p_mc(graph=graph, inputs=inputs, delta=delta, init_state=init_state,
                                  en_inputs=en_inputs, verbosity=verbosity)
-        elif pointed and cores == 1 and jit:
-            self._gen_graph_p_jit(graph=graph, inputs=inputs, delta=delta, init_state=init_state,
-                                  en_inputs=en_inputs, verbosity=verbosity)
         else:
             raise RuntimeError(f"The following configuration is not supported: "
-                               f"{pointed=}, {cores=}, {jit=}.")
+                               f"{pointed=}, {cores=}.")
 
         # Construct node, edge and graph property maps
         for p_name in np:
@@ -205,6 +199,12 @@ class GraphicalModel:
                             f"Check the values: is_deterministic: {self.is_deterministic()}, "
                             f"self.is_quantitative:{self.is_probabilistic()}.")
 
+        return edges
+
+    def _gen_edges_mc(self, data):
+        edges = set()
+        for delta, state, inp, verbosity in data:
+            edges.update(self._gen_edges(delta, state, inp, verbosity))
         return edges
 
     def _gen_graph_up_sc(self, graph, states, inputs, delta, en_inputs, verbosity):
@@ -272,10 +272,65 @@ class GraphicalModel:
             logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
 
     def _gen_graph_up_mc(self, graph, states, inputs, delta, en_inputs, verbosity):
-        pass
+        # Initialize node and edge properties
+        np_state = graph["state"]
+        np_enabled_inputs = graph["enabled_inputs"]
+        ep_input = graph["input"]
+        ep_prob = graph["prob"]
 
-    def _gen_graph_up_jit(self, graph, states, inputs, delta, en_inputs, verbosity):
-        pass
+        # Get states, add them to graph, update state property and cache
+        states = states()
+        self._cache_state2node = dict()
+        for state in tqdm(states, desc="Unpointed, single-core graphify adding nodes to graph",
+                          disable=True if verbosity == 0 else False):
+            sid = graph.add_node()
+            self._cache_state2node[state] = sid
+            np_state[sid] = state
+
+        # If enabled inputs function is implemented, use it.
+        try:
+            s0 = next(iter(self._cache_state2node.keys()))
+            en_inputs(s0)
+        except NotImplementedError:
+            en_inputs = None
+            if verbosity >= 1:
+                logger.warning("`enabled_inputs` function raised NotImplementedError. "
+                               "Setting enabled_inputs(state) to return inputs().")
+
+        # Otherwise, set enabled inputs to be set of all inputs.
+        # If neither enabled inputs nor inputs is defined, raise exception.
+        if en_inputs is None:
+            # Ensure inputs() function is well-defined.
+            try:
+                inputs = inputs()
+                graph["inputs"] = inputs
+            except NotImplementedError:
+                raise NotImplementedError("Neither `enabled_inputs` nor `inputs` methods are implemented. "
+                                          "Terminating graphify().")
+
+            # Redefine enabled inputs method
+            def en_inputs(state_):
+                return inputs
+
+        # Generate edges for each node-input pair.
+        #   This is parallelized using concurrent.futures module. Each process gets a chunk of node-input pairs.
+        def split_list(lst, n):
+            k, m = divmod(len(lst), n)
+            return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
+
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            num_cpu = multiprocessing.cpu_count()
+            state_input_pairs = [(delta, st, inp, verbosity) for st in self._cache_state2node.keys()
+                                 for inp in en_inputs(st)]
+            results = executor.map(self._gen_edges_mc, split_list(state_input_pairs, num_cpu))
+
+        for edges in tqdm(results, desc="Unpointed graphify constructing edges."):
+            for src, dst, inp, prob in edges:
+                uid = self._cache_state2node[src]
+                vid = self._cache_state2node[dst]
+                key = graph.add_edge(uid, vid)
+                ep_input[uid, vid, key] = inp
+                ep_prob[uid, vid, key] = prob
 
     def _gen_graph_p_sc(self, graph, inputs, delta, init_state, en_inputs, verbosity):
         # Initialize node and edge properties
@@ -369,9 +424,6 @@ class GraphicalModel:
     def _gen_graph_p_mc(self, graph, inputs, delta, init_state, en_inputs, verbosity):
         pass
 
-    def _gen_graph_p_jit(self, graph, inputs, delta, init_state, en_inputs, verbosity):
-        pass
-
     def _add_np(self, graph, p_name, verbosity, default=None):
         try:
             p_map = graph.create_np(pname=p_name, default=default)
@@ -437,9 +489,6 @@ class GraphicalModel:
         pointed = kwargs.get("pointed", False)
         assert isinstance(pointed, bool)
 
-        jit = kwargs.get("jit", False)
-        assert isinstance(jit, bool)
-
         cpu_cores = multiprocessing.cpu_count()
         cores = max(1, min(cpu_cores, kwargs.get("cores", 1)))
 
@@ -478,7 +527,6 @@ class GraphicalModel:
         if verbosity >= 2:
             logger.info(f"Graphify configuration: {pointed=}.")
             logger.info(f"Graphify configuration: {cores=}.")
-            logger.info(f"Graphify configuration: {jit=}.")
             logger.info(f"Graphify configuration: {verbosity=}.")
             logger.info(f"Graphify configuration: {np=}.")
             logger.info(f"Graphify configuration: {ep=}.")
@@ -494,7 +542,6 @@ class GraphicalModel:
         # Always log to debug
         logger.debug(f"Graphify configuration: {pointed=}.")
         logger.debug(f"Graphify configuration: {cores=}.")
-        logger.debug(f"Graphify configuration: {jit=}.")
         logger.debug(f"Graphify configuration: {verbosity=}.")
         logger.debug(f"Graphify configuration: {np=}.")
         logger.debug(f"Graphify configuration: {ep=}.")
@@ -507,7 +554,7 @@ class GraphicalModel:
         logger.debug(f"Graphify configuration: Ignored edge properties: {ep_ignore}.")
         logger.debug(f"Graphify configuration: Ignored graph properties: {gp_ignore}.")
 
-        return pointed, cores, jit, verbosity, np, ep, gp
+        return pointed, cores, verbosity, np, ep, gp
 
     def _graphify_preprocess_properties(self, np, ep, gp, verbosity):
         pass

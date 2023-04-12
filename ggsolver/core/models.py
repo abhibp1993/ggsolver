@@ -445,7 +445,94 @@ class GraphicalModel:
             logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
 
     def _gen_graph_p_mc(self, graph, inputs, delta, init_state, en_inputs, verbosity):
-        pass
+        # Initialize node and edge properties
+        np_state = graph["state"]
+        np_enabled_inputs = graph["enabled_inputs"]
+        ep_input = graph["input"]
+        ep_prob = graph["prob"]
+
+        # Initialize state cache
+        self._cache_state2node = dict()
+
+        # Add initial state
+        try:
+            s0 = init_state()
+            uid = graph.add_node()
+            self._cache_state2node[s0] = uid
+            np_state[uid] = s0
+
+        except NotImplementedError:
+            raise NotImplementedError("`init_state` function raised NotImplementedError. "
+                                      "Terminating graphify().")
+
+        # If enabled inputs function is implemented, use it.
+        try:
+            en_inputs(s0)
+        except NotImplementedError:
+            en_inputs = None
+            if verbosity >= 1:
+                logger.warning("`enabled_inputs` function raised NotImplementedError. "
+                               "Setting enabled_inputs(state) to return inputs().")
+
+        # Otherwise, set enabled inputs to be set of all inputs.
+        # If neither enabled inputs nor inputs is defined, raise exception.
+        if en_inputs is None:
+            # Ensure inputs() function is well-defined.
+            try:
+                inputs = inputs()
+                graph["inputs"] = inputs
+            except NotImplementedError:
+                raise NotImplementedError("Neither `enabled_inputs` nor `inputs` methods are implemented. "
+                                          "Terminating graphify().")
+
+            # Redefine enabled inputs method
+            def en_inputs(state_):
+                return inputs
+
+        # Generate edges using BFS traversal until all reachable states are visited.
+        # TODO. Change this to multiprocessing
+        queue = [s0]
+        visited = set()
+        with tqdm(total=1, desc="Pointed graphify adding edges", disable=True if verbosity == 0 else False) as pbar:
+            while len(queue) > 0:
+                # Update progress_bar
+                pbar.total = len(queue) + len(visited)
+                pbar.update(1)
+
+                # Visit a state. Add to graph. Update cache. Update node property `state`.
+                state = queue.pop()
+                visited.add(state)
+                uid = self._cache_state2node[state]
+
+                # Get enabled inputs at the state
+                inputs_at_state = en_inputs(state)
+                np_enabled_inputs[uid] = inputs_at_state
+
+                # Apply all inputs to state
+                for inp in inputs_at_state:
+                    # Get successors: set of (from_st, to_st, inp, prob)
+                    new_edges = self._gen_edges(delta, state, inp, verbosity)
+
+                    for _, to_state, _, prob in new_edges:
+                        # If to_state was added to queue in the past, its id will be cached.
+                        # Otherwise, add new node, cache it and queue it for exploration.
+                        vid = self._cache_state2node.get(to_state, None)
+                        if vid is None:
+                            vid = graph.add_node()
+                            self._cache_state2node[to_state] = vid
+                            np_state[vid] = to_state
+                            queue.append(to_state)
+
+                        # Add edge to graph
+                        key = graph.add_edge(uid, vid)
+
+                        # Set edge properties
+                        ep_input[uid, vid, key] = inp
+                        ep_prob[uid, vid, key] = prob
+
+        # Log completion of this procedure
+        if verbosity > 0:
+            logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
 
     def _add_np(self, graph, p_name, verbosity, default=None):
         try:

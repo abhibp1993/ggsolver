@@ -2,3 +2,5 @@
 .idea/
 
 ggsolver/__pycache__/
+
+ggsolver/ioutils/__pycache__/

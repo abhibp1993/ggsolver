@@ -3,7 +3,7 @@ import inspect
 import multiprocessing
 from tqdm import tqdm
 from loguru import logger
-from ggsolver.core.graph import Graph
+from ggsolver.core.graph import Graph, SubGraph
 
 
 # ==========================================================================
@@ -18,6 +18,9 @@ def register_property(property_set: set):
     return register_function
 
 
+# ==========================================================================
+# GRAPHICAL MODELS
+# ==========================================================================
 class GraphicalModel:
     NODE_PROPERTY = set()
     EDGE_PROPERTY = set()
@@ -54,8 +57,28 @@ class GraphicalModel:
         """ Returns `True` if the graphical model is probabilistic. Else, returns `False`. """
         return self._is_probabilistic
 
+    # ==========================================================================
+    # PUBLIC FUNCTIONS.
+    # ==========================================================================
     def initialize(self, s0):
         self._init_state = s0
+
+    def make_complete(self):
+        # TODO. GraphicalModel.make_complete
+        # Wrap states() method to add a "__sink__" state.
+        # Wrap delta() method to redirect any undefined transitions into sink state.
+        pass
+
+    def from_graph(self, graph):
+        # TODO. Implement from_graph method
+        # Define states()
+        # Define inputs() and/or enabled_inputs()
+        # Define delta() 
+        # Load node properties 
+        # Load edge properties
+        # Load graph properties
+        # Manage cached variables
+        pass
 
     # ==========================================================================
     # FUNCTIONS TO BE IMPLEMENTED BY USER.
@@ -759,6 +782,131 @@ class Game(GraphicalModel):
     def formula(self):
         """ A logic formula representing the winning condition of the game. """
         raise NotImplementedError
+
+
+class Solver:
+    """
+    Represents a game solver that computes the winning regions and strategies for the players
+    under a fixed solution concept.
+    :param graph: (Graph or SubGraph instance) Graph or subgraph representing the game on a graph.
+    """
+    def __init__(self, graph, **kwargs):
+        # Load and validate graph
+        self._graph = graph
+        self._solution = SubGraph(self._graph)
+
+        # Associate node and edge properties with solution
+        #   Values denote which player wins from node, edge.
+        self._node_winner = self._solution.create_np(pname="node_winner", default=-1)
+        self._edge_winner = self._solution.create_ep(pname="edge_winner", default=-1)
+
+        # Status variables
+        self._is_solved = False
+
+        # Cache variables
+        self._cache_state2node = {self._solution["state"][uid]: uid for uid in self._solution.nodes()}
+
+    def __str__(self):
+        return f"<Solver for {self._graph}>"
+
+    def graph(self):
+        """ Returns the input game graph. """
+        return self._graph
+
+    def state2node(self, state):
+        """ Helper function to get the node id associated with given state. """
+        return self._cache_state2node[state]
+
+    def node2state(self, uid):
+        """ Helper function to get the state associated with node id. """
+        return self._graph["state"][uid]
+
+    def is_solved(self):
+        """ Returns if the game is solved or not. """
+        return self._is_solved
+
+    def solution(self):
+        """
+        Returns the solved game graph.
+        The graph contains two special properties:
+        - `node_winner` (node property): Maps each node to the id of player (1/2) who wins from that node.
+        - `edge_winner` (edge property): Maps each edge to the id of player (1/2) who wins using that edge.
+        """
+        if not self.is_solved():
+            raise ValueError(f"{self} is not solved.")
+        return self._solution
+
+    def solve(self):
+        """ Abstract method."""
+        raise NotImplementedError
+
+    def state_winner(self, state):
+        """ Returns the player who wins from the given state. """
+        uid = self.state2node(state)
+        return self._node_winner[uid]
+
+    def node_winner(self, uid):
+        """ Returns the player who wins from the given state. """
+        return self._node_winner[uid]
+
+    def winning_actions(self, state):
+        """ Retuns the list of winning actions from the given state. """
+        # Get the input domain (name of function) of game
+        ep_input = self._solution["input"]
+
+        # Get node id for the state
+        uid = self.state2node(state)
+
+        # Determine which player has a winning strategy at the state
+        player = self._node_winner[uid]
+
+        # Identify all winning actions.
+        win_acts = set()
+        for _, vid, key in self._graph.out_edges(uid):
+            if self._edge_winner[uid, vid, key] == player:
+                # win_acts.add(self._graph[ep_input][uid, vid, key])
+                win_acts.add(ep_input[uid, vid, key])
+
+        # Convert to list and return
+        return list(win_acts)
+
+    def winning_states(self, player):
+        """ Returns the winning region for the player. """
+        # return [self._solution["state"][uid] for uid in self._solution.nodes() if self._node_winner[uid] == player]
+        return [self._solution["state"][uid] for uid in self._solution.nodes() if self._node_winner[uid] == player]
+
+    def winning_edges(self, uid):
+        """ Returns the list of winning actions from the given node. """
+        # Determine which player has a winning strategy at the node
+        player = self._node_winner[uid]
+
+        # Identify all winning actions.
+        win_edges = set()
+        for _, vid, key in self._graph.out_edges(uid):
+            if self._edge_winner[uid, vid, key] == player:
+                win_edges.add((uid, vid, key))
+
+        # Convert to list and return
+        return list(win_edges)
+
+    def winning_nodes(self, player):
+        """ Returns the winning region for the player. """
+        return [uid for uid in self._solution.nodes() if self._node_winner[uid] == player]
+
+    def reset(self):
+        """ Resets the solver. """
+        self._solution = SubGraph(self._graph)
+        self._node_winner = self._solution.create_np(pname="node_winner", default=-1, overwrite=True)
+        self._edge_winner = self._solution.create_ep(pname="edge_winner", default=-1, overwrite=True)
+
+
+def cached(model: GraphicalModel):
+    # TODO. Implement cached
+    # Add _cache_delta variable to model.
+    # Wrap model.delta in custom function that manages the cache variable.
+    # Update model.delta
+    # Return
+    pass
 
 
 if __name__ == '__main__':

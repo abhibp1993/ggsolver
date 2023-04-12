@@ -1,4 +1,5 @@
 import concurrent.futures
+import ctypes
 import inspect
 import multiprocessing
 from tqdm import tqdm
@@ -153,13 +154,13 @@ class GraphicalModel:
                                   en_inputs=en_inputs, verbosity=verbosity)
         elif not pointed and cores > 1:
             self._gen_graph_up_mc(graph=graph, states=states, inputs=inputs, delta=delta,
-                                  en_inputs=en_inputs, verbosity=verbosity)
+                                  en_inputs=en_inputs, cores=cores, verbosity=verbosity)
         elif pointed and cores == 1:
             self._gen_graph_p_sc(graph=graph, inputs=inputs, delta=delta, init_state=init_state,
                                  en_inputs=en_inputs, verbosity=verbosity)
         elif pointed and cores > 1:
             self._gen_graph_p_mc(graph=graph, inputs=inputs, delta=delta, init_state=init_state,
-                                 en_inputs=en_inputs, verbosity=verbosity)
+                                 en_inputs=en_inputs, cores=cores, verbosity=verbosity)
         else:
             raise RuntimeError(f"The following configuration is not supported: "
                                f"{pointed=}, {cores=}.")
@@ -224,11 +225,37 @@ class GraphicalModel:
 
         return edges
 
-    def _gen_edges_mc(self, data):
+    def _gen_edges_up_mc(self, data):
         edges = set()
         for delta, state, inp, verbosity in data:
             edges.update(self._gen_edges(delta, state, inp, verbosity))
         return edges
+
+    def _gen_edges_p_mc(self, delta, verbosity, queue, visited, edges, pid, process_state):
+        """
+        States:: 0: start, 1: running, 2: waiting, 3: completed.
+
+        :param delta:
+        :param verbosity:
+        :param queue:
+        :param visited:
+        :param edges:
+        :param pid:
+        :param process_state:
+        :return:
+        """
+        process_state[pid] = 0
+        while True:
+            # Termination condition
+            if queue.empty() and (v in [2, 3] for i, v in process_state):
+                process_state[pid] = 3
+                break
+
+            # Get current state
+            if queue.empty():
+                continue
+
+            #
 
     def _gen_graph_up_sc(self, graph, states, inputs, delta, en_inputs, verbosity):
         # Initialize node and edge properties
@@ -294,7 +321,7 @@ class GraphicalModel:
         if verbosity > 0:
             logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
 
-    def _gen_graph_up_mc(self, graph, states, inputs, delta, en_inputs, verbosity):
+    def _gen_graph_up_mc(self, graph, states, inputs, delta, en_inputs, cores, verbosity):
         # Initialize node and edge properties
         np_state = graph["state"]
         np_enabled_inputs = graph["enabled_inputs"]
@@ -341,11 +368,11 @@ class GraphicalModel:
             k, m = divmod(len(lst), n)
             return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
 
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            num_cpu = multiprocessing.cpu_count()
+        # num_cpu = cores
+        with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
             state_input_pairs = [(delta, st, inp, verbosity) for st in self._cache_state2node.keys()
                                  for inp in en_inputs(st)]
-            results = executor.map(self._gen_edges_mc, split_list(state_input_pairs, num_cpu))
+            results = executor.map(self._gen_edges_up_mc, split_list(state_input_pairs, cores))
 
         for edges in tqdm(results, desc="Unpointed graphify constructing edges."):
             for src, dst, inp, prob in edges:
@@ -444,7 +471,7 @@ class GraphicalModel:
         if verbosity > 0:
             logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
 
-    def _gen_graph_p_mc(self, graph, inputs, delta, init_state, en_inputs, verbosity):
+    def _gen_graph_p_mc(self, graph, inputs, delta, init_state, en_inputs, cores, verbosity):
         # Initialize node and edge properties
         np_state = graph["state"]
         np_enabled_inputs = graph["enabled_inputs"]
@@ -490,45 +517,45 @@ class GraphicalModel:
                 return inputs
 
         # Generate edges using BFS traversal until all reachable states are visited.
-        # TODO. Change this to multiprocessing
-        queue = [s0]
-        visited = set()
-        with tqdm(total=1, desc="Pointed graphify adding edges", disable=True if verbosity == 0 else False) as pbar:
-            while len(queue) > 0:
-                # Update progress_bar
-                pbar.total = len(queue) + len(visited)
-                pbar.update(1)
+        #   Parallelism is achieved by defining producer-consumer style processes.
+        queue = multiprocessing.Queue()
+        visited = multiprocessing.Manager().dict()
+        process_state = multiprocessing.Array(ctypes.c_int8)
+        edges = multiprocessing.Queue()
+        processes = dict()
+        for pid in range(cores):
+            prc = multiprocessing.Process(target=self._gen_edges_p_mc,
+                                          args=(delta, verbosity, queue, visited, edges, pid, process_state))
+            processes[pid] = prc
+            prc.start()
+            if verbosity >= 1:
+                logger.info(f"Pointed graphify multi-core started process {i}.")
 
-                # Visit a state. Add to graph. Update cache. Update node property `state`.
-                state = queue.pop()
-                visited.add(state)
-                uid = self._cache_state2node[state]
+        for prc in processes.values():
+            prc.join()
 
-                # Get enabled inputs at the state
-                inputs_at_state = en_inputs(state)
-                np_enabled_inputs[uid] = inputs_at_state
+        # Process generated states and edges
+        for state in visited:
+            uid = graph.add_node()
+            self._cache_state2node[state] = uid
+            np_state[uid] = state
 
-                # Apply all inputs to state
-                for inp in inputs_at_state:
-                    # Get successors: set of (from_st, to_st, inp, prob)
-                    new_edges = self._gen_edges(delta, state, inp, verbosity)
+        while True:
+            if edges.empty():
+                break
 
-                    for _, to_state, _, prob in new_edges:
-                        # If to_state was added to queue in the past, its id will be cached.
-                        # Otherwise, add new node, cache it and queue it for exploration.
-                        vid = self._cache_state2node.get(to_state, None)
-                        if vid is None:
-                            vid = graph.add_node()
-                            self._cache_state2node[to_state] = vid
-                            np_state[vid] = to_state
-                            queue.append(to_state)
+            source, target, inp, prob = edges.get()
+            uid = self._cache_state2node[source]
+            vid = self._cache_state2node[target]
+            key = graph.add_edge(uid, vid)
 
-                        # Add edge to graph
-                        key = graph.add_edge(uid, vid)
+            if np_enabled_inputs[uid] is np_enabled_inputs.default:
+                np_enabled_inputs[uid] = {inp}
+            else:
+                np_enabled_inputs[uid].append(inp)
 
-                        # Set edge properties
-                        ep_input[uid, vid, key] = inp
-                        ep_prob[uid, vid, key] = prob
+            ep_input[uid, vid, key] = inp
+            ep_prob[uid, vid, key] = prob
 
         # Log completion of this procedure
         if verbosity > 0:

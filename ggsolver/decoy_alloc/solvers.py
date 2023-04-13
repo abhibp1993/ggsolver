@@ -33,7 +33,7 @@ class EnumerativeTrapsAllocator(models.Solver):
         self.fname = fname
 
         # dict with the decoys, VOD, and solver for the best decoy allocation
-        self.solution = None
+        self.deception_dict = None
 
         self._value_of_deception = self._solution["value_of_deception"] = dict()
 
@@ -59,14 +59,17 @@ class EnumerativeTrapsAllocator(models.Solver):
             # Remove out going edges from decoy states
             # (the hypergame only has out going edges removed from the original final states)
             hidden_edges = set()
-            out_going_trap_edges = [self.graph().out_edges(state) for state in decoys]
-            hidden_edges.add(out_going_trap_edges)
+            out_going_trap_edges = list()
+            for state in decoys:
+                for out_edge in self.graph().out_edges(self._state2node[state]):
+                    out_going_trap_edges.append(out_edge)
+            hidden_edges.update(out_going_trap_edges)
             sub_graph = ggraph.SubGraph(self.graph(), hidden_edges=hidden_edges)
             # Solve the sub_graph
             args = (sub_graph, decoys, i, "winning_states", self.directory, self.fname)
             result = get_value_of_deception_pair(args)
             results.append(result)
-            self._value_of_deception[result["decoys"]] = result["value_of_deception"]
+            self._value_of_deception[str(result["decoys"])] = result["value_of_deception"]
             logger.debug(f"Solved deceptive planning for {decoys=}.")
 
         return max(results, key=lambda decoy_set: decoy_set["value_of_deception"])
@@ -83,23 +86,17 @@ class EnumerativeTrapsAllocator(models.Solver):
         logger.debug(f"Setting up solvers for {num_combinations} games.")
 
         # Define combinations and extract the final states.
-        decoy_combinations = combinations(self._graph.nodes(), self.num_decoys)
+        possible_decoys = set(self._graph.nodes()) - set(uid for uid in self.graph().nodes() if self.graph()["final"][uid])
+        decoy_combinations = combinations(possible_decoys, self.num_decoys)
 
         # Based on multiprocessing, solve for each decoy placement.
         if self.cpu_count > 1:
-            self.solution = self._multicore_solve(decoy_combinations)
+            self.deception_dict = self._multicore_solve(decoy_combinations)
         else:
-            self.solution = self._singlecore_solve(decoy_combinations)
+            self.deception_dict = self._singlecore_solve(decoy_combinations)
 
-        # Associate winner (P1, P2, neither) with each state and edge
-        for node in self._graph.nodes:
-            if node in self.solution["solver"].winning_nodes(1):
-                self.graph()["node_winner"][node] = 1
-            elif node in self.solution["solver"].winning_nodes(2):
-                self.graph()["node_winner"][node] = 2
-            else:
-                self.graph()["node_winner"][node] = 0
-        # TODO associate winner with each edge
+        self._edge_winner.update(self.deception_dict["solver"]._edge_winner)
+        self._node_winner.update(self.deception_dict["solver"]._node_winner)
         self._is_solved = True
 
 

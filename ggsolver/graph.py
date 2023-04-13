@@ -1230,7 +1230,7 @@ class SubGraph(Graph):
         if not self.is_node_visible(uid):
             raise KeyError(f"{self.__class__.__name__}.out_edges({uid}):: Node ID is invalid. Is it hidden?")
 
-        out_edges = self.base_graph.out_edges(uid)
+        out_edges = self.parent.out_edges(uid)
         return ((uid, vid, key) for uid, vid, key in out_edges if self.is_edge_visible(uid, vid, key))
 
     def successors(self, uid):

@@ -202,6 +202,7 @@ def run_experiment(config):
     # Extract solution graph. Save it, log it.
     sol_graph = solution.solution()
     sol_graph.save(os.path.join(directory, f'{exp_name}_solution.ggraph'))
+    write_dot_file(sol_graph, "sol_graph", config)
 
     if config['graph']['save_png']:
         game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'),

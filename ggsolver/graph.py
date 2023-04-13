@@ -902,11 +902,13 @@ class SubGraph(Graph):
         # Initialize hidden nodes and
         if hidden_nodes is not None:
             for uid in hidden_nodes:
-                self._hidden_nodes[uid] = True
+                self.hide_node(uid)
+                # self._hidden_nodes[uid] = True
 
         if hidden_edges is not None:
             for (uid, vid, key) in hidden_edges:
-                self._hidden_edges[uid, vid, key] = True
+                self.hide_edge(uid, vid, key)
+                # self._hidden_edges[uid, vid, key] = True
 
         # Define node, edge and graph properties (store property map views)
         self._node_properties = {

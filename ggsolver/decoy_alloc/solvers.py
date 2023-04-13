@@ -146,7 +146,7 @@ def get_value_of_deception_pair(args):
     graph, decoys, solution_count, metric, directory, f_name = args
 
     # Solve new game
-    solver = SWinReach(graph, final=decoys)
+    solver = SWinReach(graph, final=decoys, path=directory, save_output=True, filename=f"pgzlk_{decoys}")
     solver.solve()
     logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
 

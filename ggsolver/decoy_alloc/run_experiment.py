@@ -5,6 +5,8 @@ import os.path
 import cProfile
 import networkx as nx
 import matplotlib.pyplot as plt
+import pygraphviz
+from pygraphviz import graphviz
 
 import ggsolver.decoy_alloc.process_config as cfg
 import ggsolver.decoy_alloc.graph_generator as gen
@@ -20,27 +22,48 @@ import loguru
 logger = loguru.logger
 logger.remove()
 
-def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict):
+
+def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
     path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_{game_name}.dot")
     with open(path, 'w') as file:
         contents = list()
         contents.append("digraph G {\n")
 
         for node in graph.nodes():
+            node_properties = {
+                "shape": 'circle' if graph['turn'][node] == 1 else 'box',
+                "label": graph['state'][node],
+                "peripheries": '2' if graph['final'][node] else '1',
+            }
+            if "node_winner" in graph.node_properties:
+                node_properties |= {"color": 'blue' if graph['node_winner'][node] == 1 else 'red'}
+
             contents.append(
-                f"N{node} ["
-                f"shape={'circle' if graph['turn'][node] == 1 else 'box'}, "
-                f"label={graph['state'][node]}, "
-                f"color={'blue' if graph['node_winner'][node] == 1 else 'red'}, "
-                f"peripheries={'2' if graph['final'][node] else '1'}"
-                f"];\n"
+                f"N{node} [" + ", ".join(f'{k}="{v}"' for k, v in node_properties.items()) + "];\n"
             )
+
             for uid, vid, key in graph.out_edges(node):
+                edge_properties = {
+                    "label": graph["input"][uid, vid, key] if kwargs.get("no_actions", False) else ""
+                }
+                if "edge_winner" in graph.edge_properties:
+                    edge_properties |= {"color": 'blue' if graph['edge_winner'][uid, vid, key] == 1 else 'red'}
+
                 contents.append(
-                    f"N{uid} -> N{vid} [color={'blue' if graph['edge_winner'][uid, vid, key] == 1 else 'red'} ];\n"
+                    f"N{uid} -> N{vid} [" + ", ".join(f'{k}="{v}"' for k, v in edge_properties.items()) + "];\n"
                 )
+
         contents.append("}")
         file.writelines(contents)
+
+    # Generate SVG
+    # svg_bytes = graph.pipe(format="svg")
+    g = pygraphviz.AGraph(path)
+    g.layout('dot')
+    path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_{game_name}.svg")
+    g.draw(path=path, format='svg')
+    # with open(path, "wb") as file:
+    #     file.write(svg_bytes)
 
 
 def gen_game(cfg_dict: dict) -> dtptb.DTPTBGame:
@@ -122,11 +145,12 @@ def gen_hypergame(game_graph, swin_game: dtptb.SWinReach):
     :return:
     """
     # FIXME. Depending on whether we are allocating only traps, only fakes or both, generate the hypergame.
-    hidden_nodes = set()
+    hidden_nodes = {uid for uid in swin_game.winning_nodes(1)}
     hidden_edges = set()
-    for uid in swin_game.winning_nodes(1):
-        hidden_nodes.add(uid)
-        hidden_edges.update(set(swin_game.winning_edges(uid)))
+    for uid in swin_game.winning_nodes(2):
+        for _, vid, key in swin_game.solution().out_edges(uid):
+            if swin_game.solution()["rank"][vid] >= swin_game.solution()["rank"][uid]:
+                hidden_edges.add((uid, vid, key))
 
     # Remove outgoing edges from final states
     out_going_final_edges = [game_graph.out_edges(state) for state in swin_game.get_final_states()]
@@ -168,6 +192,7 @@ def run_experiment(config):
     hgame_graph = gen_hypergame(game_graph, swin_game)
     path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
     hgame_graph.save(path)
+    write_dot_file(hgame_graph, "hgame", config)
     logger.info(f"Constructed and saved {hgame_graph=} successfully.")
 
     # Allocate decoys

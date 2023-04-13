@@ -2,6 +2,7 @@
 Runs experiment and generates report based on cfg_dicturation files.
 """
 import os.path
+import cProfile
 
 import ggsolver.decoy_alloc.process_config as cfg
 import ggsolver.decoy_alloc.graph_generator as gen
@@ -89,12 +90,11 @@ def gen_reports(config):
     pass
 
 
-def gen_hypergame(game_graph, swin_game: dtptb.SWinReach, trap_states, config):
+def gen_hypergame(game_graph, swin_game: dtptb.SWinReach):
     """
     :param game_graph: base game graph
     :param swin_game: solution to base game
     :param config:
-    :param trap_states: set of states being allocated as traps
     :return:
     """
     # FIXME. Depending on whether we are allocating only traps, only fakes or both, generate the hypergame.
@@ -106,19 +106,14 @@ def gen_hypergame(game_graph, swin_game: dtptb.SWinReach, trap_states, config):
 
     # Remove outgoing edges from final states
     out_going_final_edges = [game_graph.out_edges(state) for state in swin_game.get_final_states()]
-    hidden_edges.add(out_going_final_edges)
+    hidden_edges.update(out_going_final_edges[0])
+    print(f"Hidden edges {out_going_final_edges[0]}")
 
     hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
-    path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
-    hgame_graph.save(path)
     return hgame_graph
 
 
-def main():
-    # Load configuration file
-    config = cfg.process_cfg_file("configurations/config1.json")
-    logger.success("Configuration loaded successfully.")
-
+def run_experiment(config):
     # Generate base game
     # TODO. Make game, generate hypergame and then graphify.
     game = gen_game(config)
@@ -142,7 +137,7 @@ def main():
     logger.success(f"Solved {game_graph=} successfully.")
 
     # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)
-    hgame_graph = gen_hypergame(game_graph, swin_game, config)
+    hgame_graph = gen_hypergame(game_graph, swin_game)
     path = os.path.join(config['directory'], f"{config['name']}_hgame.ggraph")
     hgame_graph.save(path)
     logger.info(f"Constructed and saved {hgame_graph=} successfully.")
@@ -163,6 +158,15 @@ def main():
     # Generate reports and charts
     gen_reports(config)
     logger.warning("Report and charts is not yet implemented.")
+
+
+def main():
+    # Load configuration file
+    config = cfg.process_cfg_file("configurations/config1.json")
+    logger.success("Configuration loaded successfully.")
+
+    # cProfile.run(run_experiment(config))
+    run_experiment(config)
 
 
 if __name__ == '__main__':

@@ -12,6 +12,13 @@ class Mesh(dtptb.DTPTBGame):
         self.num_final = num_nodes // 10     # Arbitrary choice
         self._turn_cache = dict()
 
+    def __str__(self):
+        delta = {(st, a): self.delta(st, a) for st in self.states() for a in self.enabled_acts(st)}
+        final = {st for st in self.states() if self.final(st)}
+        return f"{self.states()=}\n" \
+               f"{delta=}\n" \
+               f"{final=}\n"
+
     def states(self):
         return [f"s{i}" for i in range(self.num_nodes)]
 

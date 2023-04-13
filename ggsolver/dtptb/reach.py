@@ -47,7 +47,8 @@ class SWinReach(models.Solver):
     def reset(self):
         """ Resets the solver to initial state. """
         super(SWinReach, self).reset()
-        self._rank = mod_graph.NodePropertyMap(self._solution)
+        self._rank = mod_graph.NodePropertyMap(self._solution, default=float("inf"))
+        self._solution["rank"] = self._rank
         self._is_solved = False
 
     def get_final_states(self):

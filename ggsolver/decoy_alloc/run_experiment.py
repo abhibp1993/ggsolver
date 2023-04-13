@@ -3,6 +3,8 @@ Runs experiment and generates report based on cfg_dicturation files.
 """
 import os.path
 import cProfile
+import networkx as nx
+import matplotlib.pyplot as plt
 
 import ggsolver.decoy_alloc.process_config as cfg
 import ggsolver.decoy_alloc.graph_generator as gen
@@ -17,6 +19,28 @@ import loguru
 
 logger = loguru.logger
 logger.remove()
+
+def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict):
+    path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_{game_name}.dot")
+    with open(path, 'w') as file:
+        contents = list()
+        contents.append("digraph G {\n")
+
+        for node in graph.nodes():
+            contents.append(
+                f"N{node} ["
+                f"shape={'circle' if graph['turn'][node] == 1 else 'box'}, "
+                f"label={graph['state'][node]}, "
+                f"color={'blue' if graph['node_winner'][node] == 1 else 'red'}, "
+                f"peripheries={'2' if graph['final'][node] else '1'}"
+                f"];\n"
+            )
+            for uid, vid, key in graph.out_edges(node):
+                contents.append(
+                    f"N{uid} -> N{vid} [color={'blue' if graph['edge_winner'][uid, vid, key] == 1 else 'red'} ];\n"
+                )
+        contents.append("}")
+        file.writelines(contents)
 
 
 def gen_game(cfg_dict: dict) -> dtptb.DTPTBGame:
@@ -130,13 +154,14 @@ def run_experiment(config):
     logger.success(f"Saved {game_graph=} successfully.")
 
     # Solve base game
-    swin_game = dtptb.SWinReach(game_graph, p=2)
+    swin_game = dtptb.SWinReach(game_graph, player=2)
     swin_game.solve()
     path = os.path.join(config['directory'], f"{config['name']}_base.solution")
     swin_game.solution().save(path)
 
     logger.info(f"game.final:{[st for st in game.states() if game.final(st)]}.")
     logger.info(f"P1 SWin:{swin_game.winning_states(player=1)}, P2 SWin:{swin_game.winning_states(player=2)}")
+    write_dot_file(swin_game.solution(), "base_game", config)
     logger.success(f"Solved {game_graph=} successfully.")
 
     # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)

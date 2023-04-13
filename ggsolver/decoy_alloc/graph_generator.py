@@ -1,8 +1,8 @@
 import itertools
 import random
-
 import ggsolver.graph as ggraph
 import ggsolver.dtptb as dtptb
+random.seed(0)
 
 
 class Mesh(dtptb.DTPTBGame):

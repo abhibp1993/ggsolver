@@ -134,6 +134,9 @@ def run_experiment(config):
     swin_game.solve()
     path = os.path.join(config['directory'], f"{config['name']}_base.solution")
     swin_game.solution().save(path)
+
+    logger.info(f"game.final:{[st for st in game.states() if game.final(st)]}.")
+    logger.info(f"P1 SWin:{swin_game.winning_states(player=1)}, P2 SWin:{swin_game.winning_states(player=2)}")
     logger.success(f"Solved {game_graph=} successfully.")
 
     # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)

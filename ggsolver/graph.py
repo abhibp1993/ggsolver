@@ -719,7 +719,7 @@ class Graph(IGraph):
         .. note:: Pickle protocol is not tested.
         """
         if not overwrite and os.path.exists(fpath):
-            raise FileExistsError("File already exists. To overwrite, call Graph.save(..., overwrite=True).")
+            raise FileExistsError(f"File already exists. To overwrite, call Graph.save(..., overwrite=True). {fpath=}")
 
         graph_dict = self.serialize()
         if protocol == "json":

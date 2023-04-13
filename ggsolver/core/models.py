@@ -1,10 +1,11 @@
 import concurrent.futures
 import ctypes
 import inspect
-import multiprocessing
+import multiprocessing as mp
 from tqdm import tqdm
 from loguru import logger
 from ggsolver.core.graph import Graph, SubGraph
+from queue import Empty
 
 
 # ==========================================================================
@@ -16,6 +17,7 @@ def register_property(property_set: set):
             logger.warning(f"[WARN] Duplicate property: {func.__name__}.")
         property_set.add(func.__name__)
         return func
+
     return register_function
 
 
@@ -231,31 +233,53 @@ class GraphicalModel:
             edges.update(self._gen_edges(delta, state, inp, verbosity))
         return edges
 
-    def _gen_edges_p_mc(self, delta, verbosity, queue, visited, edges, pid, process_state):
+    def _gen_edges_p_mc(self, delta, en_inputs, pid, count, lock, queue, queue_dict, visited, edges, verbosity):
         """
-        States:: 0: start, 1: running, 2: waiting, 3: completed.
+        """
+        with lock:
+            print(f"{pid=} started.")
 
-        :param delta:
-        :param verbosity:
-        :param queue:
-        :param visited:
-        :param edges:
-        :param pid:
-        :param process_state:
-        :return:
-        """
-        process_state[pid] = 0
         while True:
             # Termination condition
-            if queue.empty() and (v in [2, 3] for i, v in process_state):
-                process_state[pid] = 3
+            if count.value == 0:
                 break
 
-            # Get current state
-            if queue.empty():
+            # Get next element
+            try:
+                state = queue.get(timeout=0.01)
+            except Empty:
                 continue
 
-            #
+            # If sentinel, terminate
+            if state is None:
+                break
+
+            # Visit element (update dQ, V)
+            with lock:
+                queue_dict.pop(state)
+                visited[state] = None
+
+            # Generate new edges
+            inputs_at_state = en_inputs(state)
+            new_edges = set()
+            for inp in inputs_at_state:
+                new_edges.update(self._gen_edges(delta, state, inp, verbosity))
+
+            with lock:
+                edges.update(zip(new_edges, [None] * len(new_edges)))
+
+            # Update queue, queue_dict and count (synchronously)
+            with lock:
+                for _, n_state, _, _ in new_edges:
+                    if not (n_state in queue_dict or n_state in visited):
+                        queue.put(n_state)
+                        queue_dict[n_state] = None
+                        count.value += 1
+
+            # Decrement count by 1.
+            count.value -= 1
+
+        print(f"{pid=} terminated.")
 
     def _gen_graph_up_sc(self, graph, states, inputs, delta, en_inputs, verbosity):
         # Initialize node and edge properties
@@ -518,18 +542,26 @@ class GraphicalModel:
 
         # Generate edges using BFS traversal until all reachable states are visited.
         #   Parallelism is achieved by defining producer-consumer style processes.
-        queue = multiprocessing.Queue()
-        visited = multiprocessing.Manager().dict()
-        process_state = multiprocessing.Array(ctypes.c_int8)
-        edges = multiprocessing.Queue()
+        queue = mp.Queue()
+        lock = mp.Lock()
+        count = mp.Value(ctypes.c_int64)
+        queue_dict = mp.Manager().dict()
+        visited = mp.Manager().dict()
         processes = dict()
+        edges = mp.Manager().dict()
+
+        # Initialize shared variables
+        queue.put(s0)
+        queue_dict[s0] = None
+        count.value = 1
+
         for pid in range(cores):
-            prc = multiprocessing.Process(target=self._gen_edges_p_mc,
-                                          args=(delta, verbosity, queue, visited, edges, pid, process_state))
+            prc = mp.Process(target=self._gen_edges_p_mc,
+                             args=(delta, en_inputs, pid, count, lock, queue, queue_dict, visited, edges, verbosity))
             processes[pid] = prc
             prc.start()
             if verbosity >= 1:
-                logger.info(f"Pointed graphify multi-core started process {i}.")
+                logger.info(f"Pointed graphify multi-core started process {pid}.")
 
         for prc in processes.values():
             prc.join()
@@ -540,11 +572,7 @@ class GraphicalModel:
             self._cache_state2node[state] = uid
             np_state[uid] = state
 
-        while True:
-            if edges.empty():
-                break
-
-            source, target, inp, prob = edges.get()
+        for source, target, inp, prob in edges:
             uid = self._cache_state2node[source]
             vid = self._cache_state2node[target]
             key = graph.add_edge(uid, vid)
@@ -552,7 +580,7 @@ class GraphicalModel:
             if np_enabled_inputs[uid] is np_enabled_inputs.default:
                 np_enabled_inputs[uid] = {inp}
             else:
-                np_enabled_inputs[uid].append(inp)
+                np_enabled_inputs[uid].add(inp)
 
             ep_input[uid, vid, key] = inp
             ep_prob[uid, vid, key] = prob
@@ -626,7 +654,7 @@ class GraphicalModel:
         pointed = kwargs.get("pointed", False)
         assert isinstance(pointed, bool)
 
-        cpu_cores = multiprocessing.cpu_count()
+        cpu_cores = mp.cpu_count()
         cores = max(1, min(cpu_cores, kwargs.get("cores", 1)))
 
         verbosity = kwargs.get("verbosity", 1)
@@ -904,6 +932,7 @@ class Solver:
     under a fixed solution concept.
     :param graph: (Graph or SubGraph instance) Graph or subgraph representing the game on a graph.
     """
+
     def __init__(self, graph, **kwargs):
         # Load and validate graph
         self._graph = graph

@@ -66,3 +66,15 @@ class TestGameGraphify(unittest.TestCase):
         self.assertEqual(graph["state"][0], "s0")
         self.assertEqual(graph["state"][1], "s1")
 
+    def test_graphify_p_mc(self):
+        self.game.initialize("s0")
+        graph = self.game.graphify(pointed=True, cores=3)
+        edges = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4), (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3), (5, 6),
+                 (6, 6), (6, 7), (7, 0), (7, 3)]
+
+        print(graph.number_of_nodes())
+
+        self.assertEqual(set(graph["state"][i] for i in graph.nodes()), set(f"s{i}" for i in range(8)))
+        self.assertEqual(set((graph["state"][u], graph["state"][v]) for u, v, _ in graph.edges()),
+                         set((f"s{i}", f"s{j}") for i, j in edges))
+        

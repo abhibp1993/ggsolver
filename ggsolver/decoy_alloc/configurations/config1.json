@@ -1,5 +1,5 @@
 {
-  "name": "exp1_2trap",
+  "name": "exp_n10_mesh_t2_f0",
   "directory": null,
   "overwrite": false,
   "type": "enumerative",
@@ -16,7 +16,7 @@
     "save_png": false
   },
   "log": true,
-  "save_intermediate_solutions": true,
+  "save_intermediate_solutions": false,
   "console_log_level": "info",
   "file_log_level": "debug",
   "report": []

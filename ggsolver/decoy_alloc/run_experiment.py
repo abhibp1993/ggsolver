@@ -156,15 +156,12 @@ def gen_hypergame(game_graph, swin_game: dtptb.SWinReach):
     # Remove outgoing edges from final states
     out_going_final_edges = [game_graph.out_edges(state) for state in swin_game.get_final_states()]
     hidden_edges.update(out_going_final_edges[0])
-    print(f"Hidden edges {out_going_final_edges[0]}")
-
     hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
     return hgame_graph
 
 
 def run_experiment(config):
     # Generate base game
-    # TODO. Make game, generate hypergame and then graphify.
     game = gen_game(config)
     game_graph = game.graphify()
     logger.success(f"Generated {game_graph=} successfully.")

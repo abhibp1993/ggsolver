@@ -23,7 +23,8 @@ class EnumerativeTrapsAllocator(models.Solver):
                  max_combinations=MAX_COMBINATIONS,
                  cpu_count=0,
                  directory=None,
-                 fname=None
+                 fname=None,
+                 save_output=False
                  ):
         super(EnumerativeTrapsAllocator, self).__init__(graph)
         self.num_decoys = num_decoys
@@ -31,6 +32,7 @@ class EnumerativeTrapsAllocator(models.Solver):
         self.cpu_count = multiprocessing.cpu_count() if cpu_count == "all" else cpu_count
         self.directory = directory
         self.fname = fname
+        self._save_output = save_output
 
         # dict with the decoys, VOD, and solver for the best decoy allocation
         self.deception_dict = None
@@ -66,7 +68,7 @@ class EnumerativeTrapsAllocator(models.Solver):
             hidden_edges.update(out_going_trap_edges)
             sub_graph = ggraph.SubGraph(self.graph(), hidden_edges=hidden_edges)
             # Solve the sub_graph
-            args = (sub_graph, decoys, i, "winning_states", self.directory, self.fname)
+            args = (sub_graph, decoys, i, "winning_states", self.directory, self.fname, self._save_output)
             result = get_value_of_deception_pair(args)
             results.append(result)
             self._value_of_deception[str(result["decoys"])] = result["value_of_deception"]
@@ -143,10 +145,10 @@ class GreedyMixedAllocator(models.Solver):
 def get_value_of_deception_pair(args):
     """ Returns the (decoy,vod) pair for a given decoy combination"""
     logger.debug(f"{args}")
-    graph, decoys, solution_count, metric, directory, f_name = args
+    graph, decoys, solution_count, metric, directory, f_name, save_output = args
 
     # Solve new game
-    solver = SWinReach(graph, final=decoys, path=directory, save_output=True, filename=f"pgzlk_{'_'.join(decoys)}")
+    solver = SWinReach(graph, final=decoys, path=directory, save_output=save_output, filename=f"pgzlk_{'_'.join(decoys)}")
     solver.solve()
     logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
 

@@ -92,7 +92,8 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> gmodels.Solver:
                                                      num_decoys=num_traps,
                                                      cpu_count=cpu_count,
                                                      directory=cfg_dict['directory'],
-                                                     fname=cfg_dict['name']
+                                                     fname=cfg_dict['name'],
+                                                     save_output=cfg_dict["save_intermediate_solutions"]
                                                      )
 
     elif type_ == "greedy" and num_traps > 0 and num_fakes == 0:
@@ -216,7 +217,7 @@ def run_experiment(config):
 
 def main():
     # Load configuration file
-    config = cfg.process_cfg_file("configurations/config1.json")
+    config = cfg.process_cfg_file("configurations/config2.json")
     logger.success("Configuration loaded successfully.")
 
     # cProfile.run(run_experiment(config))

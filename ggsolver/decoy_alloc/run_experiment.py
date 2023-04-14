@@ -217,9 +217,11 @@ def run_experiment(config):
                           nlabel=["state", "node_winner"],
                           elabel=["input", "edge_winner"])
 
-    # Generate reports and charts
-    gen_reports(config)
-    logger.warning("Report and charts is not yet implemented.")
+    # Return variables of interest
+    exec_time = end - start
+    ram_used = None
+    vod = sol_graph["vod"]
+    return exec_time, ram_used, vod
 
 
 def main():
@@ -228,7 +230,8 @@ def main():
     logger.success("Configuration loaded successfully.")
 
     # cProfile.run(run_experiment(config))
-    run_experiment(config)
+    exec_time, ram_used, vod = run_experiment(config)
+    logger.success(f"Finished experiment config:{config['name']} with {exec_time=} sec, {ram_used=} bytes, and {vod=}.")
 
 
 if __name__ == '__main__':

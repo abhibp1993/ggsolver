@@ -99,6 +99,7 @@ class EnumerativeTrapsAllocator(models.Solver):
 
         self._edge_winner.update(self.deception_dict["solver"]._edge_winner)
         self._node_winner.update(self.deception_dict["solver"]._node_winner)
+        self._solution["vod"] = self.deception_dict["value_of_deception"]
         self._is_solved = True
 
 
@@ -142,6 +143,7 @@ class GreedyMixedAllocator(models.Solver):
         pass
 
 
+# TODO (Note.). The following function is only for traps.
 def get_value_of_deception_pair(args):
     """ Returns the (decoy,vod) pair for a given decoy combination"""
     logger.debug(f"{args}")
@@ -157,8 +159,9 @@ def get_value_of_deception_pair(args):
 
     if metric == "winning_states":
         # FIXME Define value of deception based on paper instead of number of winning states
-        value_of_deception = len(solver.winning_states(1))
-        pair = {"decoys": decoys, "value_of_deception": value_of_deception, "solver": solver}
+        vod = len(solver.winning_states(1)) / \
+              (graph.number_of_nodes() - len([uid for uid in graph.nodes() if graph["final"][uid]]))
+        pair = {"decoys": decoys, "value_of_deception": vod, "solver": solver}
         return pair
     else:
         raise NotImplementedError

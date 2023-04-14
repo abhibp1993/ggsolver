@@ -47,12 +47,49 @@ class Mesh(dtptb.DTPTBGame):
         return False
 
 
+class Ring(dtptb.DTPTBGame):
+    def __init__(self, num_nodes):
+        super(Ring, self).__init__()
+        self.num_nodes = num_nodes
+        self.num_final = num_nodes // 10     # Arbitrary choice
+        self._turn_cache = dict()
+
+    def __str__(self):
+        delta = {(st, a): self.delta(st, a) for st in self.states() for a in self.enabled_acts(st)}
+        final = {st for st in self.states() if self.final(st)}
+        return f"{self.states()=}\n" \
+               f"{delta=}\n" \
+               f"{final=}\n"
+
+    def states(self):
+        return [f"s{i}" for i in range(self.num_nodes)]
+
+    def turn(self, state):
+        if state not in self._turn_cache:
+            turn = random.choice([1, 2])
+            self._turn_cache[state] = turn
+            return turn
+
+    def actions(self):
+        return ["next"]
+
+    def delta(self, state, act):
+        i = int(state[1:])
+        return f"s{i + 1}"
+
+    def final(self, state):
+        i = int(state[1:])
+        if i < self.num_nodes // 10:
+            return True
+        return False
+
+
 def mesh(config):
     return Mesh(num_nodes=config['graph']['nodes'])
 
 
 def ring(config):
-    return None
+    return Ring(num_nodes=config['graph']['nodes'])
 
 
 def star(config):

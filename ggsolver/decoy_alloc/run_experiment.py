@@ -3,6 +3,8 @@ Runs experiment and generates report based on cfg_dicturation files.
 """
 import os.path
 import cProfile
+import time
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import pygraphviz
@@ -18,9 +20,13 @@ import ggsolver.models as gmodels
 import ggsolver.dtptb as dtptb
 
 import loguru
+# from memory_profiler import profile
 
 logger = loguru.logger
 logger.remove()
+
+
+CONFIG_FILE_PATH = "configurations/config1.json"
 
 
 def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
@@ -80,6 +86,7 @@ def gen_game(cfg_dict: dict) -> dtptb.DTPTBGame:
         return gen.hybrid(cfg_dict)
 
 
+# @profile
 def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> gmodels.Solver:
     type_ = cfg_dict['type']
     num_traps = cfg_dict['max_traps']
@@ -194,8 +201,10 @@ def run_experiment(config):
     logger.info(f"Constructed and saved {hgame_graph=} successfully.")
 
     # Allocate decoys
+    start = time.perf_counter()
     solution = place_decoys(hgame_graph, config)
     logger.success(f"Decoy placement completed.")
+    end = time.perf_counter()
 
     # Extract solution graph. Save it, log it.
     sol_graph = solution.solution()
@@ -214,7 +223,7 @@ def run_experiment(config):
 
 def main():
     # Load configuration file
-    config = cfg.process_cfg_file("configurations/config2.json")
+    config = cfg.process_cfg_file(CONFIG_FILE_PATH)
     logger.success("Configuration loaded successfully.")
 
     # cProfile.run(run_experiment(config))

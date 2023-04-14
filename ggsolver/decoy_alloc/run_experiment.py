@@ -205,6 +205,7 @@ def run_experiment(config):
     solution = place_decoys(hgame_graph, config)
     logger.success(f"Decoy placement completed.")
     end = time.perf_counter()
+    logger.info(f"Time required to place decoys: {end - start} seconds.")
 
     # Extract solution graph. Save it, log it.
     sol_graph = solution.solution()

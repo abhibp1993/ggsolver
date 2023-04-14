@@ -63,14 +63,10 @@ def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
         file.writelines(contents)
 
     # Generate SVG
-    # svg_bytes = graph.pipe(format="svg")
     g = pygraphviz.AGraph(path)
     g.layout('dot')
     path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_{game_name}.svg")
     g.draw(path=path, format='svg')
-    # with open(path, "wb") as file:
-    #     file.write(svg_bytes)
-
 
 def gen_game(cfg_dict: dict) -> dtptb.DTPTBGame:
     topology = cfg_dict['graph']['topology']

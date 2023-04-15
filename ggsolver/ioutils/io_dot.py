@@ -137,6 +137,12 @@ def aut_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
         logger.warning(f"Ignoring edge property {ep} while converting automaton to dot. "
                        f"Only formula is displayed on edges")
 
+    # Identify unique accepting state classes
+    acc_classes = set()
+    for uid in graph.nodes():
+        acc_classes.update(graph['final'][uid])
+    n_acc_classes = len(acc_classes)
+
     # Construct dot file
     dot_lines = list()
     dot_lines.append("digraph G {")
@@ -157,16 +163,13 @@ def aut_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
         # Construct label of node based on user provided node properties. Default show UID.
         if len(node_props) == 0:
             node_properties["label"] = f"{uid}"
-            if len(graph['final'][uid]) > 0:
-                node_properties["label"] += f"\n{graph['final'][uid]}"
         elif len(node_props) == 1:
             node_properties["label"] = f"{graph[list(node_props)[0]][uid]}"
-            if len(graph['final'][uid]) > 0:
-                node_properties["label"] += f"\n{graph['final'][uid]}"
         else:
             node_properties["label"] = "(" + ", ".join([str(graph[np][uid]) for np in node_props]) + ")"
-            if len(graph['final'][uid]) > 0:
-                node_properties["label"] += f"\n{graph['final'][uid]}"
+
+        if len(graph['final'][uid]) > 0 and n_acc_classes > 1:
+            node_properties["label"] += f"\n{graph['final'][uid]}"
 
         # Generate line in dot file for the node.
         dot_lines.append(

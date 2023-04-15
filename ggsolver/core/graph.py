@@ -353,6 +353,13 @@ class Graph:
         self[pname] = ep
         return ep
 
+    def create_gp(self, pname, default=None, overwrite=False):
+        if not overwrite:
+            assert pname not in self._gp, f"Graph property: {pname} exists in graph:{self}. " \
+                                          f"To overwrite pass parameter `overwrite=True` to this function."
+        self._gp[pname] = default
+        return
+
     # ============================================================================================================
     # GRAPH TOPOLOGY MANIPULATION METHODS
     # ============================================================================================================

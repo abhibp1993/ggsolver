@@ -228,12 +228,20 @@ class TestGraphTopology(unittest.TestCase):
         with pytest.raises(KeyError):
             self.assertEqual(self.graph["ep1"][0, 1, 5], None)
 
-        # Node properties via direct creation (not recommended)
+        # Edge properties via direct creation (not recommended)
         p = ggsolver.EdgePMap(self.graph, pname="ep1", default="default")
         self.graph["ep1"] = p
         p[0, 0, 0] = "e0"
         self.assertEqual(self.graph["ep1"][0, 0, 0], "e0")
         self.assertEqual(self.graph["ep1"][0, 1, 0], "default")
+
+        # Graph properties (returns None)
+        self.graph.create_gp("gp2", default=10)
+        self.assertEqual(self.graph["gp2"], 10)
+        self.graph["gp2"] = "test"
+        self.assertEqual(self.graph["gp2"], "test")
+        with pytest.raises(AssertionError):
+            self.graph.create_gp("gp2")
 
     def test_serialization(self):
         # Add some nodes and edges to graph

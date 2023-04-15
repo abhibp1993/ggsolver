@@ -3,6 +3,7 @@ API may include more options such as which properties to include in DOT file etc
 """
 import ggsolver
 import pygraphviz
+from loguru import logger
 
 
 def from_dot(fpath, graph):
@@ -124,7 +125,73 @@ def aut_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
     :param graph:
     :return:
     """
-    raise NotImplementedError("Under development, aut_to_dot")
+    node_props = set() if node_props is None else set(node_props)
+    edge_props = {'formula'}
+
+    assert 'final' in graph.np, f"Automaton graph missing node property: `final` ."
+    assert 'formula' in graph.ep, f"Automaton graph missing edge property: `formula`."
+    assert 'init_state' in graph.gp, f"Automaton graph missing node property: `init_state`."
+    for np in node_props - {'final'}:
+        assert np in graph.np, f"Node property {np} not found in {graph=}."
+    for ep in edge_props - {'formula'}:
+        logger.warning(f"Ignoring edge property {ep} while converting automaton to dot. "
+                       f"Only formula is displayed on edges")
+
+    # Construct dot file
+    dot_lines = list()
+    dot_lines.append("digraph G {")
+    dot_lines.append(
+        f"NI [style=invisible];\n"
+    )
+    dot_lines.append(
+        f"NI -> N0;\n"
+    )
+    for uid in graph.nodes():
+        # Set node properties
+        node_properties = dict()
+
+        # Mark accepting states with double peripheries
+        if len(graph['final'][uid]) > 0:
+            node_properties["peripheries"] = 2
+
+        # Construct label of node based on user provided node properties. Default show UID.
+        if len(node_props) == 0:
+            node_properties["label"] = f"{uid}"
+            if len(graph['final'][uid]) > 0:
+                node_properties["label"] += f"\n{graph['final'][uid]}"
+        elif len(node_props) == 1:
+            node_properties["label"] = f"{graph[list(node_props)[0]][uid]}"
+            if len(graph['final'][uid]) > 0:
+                node_properties["label"] += f"\n{graph['final'][uid]}"
+        else:
+            node_properties["label"] = "(" + ", ".join([str(graph[np][uid]) for np in node_props]) + ")"
+            if len(graph['final'][uid]) > 0:
+                node_properties["label"] += f"\n{graph['final'][uid]}"
+
+        # Generate line in dot file for the node.
+        dot_lines.append(
+            f"N{uid} [" + ", ".join(f'{k}="{v}"' for k, v in node_properties.items()) + "];\n"
+        )
+
+        # Process outgoing edges from uid.
+        for _, vid, key in graph.out_edges(uid):
+            # Set node properties
+            edge_properties = dict()
+
+            # Construct label of edge based on user provided edge properties. Default empty string.
+            edge_properties['label'] = graph['formula'][uid, vid, key]
+
+            # Generate line in dot file for the node.
+            dot_lines.append(
+                f"N{uid} -> N{vid} [" + ", ".join(f'{k}="{v}"' for k, v in edge_properties.items()) + "];\n"
+            )
+
+    # Add final line to dot-lines
+    dot_lines.append("}")
+
+    # Write to file
+    with open(fpath, "w") as dot_file:
+        dot_file.writelines(dot_lines)
 
 
 def solution_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):

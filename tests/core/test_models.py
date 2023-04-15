@@ -4,7 +4,7 @@ import ggsolver
 
 class JobstmannGame(ggsolver.Game):
     def __init__(self, **kwargs):
-        super(JobstmannGame, self).__init__(is_deterministic=True)
+        super(JobstmannGame, self).__init__(is_deterministic=True, **kwargs)
         self._en_acts = {
             0: [(0, 1), (0, 3)],
             1: [(1, 0), (1, 2), (1, 4)],
@@ -32,7 +32,7 @@ class JobstmannGame(ggsolver.Game):
 
 class TestGameGraphify(unittest.TestCase):
     def setUp(self):
-        self.game = JobstmannGame()
+        self.game = JobstmannGame(name="MyGame")
 
     def test_graphify_up_sc(self):
         graph = self.game.graphify()
@@ -77,4 +77,7 @@ class TestGameGraphify(unittest.TestCase):
         self.assertEqual(set(graph["state"][i] for i in graph.nodes()), set(f"s{i}" for i in range(8)))
         self.assertEqual(set((graph["state"][u], graph["state"][v]) for u, v, _ in graph.edges()),
                          set((f"s{i}", f"s{j}") for i, j in edges))
-        
+
+    def test_str(self):
+        self.assertEqual("Deterministic JobstmannGame(name=MyGame)", self.game.__str__())
+

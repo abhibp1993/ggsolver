@@ -40,6 +40,9 @@ class GraphicalModel:
     # MAGIC METHODS
     # ==========================================================================
     def __init__(self, is_deterministic=True, is_probabilistic=False, **kwargs):
+        # Name (only for pretty printing)
+        self._name = kwargs.get("name", None)
+
         # Types of Graphical Models.
         self._is_deterministic = is_deterministic
         self._is_probabilistic = is_probabilistic
@@ -50,6 +53,14 @@ class GraphicalModel:
         # Cache variables
         self._cache_state2node = dict()
 
+    def __repr__(self):
+        if self._name is None:
+            return f"<{self.type()} {self.__class__.__name__}>"
+        return f"{self.type()} {self.__class__.__name__}(name={self._name})"
+
+    # ==========================================================================
+    # TYPE OF GRAPHICAL MODEL
+    # ==========================================================================
     @register_property(GRAPH_PROPERTY)
     def is_deterministic(self):
         """
@@ -66,6 +77,14 @@ class GraphicalModel:
     def is_probabilistic(self):
         """ Returns `True` if the graphical model is probabilistic. Else, returns `False`. """
         return self._is_probabilistic
+
+    def type(self):
+        if self.is_deterministic():
+            return "Deterministic"
+        elif self.is_nondeterministic():
+            return "Non-deterministic"
+        else:
+            return "Probabilistic"
 
     # ==========================================================================
     # PUBLIC FUNCTIONS.

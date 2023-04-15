@@ -107,9 +107,6 @@ def graph_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
     # Add final line to dot-lines
     dot_lines.append("}")
 
-    # # Append new line character to all entries
-    # dot_lines = [line + "\n" for line in dot_lines]
-
     # Write to file
     with open(fpath, "w") as dot_file:
         dot_file.writelines(dot_lines)
@@ -117,7 +114,7 @@ def graph_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
 
 def aut_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
     """
-    Generates a DOT file from graph. Uses automaton specific formatting.
+    Generates a DOT file from automaton graph. Uses automaton specific formatting.
 
     :param edge_props:
     :param node_props:
@@ -197,9 +194,9 @@ def aut_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
         dot_file.writelines(dot_lines)
 
 
-def solution_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
+def solution_to_dot(fpath, graph, node_props=None, edge_props=None, color_scheme=None, **kwargs):
     """
-    Generates a DOT file from graph. Uses solution specific formatting.
+    Generates a DOT file from solution graph. Uses solution specific formatting.
 
     :param node_props:
     :param edge_props:
@@ -207,7 +204,81 @@ def solution_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
     :param graph:
     :return:
     """
-    raise NotImplementedError("Under development, solution_to_dot")
+    node_props = set() if node_props is None else set(node_props) - {'node_winner'}
+    edge_props = set() if edge_props is None else set(edge_props) - {'edge_winner'}
+    color_scheme = {ggsolver.TURN_P1: 'blue', ggsolver.TURN_P2: 'red', ggsolver.TURN_NATURE: 'black'} \
+        if color_scheme is None else color_scheme
+
+    assert 'node_winner' in graph.np, f"Automaton graph missing node property: `node_winner` ."
+    assert 'edge_winner' in graph.ep, f"Automaton graph missing edge property: `edge_winner`."
+    for np in node_props - {'node_winner'}:
+        assert np in graph.np, f"Node property {np} not found in {graph=}."
+    for ep in edge_props - {'edge_winner'}:
+        assert ep in graph.ep, f"Edge property {ep} not found in {graph=}."
+
+    # Construct dot file
+    dot_lines = list()
+    dot_lines.append("digraph G {")
+    for uid in graph.nodes():
+        # Set node properties
+        node_properties = dict()
+
+        # Define color of node
+        winner = graph['node_winner'][uid]
+        node_properties["color"] = color_scheme[winner] if winner in color_scheme else "black"
+
+        # Define shape of node based on turn
+        if "turn" in graph.np:
+            if graph['turn'][uid] == ggsolver.TURN_P1:
+                node_properties["shape"] = 'circle'
+            elif graph['turn'][uid] == ggsolver.TURN_P2:
+                node_properties["shape"] = 'box'
+            elif graph['turn'][uid] == ggsolver.TURN_NATURE:
+                node_properties["shape"] = 'diamond'
+            else:
+                node_properties["shape"] = 'ellipse'
+
+        # Construct label of node based on user provided node properties. Default show UID.
+        if len(node_props) == 0:
+            node_properties["label"] = f"{uid}"
+        elif len(node_props) == 1:
+            node_properties["label"] = f"{graph[list(node_props)[0]][uid]}"
+        else:
+            node_properties["label"] = "(" + ", ".join([str(graph[np][uid]) for np in node_props]) + ")"
+
+        # Generate line in dot file for the node.
+        dot_lines.append(
+            f"N{uid} [" + ", ".join(f'{k}="{v}"' for k, v in node_properties.items()) + "];\n"
+        )
+
+        # Process outgoing edges from uid.
+        for _, vid, key in graph.out_edges(uid):
+            # Set node properties
+            edge_properties = dict()
+
+            # Define color of edge
+            winner = graph['edge_winner'][uid, vid, key]
+            edge_properties["color"] = color_scheme[winner] if winner in color_scheme else "black"
+
+            # Construct label of edge based on user provided edge properties. Default empty string.
+            if len(edge_props) == 0:
+                edge_properties["label"] = ""
+            elif len(edge_props) == 1:
+                edge_properties["label"] = f"{graph[list(edge_props)[0]][uid, vid, key]}"
+            else:
+                edge_properties["label"] = "(" + ", ".join([str(graph[ep][uid, vid, key]) for ep in edge_props]) + ")"
+
+            # Generate line in dot file for the node.
+            dot_lines.append(
+                f"N{uid} -> N{vid} [" + ", ".join(f'{k}="{v}"' for k, v in edge_properties.items()) + "];\n"
+            )
+
+    # Add final line to dot-lines
+    dot_lines.append("}")
+
+    # Write to file
+    with open(fpath, "w") as dot_file:
+        dot_file.writelines(dot_lines)
 
 
 def dot2svg(dot_fpath, svg_fpath, layout_engine="dot", node_props=None, edge_props=None, **kwargs):

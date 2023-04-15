@@ -220,12 +220,12 @@ class Graph:
     """
     Graph represents a 5-tuple
 
-        $$G = (V, E, vp, ep, gp)$$
+        $$G = (V, E, vp, edge_properties, graph_properties)$$
 
     where
         - $V$ is an index set $\{0, 1, ...\}$,
         - $E \subseteq V \times V \times \mathbb{N}$ is set of edges. Parallel edges are distinguished by a key.
-        - $vp, ep, gp$ are node, edge and graph properties.
+        - $vp, edge_properties, graph_properties$ are node, edge and graph properties.
 
     The nodes and edges defined the underlying graph structure.
 
@@ -323,17 +323,17 @@ class Graph:
     # NODE/EDGE/GRAPH PROPERTY-RELATED METHODS
     # ============================================================================================================
     @property
-    def np(self):
+    def node_properties(self):
         """ Returns the node properties as a dictionary of {"property name": NodePropertyMap object}. """
         return self._np
 
     @property
-    def ep(self):
+    def edge_properties(self):
         """ Returns the edge properties as a dictionary of {"property name": EdgePropertyMap object}. """
         return self._ep
 
     @property
-    def gp(self):
+    def graph_properties(self):
         """ Returns the graph properties as a dictionary of {"property name": property value}. """
         return self._gp
 
@@ -552,66 +552,66 @@ class Graph:
           "edge_properties": <List[str]>,
           "graph_properties": <List[str]>,
           # For each node property
-          "np.<pname>": {
+          "node_properties.<pname>": {
             "default": value,
             "map": {uid: value}
           },
           # For each edgeproperty
-          "ep.<pname>": {
+          "edge_properties.<pname>": {
             "default": value,
             "map": {eid: value}
           },
           # For each graph property
-          "gp.<pname>": value,
+          "graph_properties.<pname>": value,
           # If type=subgraph then hierarchy information
           "hierarchy": {
             0: {    # The saved subgraph `SG`
               "hidden_nodes": <List[int]>,
               "hidden_edges": <List[int]>,
-              "modifiers.np": <List[str]: names of properties that are not in default state>,
-              "modifiers.ep": <List[str]: names of properties that are not in default state>,
-              "modifiers.gp": <List[str]: names of properties that are not in default state>,
-              "np.<pname>": {
+              "modifiers.node_properties": <List[str]: names of properties that are not in default state>,
+              "modifiers.edge_properties": <List[str]: names of properties that are not in default state>,
+              "modifiers.graph_properties": <List[str]: names of properties that are not in default state>,
+              "node_properties.<pname>": {
                 "default": value,
                 "map": {uid: value}
               },
-              "ep.<pname>": {
+              "edge_properties.<pname>": {
                 "default": value,
                 "map": {eid: value}
               },
-              "gp.<pname>": value,
+              "graph_properties.<pname>": value,
             },
             1: {    # `SG.parent`
               "hidden_nodes": <List[int]>,
               "hidden_edges": <List[int]>,
-              "modifiers.np": <List[str]: names of properties that are not in default state>,
-              "modifiers.ep": <List[str]: names of properties that are not in default state>,
-              "modifiers.gp": <List[str]: names of properties that are not in default state>,
-              "np.<pname>": {
+              "modifiers.node_properties": <List[str]: names of properties that are not in default state>,
+              "modifiers.edge_properties": <List[str]: names of properties that are not in default state>,
+              "modifiers.graph_properties": <List[str]: names of properties that are not in default state>,
+              "node_properties.<pname>": {
                 "default": value,
                 "map": {uid: value}
               },
-              "ep.<pname>": {
+              "edge_properties.<pname>": {
                 "default": value,
                 "map": {eid: value}
               },
-              "gp.<pname>": value,
+              "graph_properties.<pname>": value,
             },
             2: {    # `SG.parent.parent`
               "hidden_nodes": <List[int]>,
               "hidden_edges": <List[int]>,
-              "modifiers.np": <List[str]: names of properties that are not in default state>,
-              "modifiers.ep": <List[str]: names of properties that are not in default state>,
-              "modifiers.gp": <List[str]: names of properties that are not in default state>,
-              "np.<pname>": {
+              "modifiers.node_properties": <List[str]: names of properties that are not in default state>,
+              "modifiers.edge_properties": <List[str]: names of properties that are not in default state>,
+              "modifiers.graph_properties": <List[str]: names of properties that are not in default state>,
+              "node_properties.<pname>": {
                 "default": value,
                 "map": {uid: value}
               },
-              "ep.<pname>": {
+              "edge_properties.<pname>": {
                 "default": value,
                 "map": {eid: value}
               },
-              "gp.<pname>": value,
+              "graph_properties.<pname>": value,
             }
           }
         }
@@ -631,19 +631,19 @@ class Graph:
         graph["edges"] = [str(edge) for edge in self.edges()]
 
         # Property metadata
-        graph["np"] = list(self._np.keys())
-        graph["ep"] = list(self._ep.keys())
-        graph["gp"] = list(self._gp.keys())
+        graph["node_properties"] = list(self._np.keys())
+        graph["edge_properties"] = list(self._ep.keys())
+        graph["graph_properties"] = list(self._gp.keys())
 
         # Store properties
         for pname, pmap in self._np.items():
-            graph["np." + pname] = pmap.serialize()
+            graph["node_properties." + pname] = pmap.serialize()
 
         for pname, pmap in self._ep.items():
-            graph["ep." + pname] = pmap.serialize()
+            graph["edge_properties." + pname] = pmap.serialize()
 
         for pname, pmap in self._gp.items():
-            graph["gp." + pname] = pmap
+            graph["graph_properties." + pname] = pmap
 
         # Return serialized object
         return graph
@@ -678,25 +678,25 @@ class Graph:
         self._graph.add_edges_from(edges)
 
         # Property metadata
-        np = obj_dict["np"]
-        ep = obj_dict["ep"]
-        gp = obj_dict["gp"]
+        np = obj_dict["node_properties"]
+        ep = obj_dict["edge_properties"]
+        gp = obj_dict["graph_properties"]
 
         # Deserialize properties
         for pname in np:
             pmap = self.create_np(pname=pname)
-            pmap.deserialize(obj_dict["np." + pname])
+            pmap.deserialize(obj_dict["node_properties." + pname])
             # graph[pname] = NodePMap(graph)
-            # graph[pname].deserialize(obj_dict["np." + pname])
+            # graph[pname].deserialize(obj_dict["node_properties." + pname])
 
         for pname in ep:
             pmap = self.create_ep(pname=pname)
-            pmap.deserialize(obj_dict["ep." + pname])
+            pmap.deserialize(obj_dict["edge_properties." + pname])
             # graph[pname] = EdgePMap(graph)
-            # graph[pname].deserialize(obj_dict["ep." + pname])
+            # graph[pname].deserialize(obj_dict["edge_properties." + pname])
 
         for pname in gp:
-            self[pname] = obj_dict["gp." + pname]
+            self[pname] = obj_dict["graph_properties." + pname]
 
         # Return constructed object
         return self
@@ -805,13 +805,13 @@ class SubGraph(Graph):
         # Define node, edge and graph properties (store property map views)
         self._np = {
             k: PMapView(graph=self, pmap=v)
-            for k, v in self._parent.np.items()
+            for k, v in self._parent.node_properties.items()
         }
         self._ep = {
             k: PMapView(graph=self, pmap=v)
-            for k, v in self._parent.ep.items()
+            for k, v in self._parent.edge_properties.items()
         }
-        self._gp = self._parent.gp.copy()
+        self._gp = self._parent.graph_properties.copy()
 
     def __repr__(self):
         return f"<SubGraph of {self._parent} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
@@ -844,7 +844,7 @@ class SubGraph(Graph):
             raise KeyError(f"{pname} is not a valid node/edge/graph property.")
 
     def __setitem__(self, pname, pmap):
-        # If pmap is either NodePMap or EdgePMap, update np or ep.
+        # If pmap is either NodePMap or EdgePMap, update node_properties or edge_properties.
         if isinstance(pmap, PMap) and not isinstance(pmap, PMapView):
             if isinstance(pmap, NodePMap):
                 pmap.name = pname
@@ -885,15 +885,15 @@ class SubGraph(Graph):
                    "visible_nodes": list(self.nodes()),
                    "hidden_edges": list(self._hidden_edges),
                    "visible_edges": list(self.edges()),
-                   "np": list(self.np.keys()),
-                   "ep": list(self.ep.keys()),
-                   "gp": list(self.gp.keys()),
+                   "node_properties": list(self.node_properties.keys()),
+                   "edge_properties": list(self.edge_properties.keys()),
+                   "graph_properties": list(self.graph_properties.keys()),
                } | {
-                   f"np.{pname}": pmap.serialize() for pname, pmap in self.np.items() if isinstance(pmap, NodePMap)
+                   f"node_properties.{pname}": pmap.serialize() for pname, pmap in self.node_properties.items() if isinstance(pmap, NodePMap)
                } | {
-                   f"ep.{pname}": pmap.serialize() for pname, pmap in self.ep.items() if isinstance(pmap, EdgePMap)
+                   f"edge_properties.{pname}": pmap.serialize() for pname, pmap in self.edge_properties.items() if isinstance(pmap, EdgePMap)
                } | {
-                   f"gp.{pname}": pmap for pname, pmap in self.gp.items()
+                   f"graph_properties.{pname}": pmap for pname, pmap in self.graph_properties.items()
                }
 
     def __setstate__(self, obj_dict):
@@ -1044,11 +1044,11 @@ class SubGraph(Graph):
         """
         # If property is node/edge property, create a new property map and populate it.
         pmap = self[pname].copy()
-        if pname in self.np and isinstance(pmap, PMapView):
+        if pname in self.node_properties and isinstance(pmap, PMapView):
             pmap_flattened = self.create_np(pname=pname, default=pmap.default, overwrite=True)
             pmap_flattened.__dict__.update(pmap.__dict__)
 
-        elif pname in self.ep and isinstance(pmap, PMapView):
+        elif pname in self.edge_properties and isinstance(pmap, PMapView):
             pmap_flattened = self.create_ep(pname=pname, default=pmap.default, overwrite=True)
             pmap_flattened.__dict__.update(pmap.__dict__)
 
@@ -1328,13 +1328,13 @@ class SubGraph(Graph):
         """
         self._np = {
             k: PMapView(graph=self, pmap=v)
-            for k, v in self.parent.np.items()
+            for k, v in self.parent.node_properties.items()
         }
         self._ep = {
             k: PMapView(graph=self, pmap=v)
-            for k, v in self.parent.ep.items()
+            for k, v in self.parent.edge_properties.items()
         }
-        self._gp = self.parent.gp.copy()
+        self._gp = self.parent.graph_properties.copy()
 
     # =====================================================================================
     # SERIALIZATION
@@ -1349,15 +1349,15 @@ class SubGraph(Graph):
             "parent": parent,
             "hidden_nodes": list(self._hidden_nodes),
             "hidden_edges": list(self._hidden_edges),
-            "np": [pname for pname, pmap in self.np.items() if isinstance(pmap, NodePMap)],
-            "ep": [pname for pname, pmap in self.ep.items() if isinstance(pmap, EdgePMap)],
-            "gp": list(self.gp.keys()),
+            "node_properties": [pname for pname, pmap in self.node_properties.items() if isinstance(pmap, NodePMap)],
+            "edge_properties": [pname for pname, pmap in self.edge_properties.items() if isinstance(pmap, EdgePMap)],
+            "graph_properties": list(self.graph_properties.keys()),
         } | {
-            f"np.{pname}": pmap.serialize() for pname, pmap in self.np.items() if isinstance(pmap, NodePMap)
+            f"node_properties.{pname}": pmap.serialize() for pname, pmap in self.node_properties.items() if isinstance(pmap, NodePMap)
         } | {
-            f"ep.{pname}": pmap.serialize() for pname, pmap in self.ep.items() if isinstance(pmap, EdgePMap)
+            f"edge_properties.{pname}": pmap.serialize() for pname, pmap in self.edge_properties.items() if isinstance(pmap, EdgePMap)
         } | {
-            f"gp.{pname}": pmap for pname, pmap in self.gp.items()
+            f"graph_properties.{pname}": pmap for pname, pmap in self.graph_properties.items()
         }
 
     def deserialize(self, obj_dict):
@@ -1395,24 +1395,24 @@ class SubGraph(Graph):
                                f"{self.parent} does not have all hidden nodes or edges from the serialized graph.")
 
         # Property metadata
-        np = obj_dict["np"]
-        ep = obj_dict["ep"]
-        gp = obj_dict["gp"]
+        np = obj_dict["node_properties"]
+        ep = obj_dict["edge_properties"]
+        gp = obj_dict["graph_properties"]
 
         # Deserialize properties
         for pname in np:
-            if "np." + pname in obj_dict:
+            if "node_properties." + pname in obj_dict:
                 pmap = self.create_np(pname=pname, overwrite=True)
-                pmap.deserialize(obj_dict["np." + pname])
+                pmap.deserialize(obj_dict["node_properties." + pname])
 
         for pname in ep:
-            if "ep." + pname in obj_dict:
+            if "edge_properties." + pname in obj_dict:
                 pmap = self.create_ep(pname=pname, overwrite=True)
-                pmap.deserialize(obj_dict["ep." + pname])
+                pmap.deserialize(obj_dict["edge_properties." + pname])
 
-        self.gp.clear()
+        self.graph_properties.clear()
         for pname in gp:
-            self.gp[pname] = obj_dict["gp." + pname]
+            self.graph_properties[pname] = obj_dict["graph_properties." + pname]
 
         return self
 

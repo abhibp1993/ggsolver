@@ -51,9 +51,9 @@ def graph_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
     node_props = list() if node_props is None else node_props
     edge_props = list() if edge_props is None else edge_props
     for np in node_props:
-        assert np in graph.np, f"Node property {np} not found in {graph=}."
+        assert np in graph.node_properties, f"Node property {np} not found in {graph=}."
     for ep in edge_props:
-        assert ep in graph.ep, f"Edge property {ep} not found in {graph=}."
+        assert ep in graph.edge_properties, f"Edge property {ep} not found in {graph=}."
 
     # Construct dot file
     dot_lines = list()
@@ -63,7 +63,7 @@ def graph_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
         node_properties = dict()
 
         # Define shape of node based on turn
-        if "turn" in graph.np:
+        if "turn" in graph.node_properties:
             if graph['turn'][uid] == ggsolver.TURN_P1:
                 node_properties["shape"] = 'circle'
             elif graph['turn'][uid] == ggsolver.TURN_P2:
@@ -125,11 +125,11 @@ def aut_to_dot(fpath, graph, node_props=None, edge_props=None, **kwargs):
     node_props = set() if node_props is None else set(node_props)
     edge_props = {'formula'}
 
-    assert 'final' in graph.np, f"Automaton graph missing node property: `final` ."
-    assert 'formula' in graph.ep, f"Automaton graph missing edge property: `formula`."
-    assert 'init_state' in graph.gp, f"Automaton graph missing node property: `init_state`."
+    assert 'final' in graph.node_properties, f"Automaton graph missing node property: `final` ."
+    assert 'formula' in graph.edge_properties, f"Automaton graph missing edge property: `formula`."
+    assert 'init_state' in graph.graph_properties, f"Automaton graph missing node property: `init_state`."
     for np in node_props - {'final'}:
-        assert np in graph.np, f"Node property {np} not found in {graph=}."
+        assert np in graph.node_properties, f"Node property {np} not found in {graph=}."
     for ep in edge_props - {'formula'}:
         logger.warning(f"Ignoring edge property {ep} while converting automaton to dot. "
                        f"Only formula is displayed on edges")
@@ -209,12 +209,12 @@ def solution_to_dot(fpath, graph, node_props=None, edge_props=None, color_scheme
     color_scheme = {ggsolver.TURN_P1: 'blue', ggsolver.TURN_P2: 'red', ggsolver.TURN_NATURE: 'black'} \
         if color_scheme is None else color_scheme
 
-    assert 'node_winner' in graph.np, f"Automaton graph missing node property: `node_winner` ."
-    assert 'edge_winner' in graph.ep, f"Automaton graph missing edge property: `edge_winner`."
+    assert 'node_winner' in graph.node_properties, f"Automaton graph missing node property: `node_winner` ."
+    assert 'edge_winner' in graph.edge_properties, f"Automaton graph missing edge property: `edge_winner`."
     for np in node_props - {'node_winner'}:
-        assert np in graph.np, f"Node property {np} not found in {graph=}."
+        assert np in graph.node_properties, f"Node property {np} not found in {graph=}."
     for ep in edge_props - {'edge_winner'}:
-        assert ep in graph.ep, f"Edge property {ep} not found in {graph=}."
+        assert ep in graph.edge_properties, f"Edge property {ep} not found in {graph=}."
 
     # Construct dot file
     dot_lines = list()
@@ -228,7 +228,7 @@ def solution_to_dot(fpath, graph, node_props=None, edge_props=None, color_scheme
         node_properties["color"] = color_scheme[winner] if winner in color_scheme else "black"
 
         # Define shape of node based on turn
-        if "turn" in graph.np:
+        if "turn" in graph.node_properties:
             if graph['turn'][uid] == ggsolver.TURN_P1:
                 node_properties["shape"] = 'circle'
             elif graph['turn'][uid] == ggsolver.TURN_P2:

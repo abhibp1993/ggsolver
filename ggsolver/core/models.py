@@ -668,7 +668,7 @@ class GraphicalModel:
         if verbosity < 0 or verbosity > 3:
             verbosity = 1
 
-        np = set(kwargs.get("np", set()))
+        np = set(kwargs.get("node_properties", set()))
         if np is None:
             np = getattr(self, "NODE_PROPERTY")
         else:
@@ -677,7 +677,7 @@ class GraphicalModel:
         ignore_np = set(kwargs.get("ignore_np", set()))
         np = np - ignore_np
 
-        ep = set(kwargs.get("ep", set()))
+        ep = set(kwargs.get("edge_properties", set()))
         if ep is None:
             ep = getattr(self, "EDGE_PROPERTY")
         else:
@@ -686,7 +686,7 @@ class GraphicalModel:
         ignore_ep = set(kwargs.get("ignore_ep", set()))
         ep = ep - ignore_ep
 
-        gp = set(kwargs.get("gp", set()))
+        gp = set(kwargs.get("graph_properties", set()))
         if gp is None:
             gp = getattr(self, "GRAPH_PROPERTY")
         else:

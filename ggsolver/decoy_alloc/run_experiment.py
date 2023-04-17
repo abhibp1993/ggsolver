@@ -20,6 +20,7 @@ import ggsolver.models as gmodels
 import ggsolver.dtptb as dtptb
 
 import loguru
+
 # from memory_profiler import profile
 
 logger = loguru.logger
@@ -27,6 +28,7 @@ logger.remove()
 
 
 # CONFIG_FILE_PATH = "configurations/config1.json"
+CONFIG_FILE_PATH = "configurations/exp_n10_hybrid_t2_f0.json"
 
 
 def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
@@ -68,16 +70,11 @@ def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
     path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_{game_name}.svg")
     g.draw(path=path, format='svg')
 
+
 def gen_game(cfg_dict: dict) -> dtptb.DTPTBGame:
     topology = cfg_dict['graph']['topology']
     if topology == "mesh":
         return gen.mesh(cfg_dict)
-    elif topology == "ring":
-        return gen.ring(cfg_dict)
-    elif topology == "star":
-        return gen.star(cfg_dict)
-    elif topology == "tree":
-        return gen.tree(cfg_dict)
     else:  # type == "hybrid":
         return gen.hybrid(cfg_dict)
 

@@ -2,14 +2,15 @@ import itertools
 import random
 import ggsolver.graph as ggraph
 import ggsolver.dtptb as dtptb
-random.seed(0)
+
+random.seed(42)
 
 
 class Mesh(dtptb.DTPTBGame):
     def __init__(self, num_nodes):
         super(Mesh, self).__init__()
         self.num_nodes = num_nodes
-        self.num_final = num_nodes // 10     # Arbitrary choice
+        self.num_final = num_nodes // 10  # Arbitrary choice
         self._turn_cache = dict()
 
     def __str__(self):
@@ -47,12 +48,20 @@ class Mesh(dtptb.DTPTBGame):
         return False
 
 
-class Ring(dtptb.DTPTBGame):
-    def __init__(self, num_nodes):
-        super(Ring, self).__init__()
+class Hybrid(dtptb.DTPTBGame):
+    def __init__(self, num_nodes, max_out_degree):
+        assert isinstance(max_out_degree, int), f"{max_out_degree=}. Expected an integer > 0."
+        super(Hybrid, self).__init__()
         self.num_nodes = num_nodes
-        self.num_final = num_nodes // 10     # Arbitrary choice
+        self.max_out_degree = max_out_degree
+        self.num_final = num_nodes // 10  # Arbitrary choice
         self._turn_cache = dict()
+        self._trans_dict = dict()
+
+        for i in range(self.num_nodes):
+            num_successors = random.randint(1, self.max_out_degree)
+            successors = (random.choices(range(self.num_nodes), k=num_successors))
+            self._trans_dict[f"s{i}"] = {(f"s{i}", f"s{j}"): f"s{j}" for j in successors}
 
     def __str__(self):
         delta = {(st, a): self.delta(st, a) for st in self.states() for a in self.enabled_acts(st)}
@@ -71,11 +80,13 @@ class Ring(dtptb.DTPTBGame):
             return turn
 
     def actions(self):
-        return ["next"]
+        return list()
+
+    def enabled_acts(self, state):
+        return list(self._trans_dict[state].keys())
 
     def delta(self, state, act):
-        i = int(state[1:])
-        return f"s{i + 1}"
+        return self._trans_dict.get(state, dict()).get(act, None)
 
     def final(self, state):
         i = int(state[1:])
@@ -88,17 +99,5 @@ def mesh(config):
     return Mesh(num_nodes=config['graph']['nodes'])
 
 
-def ring(config):
-    return Ring(num_nodes=config['graph']['nodes'])
-
-
-def star(config):
-    return None
-
-
-def tree(config):
-    return None
-
-
 def hybrid(config):
-    return None
+    return Hybrid(num_nodes=config['graph']['nodes'], max_out_degree=config['graph']['max_out_degree'])

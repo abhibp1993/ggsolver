@@ -1070,14 +1070,5 @@ class Solver:
 
 
 def cached(model: GraphicalModel):
-    # TODO. Implement cached
-    # Add _cache_delta variable to model.
-    # Wrap model.delta in custom function that manages the cache variable.
-    # Update model.delta
-    # Return
+    # Idea. Update states, delta function
     pass
-
-
-if __name__ == '__main__':
-    m = Game()
-    m.graphify()

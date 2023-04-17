@@ -719,7 +719,7 @@ class Graph(IGraph):
         .. note:: Pickle protocol is not tested.
         """
         if not overwrite and os.path.exists(fpath):
-            raise FileExistsError("File already exists. To overwrite, call Graph.save(..., overwrite=True).")
+            raise FileExistsError(f"File already exists. To overwrite, call Graph.save(..., overwrite=True). {fpath=}")
 
         graph_dict = self.serialize()
         if protocol == "json":
@@ -902,11 +902,13 @@ class SubGraph(Graph):
         # Initialize hidden nodes and
         if hidden_nodes is not None:
             for uid in hidden_nodes:
-                self._hidden_nodes[uid] = True
+                self.hide_node(uid)
+                # self._hidden_nodes[uid] = True
 
         if hidden_edges is not None:
             for (uid, vid, key) in hidden_edges:
-                self._hidden_edges[uid, vid, key] = True
+                self.hide_edge(uid, vid, key)
+                # self._hidden_edges[uid, vid, key] = True
 
         # Define node, edge and graph properties (store property map views)
         self._node_properties = {
@@ -1228,7 +1230,7 @@ class SubGraph(Graph):
         if not self.is_node_visible(uid):
             raise KeyError(f"{self.__class__.__name__}.out_edges({uid}):: Node ID is invalid. Is it hidden?")
 
-        out_edges = self.base_graph.out_edges(uid)
+        out_edges = self.parent.out_edges(uid)
         return ((uid, vid, key) for uid, vid, key in out_edges if self.is_edge_visible(uid, vid, key))
 
     def successors(self, uid):

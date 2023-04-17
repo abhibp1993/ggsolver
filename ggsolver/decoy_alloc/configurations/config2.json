@@ -1,5 +1,5 @@
 {
-  "name": "exp_n10_mesh_t2_f0",
+  "name": "exp_n20_mesh_t2_f0",
   "directory": null,
   "overwrite": false,
   "type": "enumerative",
@@ -9,7 +9,7 @@
   "max_fakes": 0,
   "graph": {
     "topology": "mesh",
-    "nodes": 10,
+    "nodes": 20,
     "max_out_degree": null,
     "hubs": null,
     "save": true,

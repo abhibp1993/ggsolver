@@ -6,6 +6,7 @@ from tqdm import tqdm
 from loguru import logger
 from ggsolver.core.graph import Graph, SubGraph
 from queue import Empty
+from functools import partial
 
 
 # ==========================================================================
@@ -137,15 +138,66 @@ class GraphicalModel:
         return self
 
     def from_graph(self, graph):
-        # TODO. Implement from_graph method
         # Define states()
+        def states_():
+            return (graph["state"][uid] for uid in graph.nodes())
+
         # Define inputs() and/or enabled_inputs()
-        # Define delta() 
-        # Load node properties 
+        def inputs_():
+            return graph["inputs"]
+
+        def enabled_inputs_(state):
+            uid = self._cache_state2node[state]
+            return graph["enabled_inputs"][uid]
+
+        # Define delta()
+        def delta_(state, inp):
+            next_states = set()
+            uid = self._cache_state2node[state]
+            for _, vid, key in graph.out_edges(uid):
+                if graph["input"] == inp:
+                    element = graph["state"][vid]
+                    if graph["is_probabilistic"]:
+                        element = (element, graph["prob"][uid, vid, key])
+                    next_states.add(element)
+
+            if graph["is_deterministic"]:
+                return next_states.pop()
+            return next_states
+
+        # Update the internal functions
+        setattr(self, "states", states_)
+        setattr(self, "inputs", inputs_)
+        setattr(self, "enabled_inputs", enabled_inputs_)
+        setattr(self, "delta", delta_)
+
+        # Load node properties
+        def np_getter(np, state):
+            uid = self._cache_state2node[state]
+            return graph[np][uid]
+
+        for np in graph.node_properties:
+            setattr(self, np, partial(np_getter, np))
+
         # Load edge properties
+        def ep_getter(ep, state, inp, nstate):
+            uid = self._cache_state2node[state]
+            vid = self._cache_state2node[nstate]
+            key = -1
+            for u, v, k in graph.out_edges(uid):
+                if u == uid and v == vid and graph["input"][u, v, k] == inp:
+                    key = k
+            return graph[ep][uid, vid, key]
+
+        for ep in graph.edge_properties:
+            setattr(self, ep, partial(ep_getter, ep))
+
         # Load graph properties
-        # Manage cached variables
-        pass
+        def gp_getter(gp):
+            return graph[gp]
+
+        for gp in graph.edge_properties:
+            setattr(self, gp, partial(gp_getter))
 
     # ==========================================================================
     # FUNCTIONS TO BE IMPLEMENTED BY USER.

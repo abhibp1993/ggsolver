@@ -11,7 +11,7 @@ import loguru
 
 logger = loguru.logger
 
-MAX_COMBINATIONS = 100
+MAX_COMBINATIONS = 100000
 
 
 class EnumerativeTrapsAllocator(models.Solver):
@@ -104,11 +104,45 @@ class EnumerativeTrapsAllocator(models.Solver):
 
 
 class GreedyTrapsAllocator(models.Solver):
-    def __init__(self, graph: ggraph.Graph, num_decoys, use_multiprocessing=False):
-        pass
+    def __init__(self, graph: ggraph.Graph,
+                 num_decoys: int,
+                 max_combinations=MAX_COMBINATIONS,
+                 cpu_count=0,
+                 directory=None,
+                 fname=None,
+                 save_output=False
+                 ):
+        super(GreedyTrapsAllocator, self).__init__(graph)
+        self.num_decoys = num_decoys
+        self.max_combinations = max_combinations
+        self.cpu_count = multiprocessing.cpu_count() if cpu_count == "all" else cpu_count
+        self.directory = directory
+        self.fname = fname
+        self._save_output = save_output
+
+        # dict with the decoys, VOD, and solver for the best decoy allocation
+        self.deception_dict = None
+
+        self._value_of_deception = self._solution["value_of_deception"] = dict()
+
+    def _multicore_solve(self):
+        raise NotImplementedError("Multicore is not supported due to pickling issues with SubGraph class.")
+
+    def _singlecore_solve(self):
+        raise NotImplementedError("TODO")
 
     def solve(self):
-        pass
+        # Based on multiprocessing, solve for each decoy placement.
+        if self.cpu_count > 1:
+            self.deception_dict = self._multicore_solve()
+        else:
+            self.deception_dict = self._singlecore_solve()
+
+        self._edge_winner.update(self.deception_dict["solver"]._edge_winner)
+        self._node_winner.update(self.deception_dict["solver"]._node_winner)
+        self._solution["vod"] = self.deception_dict["value_of_deception"]
+        self._is_solved = True
+
 
 
 class EnumerativeFakesAllocator(models.Solver):

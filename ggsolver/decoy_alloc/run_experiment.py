@@ -26,7 +26,7 @@ logger = loguru.logger
 logger.remove()
 
 
-CONFIG_FILE_PATH = "configurations/config1.json"
+# CONFIG_FILE_PATH = "configurations/config1.json"
 
 
 def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):

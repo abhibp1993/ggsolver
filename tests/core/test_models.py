@@ -37,11 +37,16 @@ class TestGameGraphify(unittest.TestCase):
     def test_graphify_up_sc(self):
         graph = self.game.graphify()
         edges = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4), (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3), (5, 6),
-                (6, 6), (6, 7), (7, 0), (7, 3)]
+                 (6, 6), (6, 7), (7, 0), (7, 3)]
+
+        # Check states
         self.assertEqual(set(graph.nodes()), set(range(8)))
-        self.assertEqual(set(graph.edges()), {(u, v, 0) for u, v in edges})
-        self.assertEqual(graph["state"][0], "s0")
-        self.assertEqual(graph["state"][1], "s1")
+        self.assertEqual({graph["state"][uid] for uid in graph.nodes()}, set(self.game.states()))
+
+        # Since f"s{i}" could be mapped to node j, to check equality of edges, check if transitions are as expected.
+        expected_trans = {(f"s{i}", (i, j), f"s{j}") for i, j in edges}
+        actual_trans = {(graph["state"][u], graph["input"][u, v, k], graph["state"][v]) for u, v, k in graph.edges()}
+        self.assertEqual(expected_trans, actual_trans)
 
     def test_graphify_p_sc(self):
         self.game.initialize("s0")
@@ -52,19 +57,20 @@ class TestGameGraphify(unittest.TestCase):
         self.assertEqual(set(graph["state"][i] for i in graph.nodes()), set(f"s{i}" for i in range(8)))
         self.assertEqual(set((graph["state"][u], graph["state"][v]) for u, v, _ in graph.edges()),
                          set((f"s{i}", f"s{j}") for i, j in edges))
-        self.assertEqual(graph["state"][0], "s0")
-        self.assertEqual(graph["state"][1], "s1")
 
     def test_graphify_up_mc(self):
         graph = self.game.graphify(cores=3)
         edges = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4), (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3), (5, 6),
                  (6, 6), (6, 7), (7, 0), (7, 3)]
 
-        self.assertEqual(set(graph["state"][i] for i in graph.nodes()), set(f"s{i}" for i in range(8)))
-        self.assertEqual(set((graph["state"][u], graph["state"][v]) for u, v, _ in graph.edges()),
-                         set((f"s{i}", f"s{j}") for i, j in edges))
-        self.assertEqual(graph["state"][0], "s0")
-        self.assertEqual(graph["state"][1], "s1")
+        # Check states
+        self.assertEqual(set(graph.nodes()), set(range(8)))
+        self.assertEqual({graph["state"][uid] for uid in graph.nodes()}, set(self.game.states()))
+
+        # Since f"s{i}" could be mapped to node j, to check equality of edges, check if transitions are as expected.
+        expected_trans = {(f"s{i}", (i, j), f"s{j}") for i, j in edges}
+        actual_trans = {(graph["state"][u], graph["input"][u, v, k], graph["state"][v]) for u, v, k in graph.edges()}
+        self.assertEqual(expected_trans, actual_trans)
 
     def test_graphify_p_mc(self):
         self.game.initialize("s0")
@@ -81,3 +87,24 @@ class TestGameGraphify(unittest.TestCase):
     def test_str(self):
         self.assertEqual("Deterministic JobstmannGame(name=MyGame)", self.game.__str__())
 
+
+class TestCachedModel(unittest.TestCase):
+    def setUp(self):
+        self.game = JobstmannGame()
+
+    def test_cached(self):
+        game = self.game.make_cached()
+
+        graph = game.graphify()
+        edges = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4),
+                 (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3),
+                 (5, 6), (6, 6), (6, 7), (7, 0), (7, 3)]
+
+        # Check nodes
+        self.assertEqual(set(range(8)), set(graph.nodes()))
+
+        # Since f"s{i}" could be mapped to node j, to check equality of edges, check if transitions are as expected.
+        expected_trans = {(f"s{i}", (i, j), f"s{j}") for i, j in edges}
+        actual_trans = {(graph["state"][u], graph["input"][u, v, k], graph["state"][v]) for u, v, k in graph.edges()}
+        self.assertEqual(expected_trans, actual_trans)
+        self.assertEqual({f"s{i}" for i in range(8)}, set(game._cache_states))

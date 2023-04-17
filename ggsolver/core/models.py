@@ -15,6 +15,7 @@ TURN_NATURE = 0
 TURN_P1 = 1
 TURN_P2 = 2
 
+
 # ==========================================================================
 # DECORATOR FUNCTIONS.
 # ==========================================================================
@@ -52,6 +53,10 @@ class GraphicalModel:
 
         # Cache variables
         self._cache_state2node = dict()
+        self._cache_states_func = None
+        self._cache_delta_func = None
+        self._cache_states = None
+        self._cache_delta = dict()
 
     def __repr__(self):
         if self._name is None:
@@ -92,11 +97,44 @@ class GraphicalModel:
     def initialize(self, s0):
         self._init_state = s0
 
-    def make_complete(self):
-        # TODO. GraphicalModel.make_complete
-        # Wrap states() method to add a "__sink__" state.
-        # Wrap delta() method to redirect any undefined transitions into sink state.
-        pass
+    def make_cached(self):
+        """
+        Uses caching to speed up delta() and state() functions.
+        Second and onwards calls to states() and delta(state, inp) are O(1).
+        :return: (self object)
+        """
+        # Process states function
+        # `_cache_states_func` is uncached version of states() function.
+        # `_cache_states` is set of cached states.
+        if self._cache_states_func is None:
+            self._cache_states_func = getattr(self, "states")
+
+        def cached_states():
+            if self._cache_states is None:
+                self._cache_states = set(self._cache_states_func())
+                logger.debug(f"Cached states(): {self._cache_states}")
+            # logger.debug(f"Returning states(): {self._cache_states}")
+            return self._cache_states
+
+        setattr(self, "states", cached_states)
+
+        # Process delta function
+        if self._cache_delta_func is None:
+            self._cache_delta_func = getattr(self, "delta")
+
+        def cached_delta(state, inp):
+            out = self._cache_delta.get((state, inp), "__notset__")
+            # logger.debug(f"Query delta({state}, {inp}) -> {out}")
+
+            if out is "__notset__":
+                self._cache_delta[(state, inp)] = self._cache_delta_func(state, inp)
+                # logger.debug(f"Cached delta({state}, {inp}): {self._cache_delta[(state, inp)]}")
+
+            # logger.debug(f"Returning delta({state}, {inp}): {self._cache_delta[(state, inp)]}")
+            return self._cache_delta[state, inp]
+
+        setattr(self, "delta", cached_delta)
+        return self
 
     def from_graph(self, graph):
         # TODO. Implement from_graph method
@@ -165,7 +203,7 @@ class GraphicalModel:
         en_inputs = getattr(self, "enabled_inputs")
 
         # Clear cache
-        self._clear_cache()
+        self._cache_state2node = dict()
 
         # Instantiate graph
         graph = Graph()
@@ -205,9 +243,6 @@ class GraphicalModel:
 
         # Return graph
         return graph
-
-    def _clear_cache(self):
-        pass
 
     def _gen_edges(self, delta, state, inp, verbosity):
         next_states = delta(state, inp)

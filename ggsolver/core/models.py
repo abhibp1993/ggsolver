@@ -912,6 +912,28 @@ class Game(GraphicalModel):
 
             self.final = final_
 
+    def make_complete(self, sink="__sink__"):
+        user_states = getattr(self, "states")
+        user_delta = getattr(self, "delta")
+
+        # Wrap states() method to add a "sink" state.
+        def complete_states():
+            yield from user_states()
+            yield from [sink]
+
+        setattr(self, "states", complete_states)
+
+        # Wrap delta() method to redirect any undefined transitions into sink state.
+        def complete_delta(state, inp):
+            out = user_delta(state, inp)
+            if out is None:
+                out = sink
+            return out
+
+        setattr(self, "delta", complete_delta)
+
+        return self
+
     # ==========================================================================
     # FUNCTIONS TO BE IMPLEMENTED BY USER.
     # ==========================================================================

@@ -24,7 +24,10 @@ class JobstmannGame(ggsolver.Game):
         return self._en_acts[i]
 
     def delta(self, state: str, act: tuple) -> str:
-        return f"s{act[1]}"
+        if state == "SINK":
+            return "SINK"
+        if int(state[1:]) == act[0]:
+            return f"s{act[1]}"
 
     def final(self, state):
         return True if state in ["s3", "s4"] else False
@@ -108,3 +111,41 @@ class TestCachedModel(unittest.TestCase):
         actual_trans = {(graph["state"][u], graph["input"][u, v, k], graph["state"][v]) for u, v, k in graph.edges()}
         self.assertEqual(expected_trans, actual_trans)
         self.assertEqual({f"s{i}" for i in range(8)}, set(game._cache_states))
+
+
+class TestCompleteGame(unittest.TestCase):
+    def setUp(self):
+        self.game = JobstmannGame()
+        delattr(self.game, "enabled_inputs")
+        actions = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4),
+                   (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3),
+                   (5, 6), (6, 6), (6, 7), (7, 0), (7, 3)]
+        self.game.inputs = lambda: actions
+
+    def test_completed(self):
+        game = self.game.make_complete(sink="SINK")
+
+        graph = game.graphify()
+        edges = [(0, 1), (0, 3), (1, 0), (1, 2), (1, 4), (2, 4),
+                 (2, 2), (3, 0), (3, 4), (3, 5), (4, 3), (5, 3),
+                 (5, 6), (6, 6), (6, 7), (7, 0), (7, 3)]
+
+        # Check nodes
+        self.assertEqual({graph["state"][uid] for uid in graph.nodes()}, {f"s{i}" for i in range(8)} | {"SINK"})
+
+        # # Since f"s{i}" could be mapped to node j, to check equality of edges, check if transitions are as expected.
+        expected_trans = set()
+        actual_trans = set()
+        for u in range(8):
+            for i, j in edges:
+                if u == i:
+                    expected_trans.add((f"s{u}", (i, j), f"s{j}"))
+                else:
+                    expected_trans.add((f"s{u}", (i, j), "SINK"))
+
+        expected_trans.update({("SINK", act, "SINK") for act in edges})
+
+        for u, v, k in graph.edges():
+            actual_trans.add((graph["state"][u], graph["input"][u, v, k], graph["state"][v]))
+
+        self.assertEqual(expected_trans, actual_trans)

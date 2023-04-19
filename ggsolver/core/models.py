@@ -138,6 +138,11 @@ class GraphicalModel:
         return self
 
     def from_graph(self, graph):
+        # Populate state to node cache
+        self._cache_state2node = dict()
+        for uid in graph.nodes():
+            self._cache_state2node[graph["state"][uid]] = uid
+
         # Define states()
         def states_():
             return (graph["state"][uid] for uid in graph.nodes())
@@ -155,7 +160,7 @@ class GraphicalModel:
             next_states = set()
             uid = self._cache_state2node[state]
             for _, vid, key in graph.out_edges(uid):
-                if graph["input"] == inp:
+                if graph["input"][uid, vid, key] == inp:
                     element = graph["state"][vid]
                     if graph["is_probabilistic"]:
                         element = (element, graph["prob"][uid, vid, key])
@@ -198,6 +203,8 @@ class GraphicalModel:
 
         for gp in graph.edge_properties:
             setattr(self, gp, partial(gp_getter))
+
+        return self
 
     # ==========================================================================
     # FUNCTIONS TO BE IMPLEMENTED BY USER.

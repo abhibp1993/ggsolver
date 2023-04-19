@@ -16,6 +16,29 @@ class JobstmannGame(ggsolver.Game):
             7: [(7, 0), (7, 3)]
         }
 
+    def __eq__(self, other: ggsolver.Game):
+        # Compare states
+        states = set(self.states())
+        if states != set(other.states()):
+            return False
+
+        # Compare final states
+        self_final = {s for s in states if self.final(s)}
+        other_final = {s for s in states if self.final(s)}
+        if self_final != other_final:
+            return False
+
+        # Compare enabled_acts and delta function
+        for s in states:
+            if self.enabled_inputs(s) != other.enabled_inputs(s):
+                return False
+
+            for a in self.enabled_inputs(s):
+                if self.delta(s, a) != other.delta(s, a):
+                    return False
+
+        return True
+
     def states(self):
         return (f"s{i}" for i in range(8))
 
@@ -149,3 +172,13 @@ class TestCompleteGame(unittest.TestCase):
             actual_trans.add((graph["state"][u], graph["input"][u, v, k], graph["state"][v]))
 
         self.assertEqual(expected_trans, actual_trans)
+
+
+class TestFromGraph(unittest.TestCase):
+    def setUp(self):
+        self.game = JobstmannGame()
+
+    def test_from_graph(self):
+        graph = self.game.graphify()
+        game = ggsolver.Game().from_graph(graph)
+        self.assertEqual(self.game, game)

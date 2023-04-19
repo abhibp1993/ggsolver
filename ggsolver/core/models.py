@@ -138,6 +138,14 @@ class GraphicalModel:
         return self
 
     def from_graph(self, graph):
+        assert "is_deterministic" in graph.graph_properties
+        assert "is_probabilistic" in graph.graph_properties
+        assert "inputs" in graph.graph_properties
+        assert "state" in graph.node_properties
+        assert "enabled_inputs" in graph.node_properties
+        assert "input" in graph.edge_properties
+        assert "prob" in graph.edge_properties
+
         # Populate state to node cache
         self._cache_state2node = dict()
         for uid in graph.nodes():
@@ -992,6 +1000,13 @@ class Game(GraphicalModel):
         setattr(self, "delta", complete_delta)
 
         return self
+
+    def from_graph(self, graph):
+        assert "is_turn_based" in graph.graph_properties
+        if graph["is_turn_based"]:
+            assert "turn" in graph.node_properties
+
+        return super(Game, self).from_graph(graph)
 
     # ==========================================================================
     # FUNCTIONS TO BE IMPLEMENTED BY USER.

@@ -43,8 +43,11 @@ class JobstmannGame(ggsolver.Game):
         return (f"s{i}" for i in range(8))
 
     def enabled_acts(self, state):
-        i = int(state[1:])
-        return self._en_acts[i]
+        try:
+            i = int(state[1:])
+            return self._en_acts[i]
+        except ValueError:
+            pass
 
     def delta(self, state: str, act: tuple) -> str:
         if state == "SINK":

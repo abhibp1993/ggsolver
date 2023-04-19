@@ -8,3 +8,5 @@ ggsolver/ioutils/__pycache__/
 */__pycache__/
 
 ggsolver/core/__pycache__/
+
+tests/core/__pycache__/

@@ -8,7 +8,6 @@ from ggsolver.core.graph import Graph, SubGraph
 from queue import Empty
 from functools import partial
 
-
 # ==========================================================================
 # MACROS (PUBLIC)
 # ==========================================================================
@@ -23,7 +22,7 @@ TURN_P2 = 2
 def register_property(property_set: set):
     def register_function(func):
         if func.__name__ in property_set:
-            logger.warning(f"[WARN] Duplicate property: {func.__name__}.")
+            logger.warning(f"Duplicate property: {func.__name__}.")
         property_set.add(func.__name__)
         return func
 
@@ -33,24 +32,82 @@ def register_property(property_set: set):
 # ==========================================================================
 # GRAPHICAL MODELS
 # ==========================================================================
-class GraphicalModel:
+class Game:
+    """
+    Represents a game transition system, hereafter referred simply as a game.
+    A `Game` can represent two mathematical structures commonly used in literature, namely
+    .. math::
+        G = (S, A, T, AP, L, formula)
+    .. math::
+        G = (S, A, T, F, WinCond)
+    In the `Game` class, each component is represented as a function. By defining the relevant functions, a `Game`
+    class may represent either of the two mathematical structures.
+    - The set of states :math:`S` is represented by `Game.states` function,
+    - The set of actions :math:`A` is represented by `Game.actions` function,
+    - The transition function :math:`T` is represented by `Game.delta` function,
+    - The set of atomic propositions :math:`AP` is represented by `Game.atoms` function,
+    - The labeling function :math:`L` is represented by `Game.label` function.
+    - When the winning condition is represented by a logic formula :math:`formula`, we define `Game.formula` function.
+    - When the winning condition is represented by a final states :math:`F`, we define `Game.final` function.
+      In this case, we must also specify the acceptance condition.
+    - The winning condition :math:`WinCond` is represented by `Game.win_cond` function.
+    All of the above functions are marked abstract.
+    The recommended way to use `Game` class is by subclassing it and implementing the relevant component functions.
+    **Categorization of a Game:** A game is categorized by three types:
+    -   A game can be either deterministic or non-deterministic or probabilistic.
+        To define a **deterministic** transition system, provide a keyword argument `is_deterministic=True` to the
+        constructor. To define a **nondeterministic** transition system, provide a keyword argument `is_deterministic=False`
+        to the constructor. To define a **probabilistic** transition system, provide a keyword arguments
+        `is_deterministic=False, is_probabilistic=True` to the constructor.
+        The design of `Game` class closely follows its mathematical definition.
+        Hence, the signatures of `delta` function for deterministic, nondeterministic, probabilistic games are different.
+        - **deterministic:**  `delta(state, act) -> single state`
+        - **non-deterministic:**  `delta(state, act) -> a list of states`
+        - **probabilistic:**  `delta(state, act) -> a distribution over states`
+    -   A game can be turn-based or concurrent. To define a **concurrent** game, provide a keyword argument
+        `is_turn_based=False`. The game is `turn_based` by default.
+    -   A game can be a 1/1.5/2/2.5-player game. A one-player game models a deterministic motion planning-type problem in
+        a static environment. A 1.5-player game is an MDP. A two-player game models a deterministic interaction between
+        two strategic players. And, a 2.5-player game models a stochastic interaction between two strategic players.
+        If a game is one or two player, then the :py:meth:`Game.delta` is `deterministic`.
+        If a game is 1.5 or 2.5 player, then the :py:meth:`Game.delta` is either `non-deterministic` (when
+        transition probabilities are unknown), and `probabilistic` (when transition probabilities are known).
+    Every state in a turn-based game is controlled by a player. To define which player controls which state, define
+    a game component :py:meth:`Game.turn` which takes in a state and returns a value between 0 and 3 to indicate
+    which player controls the state.
+    An important feature of `Game` class is the `graphify()` function. It constructs a `Graph` object that is
+    equivalent to the game. The nodes of the `Graph` represent the states of `Game`,
+    the edges of the `Graph` are defined by the set of `actions` and the `delta` function.
+    The atomic propositions, labeling function are stored as `node, edge` and `graph` properties.
+    By default, every `Graph` returned a `Game.graphify()` function have the following (node/edge/graph) properties:
+    - `state`: (node property) A Map from every node to the state of transition system it represents.
+    - `input_domain`: (graph property) Name of function that defines input domain of game (="actions").
+    - `actions`: (graph property) List of valid actions.
+    - `input`: (edge property) A map from every edge `(uid, vid, key)` to its associated action label.
+    - `prob`: (edge property) The probability associated with the edge `(uid, vid, key)`.
+    - `atoms`: (graph property) List of valid atomic propositions.
+    - `label`: (node property) A map every node to the list of atomic propositions true in the state represented by that node.
+    - `init_state`: (graph property) Initial state of transition system.
+    - `is_deterministic`: (graph property) Is the transition system deterministic?
+    - `is_probabilistic`: (graph property) Is the transition system probabilistic?
+    - `is_turn_based`: (graph property) Is the transition system turn-based?
+    - `final`: (node property) Returns an integer denoting the acceptance set the state belongs to.
+    - `win_cond`: (graph property) The winning condition of the game.
+    - `formula`: (graph property) A logic formula representing the winning condition of the game.
+    - `turn`: (node property) A map from every node to an integer (0/1/2) that denotes which player controls the node.
+    **Note:** Some features of probabilistic transition system are not tested.
+    If you are trying to implement a probabilistic transition system, reach out to Abhishek Kulkarni
+    (a.kulkarni2@ufl.edu).
+    """
     NODE_PROPERTY = set()
     EDGE_PROPERTY = set()
     GRAPH_PROPERTY = set()
 
-    # ==========================================================================
-    # MAGIC METHODS
-    # ==========================================================================
-    def __init__(self, is_deterministic=True, is_probabilistic=False, **kwargs):
-        # Name (only for pretty printing)
-        self._name = kwargs.get("name", None)
-
-        # Types of Graphical Models.
+    def __init__(self, is_deterministic=True, is_probabilistic=False, is_turn_based=True, **kwargs):
+        # Type of game.
         self._is_deterministic = is_deterministic
         self._is_probabilistic = is_probabilistic
-
-        # Pointed model
-        self._init_state = kwargs["init_state"] if "init_state" in kwargs else None
+        self._is_turn_based = is_turn_based
 
         # Cache variables
         self._cache_state2node = dict()
@@ -59,10 +116,77 @@ class GraphicalModel:
         self._cache_states = None
         self._cache_delta = dict()
 
+        # Process keyword arguments
+        self._name = kwargs.get("name", None)
+        self._init_state = kwargs.get("init_state", None)
+
+        if "states" in kwargs:
+            def states_():
+                return (st for st in kwargs["states"])
+
+            self.states = states_
+
+        if "actions" in kwargs:
+            def actions_(state):
+                return kwargs["actions"][state]
+
+            self.actions = actions_
+
+        if "trans_dict" in kwargs:
+            def delta_(state, inp):
+                out_edges = kwargs["trans_dict"].get(state, None)
+                if out_edges is not None:
+                    return out_edges.get(inp, None)
+
+            self.delta = delta_
+
+        if "atoms" in kwargs:
+            def atoms_():
+                return kwargs["atoms"]
+
+            self.atoms = atoms_
+
+        if "label" in kwargs:
+            def label_(state):
+                return kwargs["label"].get(state, set())
+
+            self.label = label_
+
+        if "turn" in kwargs:
+            def turn_(state):
+                return kwargs["turn"][state]
+
+            self.turn = turn_
+
+        if "final" in kwargs:
+            def final_():
+                return kwargs["final"]
+
+            self.final = final_
+
+        # Process keyword arguments
+        self.initialize(self._init_state)
+
     def __repr__(self):
         if self._name is None:
             return f"<{self.type()} {self.__class__.__name__}>"
         return f"{self.type()} {self.__class__.__name__}(name={self._name})"
+
+    __str__ = __repr__
+
+    def __hash__(self):
+        """
+        .. warning:: Hash is defined using `name` attribute. It is user's responsibility to ensure that
+            names of objects are not duplicated.
+        """
+        if self._name is None:
+            raise TypeError(f"{self.__class__.__name__} object with no `name` cannot be hashed.")
+        return hash(self._name)
+
+    def __eq__(self, other: 'Game'):
+        my_graph = self.graphify()
+        other_graph = other.graphify()
+        return my_graph == other_graph
 
     # ==========================================================================
     # TYPE OF GRAPHICAL MODEL
@@ -84,6 +208,17 @@ class GraphicalModel:
         """ Returns `True` if the graphical model is probabilistic. Else, returns `False`. """
         return self._is_probabilistic
 
+    @register_property(GRAPH_PROPERTY)
+    def is_turn_based(self):
+        """ Is the game turn based? """
+        return self._is_turn_based
+
+    # ==========================================================================
+    # PUBLIC UTILITY METHODS
+    # ==========================================================================
+    def initialize(self, state):
+        self._init_state = state
+
     def type(self):
         if self.is_deterministic():
             return "Deterministic"
@@ -92,17 +227,49 @@ class GraphicalModel:
         else:
             return "Probabilistic"
 
-    # ==========================================================================
-    # PUBLIC FUNCTIONS.
-    # ==========================================================================
-    def initialize(self, s0):
-        self._init_state = s0
+    def make_complete(self, sink="__sink__", sink_act="__sink_act__"):
+        user_states = getattr(self, "states")
+        user_actions = getattr(self, "actions")
+        user_delta = getattr(self, "delta")
+
+        # Add "sink" state to states()
+        def complete_states():
+            yield from user_states()
+            yield from [sink]
+
+        # Add "sink" action to "sink" state.
+        def complete_actions(state):
+            if state == sink:
+                return [sink_act]
+            return user_actions(state)
+
+        def complete_delta(state, act):
+            # All outgoing transitions from sink are self-loops
+            if state == sink:
+                return sink
+
+            # If state is not sink, try user-defined delta function.
+            out = user_delta(state, act)
+
+            # If user's delta is not defined for state-action pair, redirect transition to sink.
+            if out is None:
+                out = sink
+
+            return out
+
+        setattr(self, "states", complete_states)
+        setattr(self, "actions", complete_actions)
+        setattr(self, "delta", complete_delta)
+
+        return self
 
     def make_cached(self):
         """
         Uses caching to speed up delta() and state() functions.
         Second and onwards calls to states() and delta(state, inp) are O(1).
         :return: (self object)
+
+        .. note:: Not caching inputs().
         """
         # Process states function
         # `_cache_states_func` is uncached version of states() function.
@@ -114,7 +281,6 @@ class GraphicalModel:
             if self._cache_states is None:
                 self._cache_states = set(self._cache_states_func())
                 logger.debug(f"Cached states(): {self._cache_states}")
-            # logger.debug(f"Returning states(): {self._cache_states}")
             return self._cache_states
 
         setattr(self, "states", cached_states)
@@ -125,50 +291,44 @@ class GraphicalModel:
 
         def cached_delta(state, inp):
             out = self._cache_delta.get((state, inp), "__notset__")
-            # logger.debug(f"Query delta({state}, {inp}) -> {out}")
-
-            if out is "__notset__":
+            if out == "__notset__":
                 self._cache_delta[(state, inp)] = self._cache_delta_func(state, inp)
-                # logger.debug(f"Cached delta({state}, {inp}): {self._cache_delta[(state, inp)]}")
-
-            # logger.debug(f"Returning delta({state}, {inp}): {self._cache_delta[(state, inp)]}")
             return self._cache_delta[state, inp]
 
         setattr(self, "delta", cached_delta)
+
+        # Return self object to support `obj = model.make_cached()` syntax.
         return self
 
     def from_graph(self, graph):
         assert "is_deterministic" in graph.graph_properties
         assert "is_probabilistic" in graph.graph_properties
-        assert "inputs" in graph.graph_properties
+        assert "actions" in graph.node_properties
         assert "state" in graph.node_properties
-        assert "enabled_inputs" in graph.node_properties
-        assert "input" in graph.edge_properties
-        assert "prob" in graph.edge_properties
+        assert "act" in graph.edge_properties
+        if graph["is_probabilistic"]:
+            assert "prob" in graph.edge_properties
 
         # Populate state to node cache
         self._cache_state2node = dict()
-        for uid in graph.nodes():
-            self._cache_state2node[graph["state"][uid]] = uid
+        for node in graph.nodes():
+            self._cache_state2node[graph["state"][node]] = node
 
         # Define states()
         def states_():
             return (graph["state"][uid] for uid in graph.nodes())
 
-        # Define inputs() and/or enabled_inputs()
-        def inputs_():
-            return graph["inputs"]
-
-        def enabled_inputs_(state):
+        # Define inputs()
+        def actions_(state):
             uid = self._cache_state2node[state]
-            return graph["enabled_inputs"][uid]
+            return graph["actions"][uid]
 
         # Define delta()
         def delta_(state, inp):
             next_states = set()
             uid = self._cache_state2node[state]
             for _, vid, key in graph.out_edges(uid):
-                if graph["input"][uid, vid, key] == inp:
+                if graph["act"][uid, vid, key] == inp:
                     element = graph["state"][vid]
                     if graph["is_probabilistic"]:
                         element = (element, graph["prob"][uid, vid, key])
@@ -180,8 +340,7 @@ class GraphicalModel:
 
         # Update the internal functions
         setattr(self, "states", states_)
-        setattr(self, "inputs", inputs_)
-        setattr(self, "enabled_inputs", enabled_inputs_)
+        setattr(self, "actions", actions_)
         setattr(self, "delta", delta_)
 
         # Load node properties
@@ -189,54 +348,40 @@ class GraphicalModel:
             uid = self._cache_state2node[state]
             return graph[np][uid]
 
-        for np in graph.node_properties:
-            setattr(self, np, partial(np_getter, np))
+        for np_ in graph.node_properties:
+            setattr(self, np_, partial(np_getter, np_))
 
         # Load edge properties
-        def ep_getter(ep, state, inp, nstate):
+        def ep_getter(ep, state, inp, n_state):
             uid = self._cache_state2node[state]
-            vid = self._cache_state2node[nstate]
+            vid = self._cache_state2node[n_state]
             key = -1
             for u, v, k in graph.out_edges(uid):
-                if u == uid and v == vid and graph["input"][u, v, k] == inp:
+                if u == uid and v == vid and graph["act"][u, v, k] == inp:
                     key = k
             return graph[ep][uid, vid, key]
 
-        for ep in graph.edge_properties:
-            setattr(self, ep, partial(ep_getter, ep))
+        for ep_ in graph.edge_properties:
+            setattr(self, ep_, partial(ep_getter, ep_))
 
         # Load graph properties
         def gp_getter(gp):
             return graph[gp]
 
-        for gp in graph.edge_properties:
-            setattr(self, gp, partial(gp_getter))
+        for gp_ in graph.graph_properties:
+            setattr(self, gp_, partial(gp_getter, gp_))
 
         return self
 
-    # ==========================================================================
-    # FUNCTIONS TO BE IMPLEMENTED BY USER.
-    # ==========================================================================
-    def states(self):
-        raise NotImplementedError("Abstract")
-
-    def inputs(self):
-        raise NotImplementedError("Abstract")
-
-    def init_state(self):
-        """
-        Returns the initial state of the graphical model.
-        """
-        return self._init_state
-
-    def delta(self, state, inp):
-        raise NotImplementedError("Abstract")
-
-    def enabled_inputs(self, state):
-        raise NotImplementedError("Abstract")
+    # def from_graph(self, graph):
+    #     assert "is_turn_based" in graph.graph_properties
+    #     if graph["is_turn_based"]:
+    #         assert "turn" in graph.node_properties
+    #
+    #     return super(Game, self).from_graph(graph)
 
     # ==========================================================================
-    # GRAPHIFICATION METHODS
+    # GRAPHIFY
     # ==========================================================================
     def graphify(self, **kwargs):
         """
@@ -247,9 +392,10 @@ class GraphicalModel:
             If given value is larger than number of available cores, maximum cores will be used.
         :param verbosity: (int) Accepted values:
             - 0: no messages,
-            - 1: shows progress bars, critical warnings and messages. [Default]
+            - 1: only critical warnings and messages. [Default]
             - 2: shows configuration, progress bars, critical warnings and messages.
             - 3: shows debug level information including delta function logging.
+
         :param np: (Iterable[str]) Select which node properties to include in graph.
         :param ignore_np: (Iterable[str]) Select which node properties to ignore in graph.
         :param ep: (Iterable[str]) Select which edge properties to include in graph.
@@ -262,13 +408,6 @@ class GraphicalModel:
         # Process arguments
         pointed, cores, verbosity, np, ep, gp = self._graphify_process_args(kwargs)
 
-        # Configure key functions
-        states = getattr(self, "states")
-        inputs = getattr(self, "inputs")
-        delta = getattr(self, "delta")
-        init_state = getattr(self, "init_state")
-        en_inputs = getattr(self, "enabled_inputs")
-
         # Clear cache
         self._cache_state2node = dict()
 
@@ -276,24 +415,55 @@ class GraphicalModel:
         graph = Graph()
 
         # Initialize node and edge properties
-        graph.create_np("state")
-        graph.create_np("enabled_inputs")
-        graph.create_ep("input")
+        np_state = graph.create_np("state")
+        graph.create_np("actions")
+        graph.create_ep("act")
         graph.create_ep("prob")
+        graph.create_gp("init_state")
+
+        # Configure key functions
+        states = getattr(self, "states")
+        inputs = getattr(self, "actions")
+        delta = getattr(self, "delta")
+        init_state = getattr(self, "init_state")
 
         # Construct underlying graph
-        if not pointed and cores == 1:
-            self._gen_graph_up_sc(graph=graph, states=states, inputs=inputs, delta=delta,
-                                  en_inputs=en_inputs, verbosity=verbosity)
-        elif not pointed and cores > 1:
-            self._gen_graph_up_mc(graph=graph, states=states, inputs=inputs, delta=delta,
-                                  en_inputs=en_inputs, cores=cores, verbosity=verbosity)
-        elif pointed and cores == 1:
-            self._gen_graph_p_sc(graph=graph, inputs=inputs, delta=delta, init_state=init_state,
-                                 en_inputs=en_inputs, verbosity=verbosity)
-        elif pointed and cores > 1:
-            self._gen_graph_p_mc(graph=graph, inputs=inputs, delta=delta, init_state=init_state,
-                                 en_inputs=en_inputs, cores=cores, verbosity=verbosity)
+        if not pointed:
+            # Get states, add them to graph, update state property and cache
+            states = states()
+            for state in tqdm(states, desc="Unpointed, multi-core graphify adding nodes to graph",
+                              disable=True if verbosity == 0 else False):
+                sid = graph.add_node()
+                self._cache_state2node[state] = sid
+                np_state[sid] = state
+
+            # Depending on how many cores to use, generate edges.
+            if cores == 1:
+                self._gen_graph_up_sc(
+                    graph=graph, states=states, actions=inputs, delta=delta, verbosity=verbosity
+                )
+            else:
+                self._gen_graph_up_mc(graph=graph, states=states, actions=inputs, delta=delta,
+                                      cores=cores, verbosity=verbosity)
+
+        elif pointed:
+            # Add initial state
+            try:
+                s0 = init_state()
+                uid = graph.add_node()
+                self._cache_state2node[s0] = uid
+                np_state[uid] = s0
+
+            except NotImplementedError:
+                raise NotImplementedError("`init_state` function raised NotImplementedError. "
+                                          "Terminating graphify().")
+
+            if cores == 1:
+                self._gen_graph_p_sc(graph=graph, actions=inputs, delta=delta, init_state=init_state,
+                                     verbosity=verbosity)
+            else:
+                self._gen_graph_p_mc(graph=graph, actions=inputs, delta=delta, init_state=init_state,
+                                     cores=cores, verbosity=verbosity)
         else:
             raise RuntimeError(f"The following configuration is not supported: "
                                f"{pointed=}, {cores=}.")
@@ -310,473 +480,6 @@ class GraphicalModel:
 
         # Return graph
         return graph
-
-    def _gen_edges(self, delta, state, inp, verbosity):
-        next_states = delta(state, inp)
-        edges = set()
-
-        # There are three types of graphical models. Handle each separately.
-        # If model is deterministic, next states is a single state.
-        if self.is_deterministic():
-            if next_states is None and verbosity > 2:
-                logger.warning(f"No edge(s) added to graph for state={state}, input={inp}, next_state={next_states}.")
-                return set()
-
-            edges.add((state, next_states, inp, None))
-
-        # If model is non-deterministic, next states is an Iterable of states.
-        elif not self.is_deterministic() and not self.is_probabilistic():
-            for next_state in next_states:
-                if next_state is None:
-                    if verbosity > 2:
-                        logger.warning(
-                            f"No edge(s) added to graph for state={state}, input={inp}, next_state={next_states}.")
-                    continue
-
-                edges.add((state, next_state, inp, None))
-
-        # If model is stochastic, next states is a Distribution of states.
-        elif not self.is_deterministic() and self.is_probabilistic():
-            # FIXME. I have doubts that following implementation is correct.
-            #  If support is empty, the code under `if` will not execute.
-            for next_state in next_states.support():
-                if next_state is None:
-                    if verbosity > 2:
-                        logger.warning(
-                            f"No edge(s) added to graph for state={state}, input={inp}, next_state={next_states}.")
-                    continue
-
-                edges.add((state, next_state, inp, next_states.pmf(next_state)))
-
-        else:
-            raise TypeError("Graphical Model is neither deterministic, nor non-deterministic, nor stochastic! "
-                            f"Check the values: is_deterministic: {self.is_deterministic()}, "
-                            f"self.is_quantitative:{self.is_probabilistic()}.")
-
-        return edges
-
-    def _gen_edges_up_mc(self, data):
-        edges = set()
-        for delta, state, inp, verbosity in data:
-            edges.update(self._gen_edges(delta, state, inp, verbosity))
-        return edges
-
-    def _gen_edges_p_mc(self, delta, en_inputs, pid, count, lock, queue, queue_dict, visited, edges, verbosity):
-        """
-        """
-        with lock:
-            print(f"{pid=} started.")
-
-        while True:
-            # Termination condition
-            if count.value == 0:
-                break
-
-            # Get next element
-            try:
-                state = queue.get(timeout=0.01)
-            except Empty:
-                continue
-
-            # If sentinel, terminate
-            if state is None:
-                break
-
-            # Visit element (update dQ, V)
-            with lock:
-                queue_dict.pop(state)
-                visited[state] = None
-
-            # Generate new edges
-            inputs_at_state = en_inputs(state)
-            new_edges = set()
-            for inp in inputs_at_state:
-                new_edges.update(self._gen_edges(delta, state, inp, verbosity))
-
-            with lock:
-                edges.update(zip(new_edges, [None] * len(new_edges)))
-
-            # Update queue, queue_dict and count (synchronously)
-            with lock:
-                for _, n_state, _, _ in new_edges:
-                    if not (n_state in queue_dict or n_state in visited):
-                        queue.put(n_state)
-                        queue_dict[n_state] = None
-                        count.value += 1
-
-            # Decrement count by 1.
-            count.value -= 1
-
-        print(f"{pid=} terminated.")
-
-    def _gen_graph_up_sc(self, graph, states, inputs, delta, en_inputs, verbosity):
-        # Initialize node and edge properties
-        np_state = graph["state"]
-        np_enabled_inputs = graph["enabled_inputs"]
-        ep_input = graph["input"]
-        ep_prob = graph["prob"]
-
-        # Get states, add them to graph, update state property and cache
-        states = states()
-        self._cache_state2node = dict()
-        for state in tqdm(states, desc="Unpointed, single-core graphify adding nodes to graph",
-                          disable=True if verbosity == 0 else False):
-            sid = graph.add_node()
-            self._cache_state2node[state] = sid
-            np_state[sid] = state
-
-        # If enabled inputs function is implemented, use it.
-        try:
-            s0 = next(iter(self._cache_state2node.keys()))
-            en_inputs(s0)
-        except NotImplementedError:
-            en_inputs = None
-            if verbosity >= 1:
-                logger.warning("`enabled_inputs` function raised NotImplementedError. "
-                               "Setting enabled_inputs(state) to return inputs().")
-
-        # Otherwise, set enabled inputs to be set of all inputs.
-        # If neither enabled inputs nor inputs is defined, raise exception.
-        if en_inputs is None:
-            # Ensure inputs() function is well-defined.
-            try:
-                inputs = inputs()
-                graph["inputs"] = inputs
-            except NotImplementedError:
-                raise NotImplementedError("Neither `enabled_inputs` nor `inputs` methods are implemented. "
-                                          "Terminating graphify().")
-
-            # Redefine enabled inputs method
-            def en_inputs(state_):
-                return inputs
-
-        # Generate edges
-        for state, sid in tqdm(self._cache_state2node.items(), desc="Unpointed, single-core graphify adding edges",
-                               disable=True if verbosity == 0 else False):
-            # Get enabled inputs at state
-            inputs_at_state = en_inputs(state)
-            np_enabled_inputs[sid] = inputs_at_state
-
-            # Apply each input to the state to generate next states
-            for inp in inputs_at_state:
-                # Generate edges from state
-                new_edges = self._gen_edges(delta, state, inp, verbosity=verbosity)
-
-                # Update graph edges
-                for _, t, _, prob in new_edges:
-                    tid = self._cache_state2node[t]
-                    key = graph.add_edge(sid, tid)
-                    ep_input[sid, tid, key] = inp
-                    ep_prob[sid, tid, key] = prob
-
-        # Log completion of this procedure
-        if verbosity > 0:
-            logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
-
-    def _gen_graph_up_mc(self, graph, states, inputs, delta, en_inputs, cores, verbosity):
-        # Initialize node and edge properties
-        np_state = graph["state"]
-        np_enabled_inputs = graph["enabled_inputs"]
-        ep_input = graph["input"]
-        ep_prob = graph["prob"]
-
-        # Get states, add them to graph, update state property and cache
-        states = states()
-        self._cache_state2node = dict()
-        for state in tqdm(states, desc="Unpointed, single-core graphify adding nodes to graph",
-                          disable=True if verbosity == 0 else False):
-            sid = graph.add_node()
-            self._cache_state2node[state] = sid
-            np_state[sid] = state
-
-        # If enabled inputs function is implemented, use it.
-        try:
-            s0 = next(iter(self._cache_state2node.keys()))
-            en_inputs(s0)
-        except NotImplementedError:
-            en_inputs = None
-            if verbosity >= 1:
-                logger.warning("`enabled_inputs` function raised NotImplementedError. "
-                               "Setting enabled_inputs(state) to return inputs().")
-
-        # Otherwise, set enabled inputs to be set of all inputs.
-        # If neither enabled inputs nor inputs is defined, raise exception.
-        if en_inputs is None:
-            # Ensure inputs() function is well-defined.
-            try:
-                inputs = inputs()
-                graph["inputs"] = inputs
-            except NotImplementedError:
-                raise NotImplementedError("Neither `enabled_inputs` nor `inputs` methods are implemented. "
-                                          "Terminating graphify().")
-
-            # Redefine enabled inputs method
-            def en_inputs(state_):
-                return inputs
-
-        # Generate edges for each node-input pair.
-        #   This is parallelized using concurrent.futures module. Each process gets a chunk of node-input pairs.
-        def split_list(lst, n):
-            k, m = divmod(len(lst), n)
-            return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
-
-        # num_cpu = cores
-        with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
-            state_input_pairs = [(delta, st, inp, verbosity) for st in self._cache_state2node.keys()
-                                 for inp in en_inputs(st)]
-            results = executor.map(self._gen_edges_up_mc, split_list(state_input_pairs, cores))
-
-        for edges in tqdm(results, desc="Unpointed graphify constructing edges."):
-            for src, dst, inp, prob in edges:
-                uid = self._cache_state2node[src]
-                vid = self._cache_state2node[dst]
-                key = graph.add_edge(uid, vid)
-                ep_input[uid, vid, key] = inp
-                ep_prob[uid, vid, key] = prob
-
-    def _gen_graph_p_sc(self, graph, inputs, delta, init_state, en_inputs, verbosity):
-        # Initialize node and edge properties
-        np_state = graph["state"]
-        np_enabled_inputs = graph["enabled_inputs"]
-        ep_input = graph["input"]
-        ep_prob = graph["prob"]
-
-        # Initialize state cache
-        self._cache_state2node = dict()
-
-        # Add initial state
-        try:
-            s0 = init_state()
-            uid = graph.add_node()
-            self._cache_state2node[s0] = uid
-            np_state[uid] = s0
-
-        except NotImplementedError:
-            raise NotImplementedError("`init_state` function raised NotImplementedError. "
-                                      "Terminating graphify().")
-
-        # If enabled inputs function is implemented, use it.
-        try:
-            en_inputs(s0)
-        except NotImplementedError:
-            en_inputs = None
-            if verbosity >= 1:
-                logger.warning("`enabled_inputs` function raised NotImplementedError. "
-                               "Setting enabled_inputs(state) to return inputs().")
-
-        # Otherwise, set enabled inputs to be set of all inputs.
-        # If neither enabled inputs nor inputs is defined, raise exception.
-        if en_inputs is None:
-            # Ensure inputs() function is well-defined.
-            try:
-                inputs = inputs()
-                graph["inputs"] = inputs
-            except NotImplementedError:
-                raise NotImplementedError("Neither `enabled_inputs` nor `inputs` methods are implemented. "
-                                          "Terminating graphify().")
-
-            # Redefine enabled inputs method
-            def en_inputs(state_):
-                return inputs
-
-        # Generate edges using BFS traversal until all reachable states are visited.
-        queue = [s0]
-        visited = set()
-        with tqdm(total=1, desc="Pointed graphify adding edges", disable=True if verbosity == 0 else False) as pbar:
-            while len(queue) > 0:
-                # Update progress_bar
-                pbar.total = len(queue) + len(visited)
-                pbar.update(1)
-
-                # Visit a state. Add to graph. Update cache. Update node property `state`.
-                state = queue.pop()
-                visited.add(state)
-                uid = self._cache_state2node[state]
-
-                # Get enabled inputs at the state
-                inputs_at_state = en_inputs(state)
-                np_enabled_inputs[uid] = inputs_at_state
-
-                # Apply all inputs to state
-                for inp in inputs_at_state:
-                    # Get successors: set of (from_st, to_st, inp, prob)
-                    new_edges = self._gen_edges(delta, state, inp, verbosity)
-
-                    for _, to_state, _, prob in new_edges:
-                        # If to_state was added to queue in the past, its id will be cached.
-                        # Otherwise, add new node, cache it and queue it for exploration.
-                        vid = self._cache_state2node.get(to_state, None)
-                        if vid is None:
-                            vid = graph.add_node()
-                            self._cache_state2node[to_state] = vid
-                            np_state[vid] = to_state
-                            queue.append(to_state)
-
-                        # Add edge to graph
-                        key = graph.add_edge(uid, vid)
-
-                        # Set edge properties
-                        ep_input[uid, vid, key] = inp
-                        ep_prob[uid, vid, key] = prob
-
-        # Log completion of this procedure
-        if verbosity > 0:
-            logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
-
-    def _gen_graph_p_mc(self, graph, inputs, delta, init_state, en_inputs, cores, verbosity):
-        # Initialize node and edge properties
-        np_state = graph["state"]
-        np_enabled_inputs = graph["enabled_inputs"]
-        ep_input = graph["input"]
-        ep_prob = graph["prob"]
-
-        # Initialize state cache
-        self._cache_state2node = dict()
-
-        # Add initial state
-        try:
-            s0 = init_state()
-            uid = graph.add_node()
-            self._cache_state2node[s0] = uid
-            np_state[uid] = s0
-
-        except NotImplementedError:
-            raise NotImplementedError("`init_state` function raised NotImplementedError. "
-                                      "Terminating graphify().")
-
-        # If enabled inputs function is implemented, use it.
-        try:
-            en_inputs(s0)
-        except NotImplementedError:
-            en_inputs = None
-            if verbosity >= 1:
-                logger.warning("`enabled_inputs` function raised NotImplementedError. "
-                               "Setting enabled_inputs(state) to return inputs().")
-
-        # Otherwise, set enabled inputs to be set of all inputs.
-        # If neither enabled inputs nor inputs is defined, raise exception.
-        if en_inputs is None:
-            # Ensure inputs() function is well-defined.
-            try:
-                inputs = inputs()
-                graph["inputs"] = inputs
-            except NotImplementedError:
-                raise NotImplementedError("Neither `enabled_inputs` nor `inputs` methods are implemented. "
-                                          "Terminating graphify().")
-
-            # Redefine enabled inputs method
-            def en_inputs(state_):
-                return inputs
-
-        # Generate edges using BFS traversal until all reachable states are visited.
-        #   Parallelism is achieved by defining producer-consumer style processes.
-        queue = mp.Queue()
-        lock = mp.Lock()
-        count = mp.Value(ctypes.c_int64)
-        queue_dict = mp.Manager().dict()
-        visited = mp.Manager().dict()
-        processes = dict()
-        edges = mp.Manager().dict()
-
-        # Initialize shared variables
-        queue.put(s0)
-        queue_dict[s0] = None
-        count.value = 1
-
-        for pid in range(cores):
-            prc = mp.Process(target=self._gen_edges_p_mc,
-                             args=(delta, en_inputs, pid, count, lock, queue, queue_dict, visited, edges, verbosity))
-            processes[pid] = prc
-            prc.start()
-            if verbosity >= 1:
-                logger.info(f"Pointed graphify multi-core started process {pid}.")
-
-        for prc in processes.values():
-            prc.join()
-
-        # Process generated states and edges
-        for state in visited:
-            uid = graph.add_node()
-            self._cache_state2node[state] = uid
-            np_state[uid] = state
-
-        for source, target, inp, prob in edges:
-            uid = self._cache_state2node[source]
-            vid = self._cache_state2node[target]
-            key = graph.add_edge(uid, vid)
-
-            if np_enabled_inputs[uid] is np_enabled_inputs.default:
-                np_enabled_inputs[uid] = {inp}
-            else:
-                np_enabled_inputs[uid].add(inp)
-
-            ep_input[uid, vid, key] = inp
-            ep_prob[uid, vid, key] = prob
-
-        # Log completion of this procedure
-        if verbosity > 0:
-            logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
-
-    def _add_np(self, graph, p_name, verbosity, default=None):
-        try:
-            p_map = graph.create_np(pname=p_name, default=default)
-            p_func = getattr(self, p_name)
-            if not (inspect.isfunction(p_func) or inspect.ismethod(p_func)):
-                raise TypeError(f"Node property {p_func} is not a function.")
-            for uid in graph.nodes():
-                p_map[uid] = p_func(graph["state"][uid])
-
-            if verbosity > 1:
-                logger.success(f"Processed node property: {p_name}. [OK]")
-        except NotImplementedError:
-            if verbosity > 1:
-                logger.warning(f"Node property function not implemented: {p_name}. [IGNORED]")
-        except AttributeError:
-            if verbosity > 1:
-                logger.warning(f"Node property function is not defined: {p_name}. [IGNORED]")
-
-    def _add_ep(self, graph, p_name, verbosity, default=None):
-        try:
-            p_map = graph.create_ep(pname=p_name, default=default)
-            p_func = getattr(self, p_name)
-            if not (inspect.isfunction(p_func) or inspect.ismethod(p_func)):
-                raise TypeError(f"Edge property {p_func} is not a function.")
-            for uid, vid, key in graph.edges():
-                p_map[uid, vid, key] = p_func(graph["state"][uid], graph["input"][uid, vid, key], graph["state"][vid])
-
-            if verbosity > 1:
-                logger.success(f"Processed node property: {p_name}. [OK]")
-        except NotImplementedError:
-            if verbosity > 1:
-                logger.warning(f"Node property function not implemented: {p_name}. [IGNORED]")
-        except AttributeError:
-            if verbosity > 1:
-                logger.warning(f"Node property function is not defined: {p_name}. [IGNORED]")
-
-    def _add_gp(self, graph, p_name, verbosity):
-        try:
-            p_func = getattr(self, p_name)
-            if inspect.ismethod(p_func) or (inspect.isfunction(p_func) and p_func.__name__ == "<lambda>"):
-                graph[p_name] = p_func()
-                if verbosity > 1:
-                    logger.info(f"Processed graph property: {p_name}. [OK]")
-
-            elif inspect.isfunction(p_func):
-                if len(inspect.signature(p_func).parameters) == 0:
-                    graph[p_name] = p_func()
-                else:
-                    graph[p_name] = p_func(self)
-
-                if verbosity > 1:
-                    logger.info(f"Processed graph property: {p_name}. [OK]")
-            else:
-                raise TypeError(f"Graph property {p_name} is neither a function nor a method.")
-        except NotImplementedError:
-            if verbosity > 1:
-                logger.warning(f"Graph property is not implemented: {p_name}. [IGNORED]")
-        except AttributeError:
-            if verbosity > 1:
-                logger.warning(f"Node property function is not defined: {p_name}. [IGNORED]")
 
     def _graphify_process_args(self, kwargs):
         pointed = kwargs.get("pointed", False)
@@ -847,177 +550,390 @@ class GraphicalModel:
         logger.debug(f"Graphify configuration: Ignored edge properties: {ep_ignore}.")
         logger.debug(f"Graphify configuration: Ignored graph properties: {gp_ignore}.")
 
+        ignored_kwargs = set(kwargs.keys()) - {
+            "pointed", "cores", "verbosity",
+            "node_properties", "ignore_np",
+            "edge_properties", "ignore_ep",
+            "graph_properties", "ignore_gp",
+
+        }
+        logger.debug(f"Graphify configuration: Ignored kwargs: {ignored_kwargs}.")
+
         return pointed, cores, verbosity, np, ep, gp
 
-    def _graphify_preprocess_properties(self, np, ep, gp, verbosity):
-        pass
+    def _gen_graph_up_sc(self, graph, states, actions, delta, verbosity):
+        # Initialize node and edge properties
+        np_actions = graph["actions"]
+        ep_act = graph["act"]
+        ep_prob = graph["prob"]
 
+        # Generate edges
+        for state, sid in tqdm(self._cache_state2node.items(),
+                               desc="Unpointed, single-core graphify adding edges to graph",
+                               disable=True if verbosity < 2 else False):
+            # Get enabled inputs at state
+            inputs_at_state = actions(state)
+            if inputs_at_state is None:
+                logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
+            np_actions[sid] = inputs_at_state
 
-class Game(GraphicalModel):
-    """
-    Represents a game transition system, hereafter referred simply as a game.
-    A `Game` can represent two mathematical structures commonly used in literature, namely
-    .. math::
-        G = (S, A, T, AP, L, formula)
-    .. math::
-        G = (S, A, T, F, WinCond)
-    In the `Game` class, each component is represented as a function. By defining the relevant functions, a `Game`
-    class may represent either of the two mathematical structures.
-    - The set of states :math:`S` is represented by `Game.states` function,
-    - The set of actions :math:`A` is represented by `Game.actions` function,
-    - The transition function :math:`T` is represented by `Game.delta` function,
-    - The set of atomic propositions :math:`AP` is represented by `Game.atoms` function,
-    - The labeling function :math:`L` is represented by `Game.label` function.
-    - When the winning condition is represented by a logic formula :math:`formula`, we define `Game.formula` function.
-    - When the winning condition is represented by a final states :math:`F`, we define `Game.final` function.
-      In this case, we must also specify the acceptance condition.
-    - The winning condition :math:`WinCond` is represented by `Game.win_cond` function.
-    All of the above functions are marked abstract.
-    The recommended way to use `Game` class is by subclassing it and implementing the relevant component functions.
-    **Categorization of a Game:** A game is categorized by three types:
-    -   A game can be either deterministic or non-deterministic or probabilistic.
-        To define a **deterministic** transition system, provide a keyword argument `is_deterministic=True` to the
-        constructor. To define a **nondeterministic** transition system, provide a keyword argument `is_deterministic=False`
-        to the constructor. To define a **probabilistic** transition system, provide a keyword arguments
-        `is_deterministic=False, is_probabilistic=True` to the constructor.
-        The design of `Game` class closely follows its mathematical definition.
-        Hence, the signatures of `delta` function for deterministic, nondeterministic, probabilistic games are different.
-        - **deterministic:**  `delta(state, act) -> single state`
-        - **non-deterministic:**  `delta(state, act) -> a list of states`
-        - **probabilistic:**  `delta(state, act) -> a distribution over states`
-    -   A game can be turn-based or concurrent. To define a **concurrent** game, provide a keyword argument
-        `is_turn_based=False`. The game is `turn_based` by default.
-    -   A game can be a 1/1.5/2/2.5-player game. A one-player game models a deterministic motion planning-type problem in
-        a static environment. A 1.5-player game is an MDP. A two-player game models a deterministic interaction between
-        two strategic players. And, a 2.5-player game models a stochastic interaction between two strategic players.
-        If a game is one or two player, then the :py:meth:`Game.delta` is `deterministic`.
-        If a game is 1.5 or 2.5 player, then the :py:meth:`Game.delta` is either `non-deterministic` (when
-        transition probabilities are unknown), and `probabilistic` (when transition probabilities are known).
-    Every state in a turn-based game is controlled by a player. To define which player controls which state, define
-    a game component :py:meth:`Game.turn` which takes in a state and returns a value between 0 and 3 to indicate
-    which player controls the state.
-    An important feature of `Game` class is the `graphify()` function. It constructs a `Graph` object that is
-    equivalent to the game. The nodes of the `Graph` represent the states of `Game`,
-    the edges of the `Graph` are defined by the set of `actions` and the `delta` function.
-    The atomic propositions, labeling function are stored as `node, edge` and `graph` properties.
-    By default, every `Graph` returned a `Game.graphify()` function have the following (node/edge/graph) properties:
-    - `state`: (node property) A Map from every node to the state of transition system it represents.
-    - `input_domain`: (graph property) Name of function that defines input domain of game (="actions").
-    - `actions`: (graph property) List of valid actions.
-    - `input`: (edge property) A map from every edge `(uid, vid, key)` to its associated action label.
-    - `prob`: (edge property) The probability associated with the edge `(uid, vid, key)`.
-    - `atoms`: (graph property) List of valid atomic propositions.
-    - `label`: (node property) A map every node to the list of atomic propositions true in the state represented by that node.
-    - `init_state`: (graph property) Initial state of transition system.
-    - `is_deterministic`: (graph property) Is the transition system deterministic?
-    - `is_probabilistic`: (graph property) Is the transition system probabilistic?
-    - `is_turn_based`: (graph property) Is the transition system turn-based?
-    - `final`: (node property) Returns an integer denoting the acceptance set the state belongs to.
-    - `win_cond`: (graph property) The winning condition of the game.
-    - `formula`: (graph property) A logic formula representing the winning condition of the game.
-    - `turn`: (node property) A map from every node to an integer (0/1/2) that denotes which player controls the node.
-    **Note:** Some features of probabilistic transition system are not tested.
-    If you are trying to implement a probabilistic transition system, reach out to Abhishek Kulkarni
-    (a.kulkarni2@ufl.edu).
-    """
-    NODE_PROPERTY = GraphicalModel.NODE_PROPERTY.copy()
-    EDGE_PROPERTY = GraphicalModel.EDGE_PROPERTY.copy()
-    GRAPH_PROPERTY = GraphicalModel.GRAPH_PROPERTY.copy()
+            # Apply each input to the state to generate next states
+            for inp in inputs_at_state:
+                # Generate edges from state
+                new_edges = self._gen_edges_sc(delta, state, inp, verbosity=verbosity)
 
-    def __init__(self, is_turn_based=True, is_deterministic=True, is_probabilistic=False, **kwargs):
-        kwargs["is_deterministic"] = is_deterministic
-        kwargs["is_probabilistic"] = is_probabilistic
-        super(Game, self).__init__(**kwargs)
-        self._is_turn_based = is_turn_based
+                # Update graph edges
+                for _, t, _, prob in new_edges:
+                    tid = self._cache_state2node[t]
+                    key = graph.add_edge(sid, tid)
+                    ep_act[sid, tid, key] = inp
+                    ep_prob[sid, tid, key] = prob
 
-        # Aliases of special methods
-        self.inputs = self.actions
-        self.enabled_inputs = self.enabled_acts
+        # Log completion of this procedure
+        if verbosity > 0:
+            logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
 
-        # Process keyword arguments
-        self.initialize(kwargs.get("init_state", None))
+    def _gen_graph_up_mc(self, graph, states, actions, delta, cores, verbosity):
+        # Initialize node and edge properties
+        np_actions = graph["actions"]
+        ep_act = graph["act"]
+        ep_prob = graph["prob"]
 
-        if "states" in kwargs:
-            def states_():
-                return list(kwargs["states"])
+        # Generate edges for each node-input pair.
+        #   This is parallelized using concurrent.futures module. Each process gets a chunk of node-input pairs.
+        def split_list(lst, n):
+            k, m = divmod(len(lst), n)
+            return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
 
-            self.states = states_
+        # num_cpu = cores
+        with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
+            # Construct list of state-input pairs for concurrent workers to operate on.
+            state_input_pairs = list()
+            for state, sid in self._cache_state2node.items():
+                # Get enabled inputs at state
+                inputs_at_state = actions(state)
+                if inputs_at_state is None:
+                    logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
+                np_actions[sid] = inputs_at_state
 
-        if "actions" in kwargs:
-            def actions_():
-                return list(kwargs["actions"])
+                for act in inputs_at_state:
+                    state_input_pairs.append((delta, state, act, verbosity))
 
-            self.actions = actions_
+            # Distribute the state-input list equally among workers.
+            results = executor.map(self._gen_edges_up_mc, split_list(state_input_pairs, cores))
 
-        if "trans_dict" in kwargs:
-            def delta_(state, inp):
-                return kwargs["trans_dict"][state][inp]
+        for edges in tqdm(results, desc="Unpointed graphify, multi-core adding edges to graph."):
+            for src, dst, inp, prob in edges:
+                uid = self._cache_state2node[src]
+                vid = self._cache_state2node[dst]
+                key = graph.add_edge(uid, vid)
+                ep_act[uid, vid, key] = inp
+                ep_prob[uid, vid, key] = prob
 
-            self.delta = delta_
+    def _gen_graph_p_sc(self, graph, actions, delta, init_state, verbosity):
+        # Initialize node and edge properties
+        np_state = graph["state"]
+        np_actions = graph["actions"]
+        ep_act = graph["act"]
+        ep_prob = graph["prob"]
 
-        if "atoms" in kwargs:
-            def atoms_():
-                return list(kwargs["atoms"])
+        # Add initial state
+        try:
+            s0 = init_state()
+            uid = graph.add_node()
+            self._cache_state2node[s0] = uid
+            np_state[uid] = s0
 
-            self.atoms = atoms_
+        except NotImplementedError:
+            raise NotImplementedError("`init_state` function raised NotImplementedError. "
+                                      "Terminating graphify() with options `pointed, single-core`.")
 
-        if "label" in kwargs:
-            def label_(state):
-                return list(kwargs["label"][state])
+        # Generate edges using BFS traversal until all reachable states are visited.
+        queue = [s0]
+        visited = set()
+        with tqdm(total=1, desc="Pointed, single-core graphify adding edges",
+                  disable=True if verbosity < 2 else False) as pbar:
+            while len(queue) > 0:
+                # Update progress_bar
+                pbar.total = len(queue) + len(visited)
+                pbar.update(1)
 
-            self.label = label_
+                # Visit a state. Add to graph. Update cache. Update node property `state`.
+                state = queue.pop()
+                visited.add(state)
+                uid = self._cache_state2node[state]
 
-        if "turn" in kwargs:
-            def turn_(state):
-                return kwargs["turn"][state]
+                # Get enabled inputs at the state
+                inputs_at_state = actions(state)
+                if inputs_at_state is None:
+                    logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
+                np_actions[uid] = inputs_at_state
 
-            self.turn = turn_
+                # Apply all inputs to state
+                for inp in inputs_at_state:
+                    # Get successors: set of (from_st, to_st, inp, prob)
+                    new_edges = self._gen_edges_sc(delta, state, inp, verbosity)
 
-        if "final" in kwargs:
-            def final_(state):
-                return 0 if state in kwargs["final"] else -1
+                    for _, to_state, _, prob in new_edges:
+                        # If to_state was added to queue in the past, its id will be cached.
+                        # Otherwise, add new node, cache it and queue it for exploration.
+                        vid = self._cache_state2node.get(to_state, None)
+                        if vid is None:
+                            vid = graph.add_node()
+                            self._cache_state2node[to_state] = vid
+                            np_state[vid] = to_state
+                            queue.append(to_state)
 
-            self.final = final_
+                        # Add edge to graph
+                        key = graph.add_edge(uid, vid)
 
-    def make_complete(self, sink="__sink__"):
-        user_states = getattr(self, "states")
-        user_delta = getattr(self, "delta")
+                        # Set edge properties
+                        ep_act[uid, vid, key] = inp
+                        ep_prob[uid, vid, key] = prob
 
-        # Wrap states() method to add a "sink" state.
-        def complete_states():
-            yield from user_states()
-            yield from [sink]
+        # Log completion of this procedure
+        if verbosity > 0:
+            logger.success("Pointed, single-core graphify generated underlying graph successfully.")
 
-        setattr(self, "states", complete_states)
+    def _gen_graph_p_mc(self, graph, actions, delta, init_state, cores, verbosity):
+        # Initialize node and edge properties
+        np_state = graph["state"]
+        np_actions = graph["actions"]
+        np_act = graph["act"]
+        ep_prob = graph["prob"]
 
-        # Wrap delta() method to redirect any undefined transitions into sink state.
-        def complete_delta(state, inp):
-            out = user_delta(state, inp)
-            if out is None:
-                out = sink
-            return out
+        # Generate edges using BFS traversal until all reachable states are visited.
+        #   Parallelism is achieved by defining producer-consumer style processes.
+        queue = mp.Queue()
+        lock = mp.Lock()
+        count = mp.Value(ctypes.c_int64)
+        queue_dict = mp.Manager().dict()
+        visited = mp.Manager().dict()
+        processes = dict()
+        edges = mp.Manager().dict()
 
-        setattr(self, "delta", complete_delta)
+        # Initialize shared variables
+        s0 = self.init_state()
+        queue.put(s0)
+        queue_dict[s0] = None
+        count.value = 1
 
-        return self
+        for pid in range(cores):
+            prc = mp.Process(target=self._gen_edges_p_mc,
+                             args=(delta, actions, pid, count, lock, queue, queue_dict, visited, edges, verbosity))
+            processes[pid] = prc
+            prc.start()
+            if verbosity >= 1:
+                logger.info(f"Pointed graphify, multi-core started process {pid}.")
 
-    def from_graph(self, graph):
-        assert "is_turn_based" in graph.graph_properties
-        if graph["is_turn_based"]:
-            assert "turn" in graph.node_properties
+        for prc in processes.values():
+            prc.join()
 
-        return super(Game, self).from_graph(graph)
+        # Process generated states and edges
+        for state in tqdm(visited, desc="Pointed graphify, multi-core adding nodes to graph.",
+                          disable=True if verbosity < 2 else False):
+            uid = graph.add_node()
+            self._cache_state2node[state] = uid
+            np_state[uid] = state
+
+        for source, target, inp, prob in tqdm(edges, desc="Pointed graphify, multi-core adding edges to graph.",
+                                              disable=True if verbosity < 2 else False):
+            uid = self._cache_state2node[source]
+            vid = self._cache_state2node[target]
+            key = graph.add_edge(uid, vid)
+
+            if np_actions[uid] is np_actions.default:
+                np_actions[uid] = {inp}
+            else:
+                np_actions[uid].add(inp)
+
+            np_act[uid, vid, key] = inp
+            ep_prob[uid, vid, key] = prob
+
+        # Log completion of this procedure
+        if verbosity > 0:
+            logger.success("Pointed, multi-core graphify generated underlying graph successfully.")
+
+    def _gen_edges_sc(self, delta, state, inp, verbosity):
+        next_states = delta(state, inp)
+        edges = set()
+
+        # There are three types of graphical models. Handle each separately.
+        # If model is deterministic, next states is a single state.
+        if self.is_deterministic():
+            if next_states is None and verbosity > 2:
+                logger.warning(f"No edge(s) added to graph for state={state}, input={inp}, next_state={next_states}.")
+                return set()
+
+            edges.add((state, next_states, inp, None))
+
+        # If model is non-deterministic, next states is an Iterable of states.
+        elif self.is_nondeterministic():
+            for next_state in next_states:
+                if next_state is None:
+                    if verbosity > 2:
+                        logger.warning(
+                            f"No edge(s) added to graph for state={state}, input={inp}, next_state={next_states}.")
+                    continue
+
+                edges.add((state, next_state, inp, None))
+
+        # If model is stochastic, next states is a Distribution of states.
+        elif self.is_probabilistic():
+            # FIXME. I have doubts that following implementation is correct.
+            #  If support is empty, the code under `if` will not execute.
+            for next_state in next_states.support():
+                if next_state is None:
+                    if verbosity > 2:
+                        logger.warning(
+                            f"No edge(s) added to graph for state={state}, input={inp}, next_state={next_states}.")
+                    continue
+
+                edges.add((state, next_state, inp, next_states.pmf(next_state)))
+
+        else:
+            raise TypeError("Graphical Model is neither deterministic, nor non-deterministic, nor stochastic! "
+                            f"Check the values: is_deterministic: {self.is_deterministic()}, "
+                            f"self.is_quantitative:{self.is_probabilistic()}.")
+
+        return edges
+
+    def _gen_edges_up_mc(self, data):
+        edges = set()
+        for delta, state, inp, verbosity in data:
+            edges.update(self._gen_edges_sc(delta, state, inp, verbosity))
+        return edges
+
+    def _gen_edges_p_mc(self, delta, en_inputs, pid, count, lock, queue, queue_dict, visited, edges, verbosity):
+        """
+        """
+        with lock:
+            print(f"{pid=} started.")
+
+        while True:
+            # Termination condition
+            if count.value == 0:
+                break
+
+            # Get next element
+            try:
+                state = queue.get(timeout=0.01)
+            except Empty:
+                continue
+
+            # If sentinel, terminate
+            if state is None:
+                break
+
+            # Visit element (update dQ, V)
+            with lock:
+                queue_dict.pop(state)
+                visited[state] = None
+
+            # Generate new edges
+            inputs_at_state = en_inputs(state)
+            new_edges = set()
+            for inp in inputs_at_state:
+                new_edges.update(self._gen_edges_sc(delta, state, inp, verbosity))
+
+            with lock:
+                edges.update(zip(new_edges, [None] * len(new_edges)))
+
+            # Update queue, queue_dict and count (synchronously)
+            with lock:
+                for _, n_state, _, _ in new_edges:
+                    if not (n_state in queue_dict or n_state in visited):
+                        queue.put(n_state)
+                        queue_dict[n_state] = None
+                        count.value += 1
+
+            # Decrement count by 1.
+            count.value -= 1
+
+        print(f"{pid=} terminated.")
+
+    def _add_np(self, graph, p_name, verbosity, default=None):
+        try:
+            p_map = graph.create_np(pname=p_name, default=default)
+            p_func = getattr(self, p_name)
+            if not (inspect.isfunction(p_func) or inspect.ismethod(p_func)):
+                raise TypeError(f"Node property {p_func} is not a function.")
+            for uid in graph.nodes():
+                p_map[uid] = p_func(graph["state"][uid])
+
+            if verbosity > 1:
+                logger.success(f"Processed node property: {p_name}. [OK]")
+        except NotImplementedError:
+            if verbosity > 1:
+                logger.warning(f"Node property function not implemented: {p_name}. [IGNORED]")
+        except AttributeError:
+            if verbosity > 1:
+                logger.warning(f"Node property function is not defined: {p_name}. [IGNORED]")
+
+    def _add_ep(self, graph, p_name, verbosity, default=None):
+        try:
+            p_map = graph.create_ep(pname=p_name, default=default)
+            p_func = getattr(self, p_name)
+            if not (inspect.isfunction(p_func) or inspect.ismethod(p_func)):
+                raise TypeError(f"Edge property {p_func} is not a function.")
+            for uid, vid, key in graph.edges():
+                p_map[uid, vid, key] = p_func(graph["state"][uid], graph["input"][uid, vid, key], graph["state"][vid])
+
+            if verbosity > 1:
+                logger.success(f"Processed node property: {p_name}. [OK]")
+        except NotImplementedError:
+            if verbosity > 1:
+                logger.warning(f"Node property function not implemented: {p_name}. [IGNORED]")
+        except AttributeError:
+            if verbosity > 1:
+                logger.warning(f"Node property function is not defined: {p_name}. [IGNORED]")
+
+    def _add_gp(self, graph, p_name, verbosity):
+        try:
+            p_func = getattr(self, p_name)
+            if inspect.ismethod(p_func) or (inspect.isfunction(p_func) and p_func.__name__ == "<lambda>"):
+                graph[p_name] = p_func()
+                if verbosity > 1:
+                    logger.info(f"Processed graph property: {p_name}. [OK]")
+
+            elif inspect.isfunction(p_func):
+                if len(inspect.signature(p_func).parameters) == 0:
+                    graph[p_name] = p_func()
+                else:
+                    graph[p_name] = p_func(self)
+
+                if verbosity > 1:
+                    logger.info(f"Processed graph property: {p_name}. [OK]")
+            else:
+                raise TypeError(f"Graph property {p_name} is neither a function nor a method.")
+        except NotImplementedError:
+            if verbosity > 1:
+                logger.warning(f"Graph property is not implemented: {p_name}. [IGNORED]")
+        except AttributeError:
+            if verbosity > 1:
+                logger.warning(f"Node property function is not defined: {p_name}. [IGNORED]")
 
     # ==========================================================================
     # FUNCTIONS TO BE IMPLEMENTED BY USER.
     # ==========================================================================
-    @register_property(GRAPH_PROPERTY)
-    def actions(self):
+    def states(self):
+        raise NotImplementedError("Abstract")
+
+    def init_state(self):
+        """
+        Returns the initial state of the graphical model.
+        """
+        return self._init_state
+
+    def actions(self, state):
         """
         Defines the actions component of the transition system.
         :return: (list/tuple of str). List or tuple of action labels.
         """
         raise NotImplementedError(f"{self.__class__.__name__}.actions() is not implemented.")
+
+    def delta(self, state, inp):
+        raise NotImplementedError("Abstract")
 
     @register_property(GRAPH_PROPERTY)
     def atoms(self):
@@ -1036,30 +952,14 @@ class Game(GraphicalModel):
         """
         raise NotImplementedError(f"{self.__class__.__name__}.label() is not implemented.")
 
-    @register_property(NODE_PROPERTY)
-    def enabled_acts(self, state):
+    @register_property(GRAPH_PROPERTY)
+    def final(self):
         """
-        Defines the enabled actions at the given state.
-        :param state: (object) A valid state.
-        :return: (list/tuple of str). A list/tuple of actions enabled in the given state.
-        """
-        raise NotImplementedError(f"{self.__class__.__name__}.enabled_acts() is not implemented.")
-
-    @register_property(NODE_PROPERTY)
-    def final(self, state):
-        """
-        Defines whether the given state is a final state.
-        The structure of final state is based on the winning condition
+        Defines the final states. The structure of final state is based on the winning condition
         [See Automata, Logics and Infinite Games (Ch. 2)].
-        :param state: (object) A valid state.
         :return: (int or a list of ints). The integer denotes the acceptance set the state belongs to.
         """
         raise NotImplementedError(f"{self.__class__.__name__}.final() is not implemented.")
-
-    @register_property(GRAPH_PROPERTY)
-    def is_turn_based(self):
-        """ Is the game turn based? """
-        return self._is_turn_based
 
     @register_property(NODE_PROPERTY)
     def turn(self, state):
@@ -1070,11 +970,6 @@ class Game(GraphicalModel):
             In concurrent games, the turn must be 0.
         .. note:: For concurrent games, the turn function can be left unimplemented.
         """
-        raise NotImplementedError
-
-    @register_property(GRAPH_PROPERTY)
-    def win_cond(self):
-        """ Winning condition of the game. """
         raise NotImplementedError
 
     @register_property(GRAPH_PROPERTY)
@@ -1198,8 +1093,3 @@ class Solver:
         self._solution = SubGraph(self._graph)
         self._node_winner = self._solution.create_np(pname="node_winner", default=-1, overwrite=True)
         self._edge_winner = self._solution.create_ep(pname="edge_winner", default=-1, overwrite=True)
-
-
-def cached(model: GraphicalModel):
-    # Idea. Update states, delta function
-    pass

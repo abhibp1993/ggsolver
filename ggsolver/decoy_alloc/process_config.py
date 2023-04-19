@@ -165,6 +165,7 @@ def process_cfg_file(cfile):
     """
     # Load configuration file
     with open(cfile, 'r') as file:
+        # FIXME When the file is not found the program ends with error code 0
         cfg_dict = json.load(file)
         print(util.ColoredMsg.success(f"Configuration file loaded. Running experiment: {cfg_dict['name']}"))
 

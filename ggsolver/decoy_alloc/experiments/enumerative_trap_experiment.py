@@ -19,7 +19,7 @@ def main():
         for t in num_of_traps:
             # Load configuration file
             config_name = f"enumerative_exp_n{n}_mesh_t{t}_f{0}"
-            config_file_path = os.path.join("configurations", f"{config_name}.json")
+            config_file_path = os.path.join("../", "configurations", f"{config_name}.json")
             config = cfg.process_cfg_file(config_file_path)
             # Run experiment
             exec_time, ram_used, vod = run_experiment(config)

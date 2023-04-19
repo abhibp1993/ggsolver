@@ -585,6 +585,8 @@ class Game:
                     key = graph.add_edge(sid, tid)
                     ep_act[sid, tid, key] = inp
                     ep_prob[sid, tid, key] = prob
+                    if verbosity == 3:
+                        logger.debug(f"{state} -- (a: {inp}, p:{prob}) --> {t}")
 
         # Log completion of this procedure
         if verbosity > 0:
@@ -627,6 +629,8 @@ class Game:
                 key = graph.add_edge(uid, vid)
                 ep_act[uid, vid, key] = inp
                 ep_prob[uid, vid, key] = prob
+                if verbosity == 3:
+                    logger.debug(f"{src} -- (a: {inp}, p:{prob}) --> {dst}")
 
     def _gen_graph_p_sc(self, graph, actions, delta, init_state, verbosity):
         # Initialize node and edge properties
@@ -690,6 +694,8 @@ class Game:
                         ep_act[uid, vid, key] = inp
                         ep_prob[uid, vid, key] = prob
 
+                        if verbosity == 3:
+                            logger.debug(f"{state} -- (a: {inp}, p:{prob}) --> {to_state}")
         # Log completion of this procedure
         if verbosity > 0:
             logger.success("Pointed, single-core graphify generated underlying graph successfully.")
@@ -748,6 +754,8 @@ class Game:
 
             np_act[uid, vid, key] = inp
             ep_prob[uid, vid, key] = prob
+            if verbosity == 3:
+                logger.debug(f"{source} -- (a: {inp}, p:{prob}) --> {target}")
 
         # Log completion of this procedure
         if verbosity > 0:

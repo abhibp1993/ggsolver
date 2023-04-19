@@ -428,25 +428,7 @@ class Game:
         init_state = getattr(self, "init_state")
 
         # Construct underlying graph
-        if not pointed:
-            # Get states, add them to graph, update state property and cache
-            states = states()
-            for state in tqdm(states, desc="Unpointed, multi-core graphify adding nodes to graph",
-                              disable=True if verbosity == 0 else False):
-                sid = graph.add_node()
-                self._cache_state2node[state] = sid
-                np_state[sid] = state
-
-            # Depending on how many cores to use, generate edges.
-            if cores == 1:
-                self._gen_graph_up_sc(
-                    graph=graph, states=states, actions=inputs, delta=delta, verbosity=verbosity
-                )
-            else:
-                self._gen_graph_up_mc(graph=graph, states=states, actions=inputs, delta=delta,
-                                      cores=cores, verbosity=verbosity)
-
-        elif pointed:
+        if pointed:
             # Add initial state
             try:
                 s0 = init_state()
@@ -456,17 +438,31 @@ class Game:
 
             except NotImplementedError:
                 raise NotImplementedError("`init_state` function raised NotImplementedError. "
-                                          "Terminating graphify().")
+                                          "Terminating graphify(pointed=True).")
 
             if cores == 1:
-                self._gen_graph_p_sc(graph=graph, actions=inputs, delta=delta, init_state=init_state,
-                                     verbosity=verbosity)
+                logger.debug(f"Constructing underlying graph: pointed + single-core.")
+                self._gen_graph_p_sc(graph=graph, actions=inputs, delta=delta, init_state=init_state, verbosity=verbosity)
             else:
-                self._gen_graph_p_mc(graph=graph, actions=inputs, delta=delta, init_state=init_state,
-                                     cores=cores, verbosity=verbosity)
-        else:
-            raise RuntimeError(f"The following configuration is not supported: "
-                               f"{pointed=}, {cores=}.")
+                logger.debug(f"Constructing underlying graph: pointed + multi-core w/ {cores} cores.")
+                self._gen_graph_p_mc(graph=graph, actions=inputs, delta=delta, cores=cores, verbosity=verbosity)
+
+        else:  # if not pointed:
+            # Get states, add them to graph, update state property and cache
+            states = states()
+            for state in tqdm(states, desc="Unpointed graphify adding nodes to graph",
+                              disable=True if verbosity < 2 else False):
+                sid = graph.add_node()
+                self._cache_state2node[state] = sid
+                np_state[sid] = state
+
+            # Depending on how many cores to use, generate edges.
+            if cores == 1:
+                logger.debug("Constructing underlying graph: unpointed + single-core.")
+                self._gen_graph_up_sc(graph=graph, states=states, actions=inputs, delta=delta, verbosity=verbosity)
+            else:
+                logger.debug(f"Constructing underlying graph: unpointed + multi-core w/ {cores} cores.")
+                self._gen_graph_up_mc(graph=graph, actions=inputs, delta=delta, cores=cores, verbosity=verbosity)
 
         # Construct node, edge and graph property maps
         for p_name in np:
@@ -574,7 +570,8 @@ class Game:
             # Get enabled inputs at state
             inputs_at_state = actions(state)
             if inputs_at_state is None:
-                logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
+                if verbosity >= 2:
+                    logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
             np_actions[sid] = inputs_at_state
 
             # Apply each input to the state to generate next states
@@ -593,7 +590,7 @@ class Game:
         if verbosity > 0:
             logger.success("Unpointed, single-core graphify generated underlying graph successfully.")
 
-    def _gen_graph_up_mc(self, graph, states, actions, delta, cores, verbosity):
+    def _gen_graph_up_mc(self, graph, actions, delta, cores, verbosity):
         # Initialize node and edge properties
         np_actions = graph["actions"]
         ep_act = graph["act"]
@@ -613,7 +610,8 @@ class Game:
                 # Get enabled inputs at state
                 inputs_at_state = actions(state)
                 if inputs_at_state is None:
-                    logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
+                    if verbosity >= 2:
+                        logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
                 np_actions[sid] = inputs_at_state
 
                 for act in inputs_at_state:
@@ -666,7 +664,8 @@ class Game:
                 # Get enabled inputs at the state
                 inputs_at_state = actions(state)
                 if inputs_at_state is None:
-                    logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
+                    if verbosity >= 2:
+                        logger.warning(f"Skipping adding edge from {state=} because actions(state)={inputs_at_state}.")
                 np_actions[uid] = inputs_at_state
 
                 # Apply all inputs to state
@@ -695,7 +694,7 @@ class Game:
         if verbosity > 0:
             logger.success("Pointed, single-core graphify generated underlying graph successfully.")
 
-    def _gen_graph_p_mc(self, graph, actions, delta, init_state, cores, verbosity):
+    def _gen_graph_p_mc(self, graph, actions, delta, cores, verbosity):
         # Initialize node and edge properties
         np_state = graph["state"]
         np_actions = graph["actions"]
@@ -807,8 +806,8 @@ class Game:
     def _gen_edges_p_mc(self, delta, en_inputs, pid, count, lock, queue, queue_dict, visited, edges, verbosity):
         """
         """
-        with lock:
-            print(f"{pid=} started.")
+        if verbosity >= 2:
+            logger.debug(f"{pid=} started.")
 
         while True:
             # Termination condition
@@ -850,7 +849,8 @@ class Game:
             # Decrement count by 1.
             count.value -= 1
 
-        print(f"{pid=} terminated.")
+        if verbosity >= 2:
+            logger.debug(f"{pid=} terminated.")
 
     def _add_np(self, graph, p_name, verbosity, default=None):
         try:

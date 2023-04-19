@@ -28,7 +28,7 @@ logger.remove()
 
 
 # CONFIG_FILE_PATH = "configurations/config1.json"
-CONFIG_FILE_PATH = "configurations/exp_n10_hybrid_t2_f0.json"
+CONFIG_FILE_PATH = "configurations/greedy_test_config.json"
 
 
 def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
@@ -99,7 +99,11 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict) -> gmodels.Solver:
     elif type_ == "greedy" and num_traps > 0 and num_fakes == 0:
         solution = solvers.GreedyTrapsAllocator(graph=graph,
                                                 num_decoys=num_traps,
-                                                use_multiprocessing=cpu_count)
+                                                cpu_count=cpu_count,
+                                                directory=cfg_dict['directory'],
+                                                fname=cfg_dict['name'],
+                                                save_output=cfg_dict["save_intermediate_solutions"]
+                                                 )
 
     elif type_ == "enumerative" and num_traps == 0 and num_fakes > 0:
         solution = solvers.EnumerativeFakesAllocator(graph=graph,

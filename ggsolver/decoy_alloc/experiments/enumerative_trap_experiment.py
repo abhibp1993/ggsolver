@@ -18,12 +18,14 @@ def main():
     for n in num_of_nodes:
         for t in num_of_traps:
             # Load configuration file
-            config_name = f"exp_n{n}_mesh_t{t}_f{0}"
+            config_name = f"enumerative_exp_n{n}_mesh_t{t}_f{0}"
             config_file_path = os.path.join("configurations", f"{config_name}.json")
             config = cfg.process_cfg_file(config_file_path)
             # Run experiment
             exec_time, ram_used, vod = run_experiment(config)
-            results[(n, t)] = {
+
+            key = f"nodes_{n},traps_{t}"
+            results[key] = {
                 "exec_time": exec_time,
                 "ram_used": ram_used,
                 "vod": vod,
@@ -43,8 +45,9 @@ def main():
         total_vod = 0
         count = 0
         for t in num_of_traps:
-            total_runtime += results[(n, t)]["exec_time"]
-            total_vod += results[(n, t)]["vod"]
+            key = f"nodes_{n},traps_{t}"
+            total_runtime += results[key]["exec_time"]
+            total_vod += results[key]["vod"]
             count += 1
         average_runtime[n] = total_runtime / count
         average_vod[n] = total_vod / count

@@ -1,19 +1,19 @@
 {
-  "name": "exp_n10_hybrid_t2_f0",
+  "name": "greedy_exp_n20_mesh_t2_f0",
   "directory": null,
   "overwrite": false,
-  "type": "enumerative",
+  "type": "greedy",
   "num_trials": 1,
   "use_multiprocessing": 1,
   "max_traps": 2,
   "max_fakes": 0,
   "graph": {
-    "topology": "hybrid",
-    "nodes": 10,
-    "max_out_degree": 4,
+    "topology": "mesh",
+    "nodes": 20,
+    "max_out_degree": null,
     "hubs": null,
     "save": true,
-    "save_png": true
+    "save_png": false
   },
   "log": true,
   "save_intermediate_solutions": false,

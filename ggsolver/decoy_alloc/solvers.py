@@ -129,7 +129,38 @@ class GreedyTrapsAllocator(models.Solver):
         raise NotImplementedError("Multicore is not supported due to pickling issues with SubGraph class.")
 
     def _singlecore_solve(self):
-        raise NotImplementedError("TODO")
+        states = set(self._graph["state"][uid] for uid in self._graph.nodes())
+        final_states = set(self.graph()["state"][uid] for uid in self.graph().nodes() if self.graph()["final"][uid])
+        trap_states = set()
+        covered_states = set()
+        iter_count = 0
+        final_result = None
+        while len(states - covered_states) > 0 and len(trap_states) < self.num_decoys:
+            iter_count += 1
+            potential_traps = states - trap_states - final_states
+            updated_winning_regions = list()
+
+            for potential_trap in potential_traps:
+                new_final_states = trap_states.union(set([potential_trap]))
+                # Remove out going edges from decoy states
+                # (the hypergame only has out going edges removed from the original final states)
+                hidden_edges = set()
+                out_going_final_edges = list()
+                for state in new_final_states:
+                    for out_edge in self.graph().out_edges(self._state2node[state]):
+                        out_going_final_edges.append(out_edge)
+                hidden_edges.update(out_going_final_edges)
+                sub_graph = ggraph.SubGraph(self.graph(), hidden_edges=hidden_edges)
+                # Solve the sub_graph
+                args = (sub_graph, new_final_states, iter_count, "winning_states", self.directory, self.fname,
+                        self._save_output)
+                result = get_value_of_deception_pair(args)
+                new_region = {"result": result, "new_trap": potential_trap}
+                updated_winning_regions.append(new_region)
+            next_trap_set = max(updated_winning_regions, key=lambda decoy_set: decoy_set["result"]["value_of_deception"])
+            trap_states.add(next_trap_set["new_trap"])
+            covered_states.update(next_trap_set["result"]["solver"].winning_states(1))
+        return next_trap_set["result"]
 
     def solve(self):
         # Based on multiprocessing, solve for each decoy placement.
@@ -189,7 +220,7 @@ def get_value_of_deception_pair(args):
     logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
 
     if directory is not None and f_name is not None:
-        solver.solution().save(os.path.join(directory, f"{f_name}_{solution_count}.solution"))
+        solver.solution().save(os.path.join(directory, f"{f_name}_{solution_count}.solution"), overwrite=True)
 
     if metric == "winning_states":
         # FIXME Define value of deception based on paper instead of number of winning states

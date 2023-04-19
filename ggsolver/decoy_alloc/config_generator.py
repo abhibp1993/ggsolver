@@ -2,15 +2,15 @@ import os
 import json
 
 
-def generate_config(nodes: int, topology: str, traps: int, fakes: int):
-    name = f"exp_n{nodes}_{topology}_t{traps}_f{fakes}"
+def generate_config(nodes: int, topology: str, traps: int, fakes: int, solver_type: str):
+    name = f"{solver_type}_exp_n{nodes}_{topology}_t{traps}_f{fakes}"
     path = os.path.join("configurations", f"{name}.json")
 
     cfg = {
       "name": name,
       "directory": None,
       "overwrite": False,
-      "type": "enumerative",
+      "type": solver_type,
       "num_trials": 1,
       "use_multiprocessing": 1,
       "max_traps": traps,
@@ -40,7 +40,8 @@ def main():
 
     for n in num_of_nodes:
         for t in num_of_traps:
-            generate_config(nodes=n, topology="mesh", traps=t, fakes=0)
+            generate_config(nodes=n, topology="mesh", traps=t, fakes=0, solver_type="enumerative")
+            generate_config(nodes=n, topology="mesh", traps=t, fakes=0, solver_type="greedy")
 
 
 if __name__ == '__main__':

@@ -775,7 +775,7 @@ class GraphicalModel:
             verbosity = 1
 
         np = set(kwargs.get("node_properties", set()))
-        if np is None:
+        if len(np) == 0:
             np = getattr(self, "NODE_PROPERTY")
         else:
             np = set(getattr(self, "NODE_PROPERTY")).intersection(set(np))
@@ -784,7 +784,7 @@ class GraphicalModel:
         np = np - ignore_np
 
         ep = set(kwargs.get("edge_properties", set()))
-        if ep is None:
+        if len(ep) == 0:
             ep = getattr(self, "EDGE_PROPERTY")
         else:
             ep = set(getattr(self, "EDGE_PROPERTY")).intersection(set(ep))
@@ -793,7 +793,7 @@ class GraphicalModel:
         ep = ep - ignore_ep
 
         gp = set(kwargs.get("graph_properties", set()))
-        if gp is None:
+        if len(gp) == 0:
             gp = getattr(self, "GRAPH_PROPERTY")
         else:
             gp = set(getattr(self, "GRAPH_PROPERTY")).intersection(set(gp))

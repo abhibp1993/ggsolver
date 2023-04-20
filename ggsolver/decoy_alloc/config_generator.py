@@ -2,7 +2,7 @@ import os
 import json
 
 
-def generate_config(nodes: int, topology: str, traps: int, fakes: int, solver_type: str):
+def generate_config(nodes: int, topology: str, traps: int, fakes: int, solver_type: str, max_out_degree=None):
     name = f"{solver_type}_exp_n{nodes}_{topology}_t{traps}_f{fakes}"
     path = os.path.join("configurations", f"{name}.json")
 
@@ -16,9 +16,9 @@ def generate_config(nodes: int, topology: str, traps: int, fakes: int, solver_ty
       "max_traps": traps,
       "max_fakes": fakes,
       "graph": {
-        "topology": "mesh",
+        "topology": topology,
         "nodes": nodes,
-        "max_out_degree": None,
+        "max_out_degree": max_out_degree,
         "hubs": None,
         "save": True,
         "save_png": False
@@ -40,8 +40,8 @@ def main():
 
     for n in num_of_nodes:
         for t in num_of_traps:
-            generate_config(nodes=n, topology="mesh", traps=t, fakes=0, solver_type="enumerative")
-            generate_config(nodes=n, topology="mesh", traps=t, fakes=0, solver_type="greedy")
+            generate_config(nodes=n, topology="hybrid", traps=t, fakes=0, solver_type="enumerative", max_out_degree=10)
+            generate_config(nodes=n, topology="hybrid", traps=t, fakes=0, solver_type="greedy", max_out_degree=10)
 
 
 if __name__ == '__main__':

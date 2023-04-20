@@ -9,17 +9,13 @@ logger = loguru.logger
 logger.remove()
 
 
-def main():
-    # Define parameters
+def run_greedy_experiment(num_of_nodes, num_of_traps, topology):
     results = dict()
-    num_of_nodes = [10, 20, 30, 40, 50]
-    num_of_traps = [1, 2, 3]
-
     # Run all experiments
     for n in num_of_nodes:
         for t in num_of_traps:
             # Load configuration file
-            config_name = f"greedy_exp_n{n}_mesh_t{t}_f{0}"
+            config_name = f"greedy_exp_n{n}_{topology}_t{t}_f{0}"
             config_file_path = os.path.join("../", "configurations", f"{config_name}.json")
             config = cfg.process_cfg_file(config_file_path)
             # Run experiment
@@ -78,6 +74,12 @@ def main():
 
     fig.savefig('./out/greedy_trap_vod_vs_size.png')
 
+def main():
+    # Define parameters
+    num_of_nodes = [10, 20, 30, 40, 50]
+    num_of_traps = [1, 2, 3]
+    # Run experiment
+    run_greedy_experiment(num_of_nodes, num_of_traps, "hybrid")
 
 if __name__ == '__main__':
     with logger.catch():

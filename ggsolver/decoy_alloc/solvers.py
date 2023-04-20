@@ -134,12 +134,10 @@ class GreedyTrapsAllocator(models.Solver):
         trap_states = set()
         covered_states = set()
         iter_count = 0
-        final_result = None
         while len(states - covered_states) > 0 and len(trap_states) < self.num_decoys:
             iter_count += 1
             potential_traps = states - trap_states - final_states
             updated_winning_regions = list()
-
             for potential_trap in potential_traps:
                 new_final_states = trap_states.union(set([potential_trap]))
                 # Remove out going edges from decoy states

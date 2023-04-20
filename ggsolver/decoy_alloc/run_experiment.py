@@ -169,7 +169,6 @@ def run_experiment(config):
     game = gen_game(config)
     game_graph = game.graphify()
     logger.success(f"Generated {game_graph=} successfully.")
-
     # Logging and saving graph
     directory = config['directory']
     exp_name = config['name']
@@ -196,7 +195,11 @@ def run_experiment(config):
     hgame_graph.save(path)
     write_dot_file(hgame_graph, "hgame", config)
     logger.info(f"Constructed and saved {hgame_graph=} successfully.")
-
+    # Check for games where no traps can be placed
+    assert len(set(hgame_graph.nodes()) - swin_game.get_final_states()) > 0, \
+        f"Hypergame {hgame_graph} has no states where traps can be allocated"
+    # assert len(set(hgame_graph.nodes()) - swin_game.get_final_states()) > config["max_traps"], \
+    #     f"Hypergame {hgame_graph} has fewer non-final states than traps to be allocated"
     # Allocate decoys
     start = time.perf_counter()
     solution = place_decoys(hgame_graph, config)

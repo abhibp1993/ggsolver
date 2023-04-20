@@ -9,13 +9,13 @@ logger = loguru.logger
 logger.remove()
 
 
-def run_greedy_experiment(num_of_nodes, num_of_traps, topology):
+def run_trap_experiment(num_of_nodes, num_of_traps, topology, allocation_type):
     results = dict()
     # Run all experiments
     for n in num_of_nodes:
         for t in num_of_traps:
             # Load configuration file
-            config_name = f"greedy_exp_n{n}_{topology}_t{t}_f{0}"
+            config_name = f"{allocation_type}_exp_n{n}_{topology}_t{t}_f{0}"
             config_file_path = os.path.join("../", "configurations", f"{config_name}.json")
             config = cfg.process_cfg_file(config_file_path)
             # Run experiment
@@ -30,7 +30,7 @@ def run_greedy_experiment(num_of_nodes, num_of_traps, topology):
             logger.success(
                 f"Finished experiment config:{config['name']} with {exec_time=} sec, {ram_used=} bytes, and {vod=}.")
     # Log results
-    path = os.path.join("out", f"greedy_trap_results.json")
+    path = os.path.join("out", f"{allocation_type}_trap_results.json")
     with open(path, 'w') as file:
         file.write(json.dumps(results, indent=4))
 
@@ -59,7 +59,7 @@ def run_greedy_experiment(num_of_nodes, num_of_traps, topology):
     ax.set_title('Runtime vs Number of Nodes in Graph')
     ax.set_xticks(num_of_nodes)
 
-    fig.savefig('./out/greedy_trap_runtime_vs_size.png')
+    fig.savefig(f'./out/{allocation_type}_trap_runtime_vs_size.png')
     # Create nodes vs memory graphs
     # Create size vs value of deception graph
     x = num_of_nodes
@@ -72,14 +72,16 @@ def run_greedy_experiment(num_of_nodes, num_of_traps, topology):
     ax.set_title('Value of Deception vs Number of Nodes in Graph')
     ax.set_xticks(num_of_nodes)
 
-    fig.savefig('./out/greedy_trap_vod_vs_size.png')
+    fig.savefig(f'./out/{allocation_type}_trap_vod_vs_size.png')
+
 
 def main():
     # Define parameters
     num_of_nodes = [10, 20, 30, 40, 50]
     num_of_traps = [1, 2, 3]
     # Run experiment
-    run_greedy_experiment(num_of_nodes, num_of_traps, "hybrid")
+    run_trap_experiment(num_of_nodes, num_of_traps, topology="hybrid", allocation_type="enumerative")
+
 
 if __name__ == '__main__':
     with logger.catch():

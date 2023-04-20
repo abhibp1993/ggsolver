@@ -61,13 +61,7 @@ class EnumerativeTrapsAllocator(models.Solver):
             decoys = [self._graph["state"][uid] for uid in decoys]
             # Remove out going edges from decoy states
             # (the hypergame only has out going edges removed from the original final states)
-            hidden_edges = set()
-            out_going_trap_edges = list()
-            for state in decoys:
-                for out_edge in self.graph().out_edges(self._state2node[state]):
-                    out_going_trap_edges.append(out_edge)
-            hidden_edges.update(out_going_trap_edges)
-            sub_graph = ggraph.SubGraph(self.graph(), hidden_edges=hidden_edges)
+            sub_graph = remove_out_going_final_edges(self.graph(), decoys, self._state2node)
             # Solve the sub_graph
             args = (sub_graph, decoys, i, "winning_states", self.directory, self.fname, self._save_output)
             result = get_value_of_deception_pair(args)
@@ -93,8 +87,14 @@ class EnumerativeTrapsAllocator(models.Solver):
             uid for uid in self.graph().nodes() if self.graph()["final"][uid])
         decoy_combinations = combinations(possible_decoys, self.num_decoys)
 
+        # Solve trivial case where number of potential decoy states is less than number decoys to allocate
+        if len(possible_decoys) < self.num_decoys:
+            possible_decoy_states = [self._graph["state"][uid] for uid in possible_decoys]
+            sub_graph = remove_out_going_final_edges(self.graph(), possible_decoy_states, self._state2node)
+            args = (sub_graph, possible_decoy_states, 0, "winning_states", self.directory, self.fname, self._save_output)
+            self.deception_dict = get_value_of_deception_pair(args)
         # Based on multiprocessing, solve for each decoy placement.
-        if self.cpu_count > 1:
+        elif self.cpu_count > 1:
             self.deception_dict = self._multicore_solve(decoy_combinations)
         else:
             self.deception_dict = self._singlecore_solve(decoy_combinations)

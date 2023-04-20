@@ -18,6 +18,7 @@ class EnumerativeTrapsAllocator(models.Solver):
     """
     :param graph: graph of hypergame
     """
+
     def __init__(self, graph: ggraph.Graph,
                  num_decoys: int,
                  max_combinations=MAX_COMBINATIONS,
@@ -88,7 +89,8 @@ class EnumerativeTrapsAllocator(models.Solver):
         logger.debug(f"Setting up solvers for {num_combinations} games.")
 
         # Define combinations and extract the final states.
-        possible_decoys = set(self._graph.nodes()) - set(uid for uid in self.graph().nodes() if self.graph()["final"][uid])
+        possible_decoys = set(self._graph.nodes()) - set(
+            uid for uid in self.graph().nodes() if self.graph()["final"][uid])
         decoy_combinations = combinations(possible_decoys, self.num_decoys)
 
         # Based on multiprocessing, solve for each decoy placement.
@@ -138,24 +140,26 @@ class GreedyTrapsAllocator(models.Solver):
             iter_count += 1
             potential_traps = states - trap_states - final_states
             updated_winning_regions = list()
+            # Consider the trivial case with more available decoys than states to potentially make traps
+            if len(potential_traps) <= self.num_decoys:
+                sub_graph = remove_out_going_final_edges(self.graph(), potential_traps, self._state2node)
+                args = (sub_graph, potential_traps, iter_count, "winning_states", self.directory, self.fname,
+                        self._save_output)
+                return get_value_of_deception_pair(args)
+
             for potential_trap in potential_traps:
                 new_final_states = trap_states.union(set([potential_trap]))
                 # Remove out going edges from decoy states
                 # (the hypergame only has out going edges removed from the original final states)
-                hidden_edges = set()
-                out_going_final_edges = list()
-                for state in new_final_states:
-                    for out_edge in self.graph().out_edges(self._state2node[state]):
-                        out_going_final_edges.append(out_edge)
-                hidden_edges.update(out_going_final_edges)
-                sub_graph = ggraph.SubGraph(self.graph(), hidden_edges=hidden_edges)
+                sub_graph = remove_out_going_final_edges(self.graph(), new_final_states, self._state2node)
                 # Solve the sub_graph
                 args = (sub_graph, new_final_states, iter_count, "winning_states", self.directory, self.fname,
                         self._save_output)
                 result = get_value_of_deception_pair(args)
                 new_region = {"result": result, "new_trap": potential_trap}
                 updated_winning_regions.append(new_region)
-            next_trap_set = max(updated_winning_regions, key=lambda decoy_set: decoy_set["result"]["value_of_deception"])
+            next_trap_set = max(updated_winning_regions,
+                                key=lambda decoy_set: decoy_set["result"]["value_of_deception"])
             trap_states.add(next_trap_set["new_trap"])
             covered_states.update(next_trap_set["result"]["solver"].winning_states(1))
         return next_trap_set["result"]
@@ -171,7 +175,6 @@ class GreedyTrapsAllocator(models.Solver):
         self._node_winner.update(self.deception_dict["solver"]._node_winner)
         self._solution["vod"] = self.deception_dict["value_of_deception"]
         self._is_solved = True
-
 
 
 class EnumerativeFakesAllocator(models.Solver):
@@ -206,6 +209,17 @@ class GreedyMixedAllocator(models.Solver):
         pass
 
 
+def remove_out_going_final_edges(graph: ggraph.Graph, final_states: set, state2node):
+    hidden_edges = set()
+    out_going_final_edges = list()
+    for state in final_states:
+        for out_edge in graph.out_edges(state2node[state]):
+            out_going_final_edges.append(out_edge)
+    hidden_edges.update(out_going_final_edges)
+    sub_graph = ggraph.SubGraph(graph, hidden_edges=hidden_edges)
+    return sub_graph
+
+
 # TODO (Note.). The following function is only for traps.
 def get_value_of_deception_pair(args):
     """ Returns the (decoy,vod) pair for a given decoy combination"""
@@ -213,7 +227,8 @@ def get_value_of_deception_pair(args):
     graph, decoys, solution_count, metric, directory, f_name, save_output = args
 
     # Solve new game
-    solver = SWinReach(graph, final=decoys, path=directory, save_output=save_output, filename=f"pgzlk_{'_'.join(decoys)}")
+    solver = SWinReach(graph, final=decoys, path=directory, save_output=save_output,
+                       filename=f"pgzlk_{'_'.join(decoys)}")
     solver.solve()
     logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
 
@@ -228,4 +243,3 @@ def get_value_of_deception_pair(args):
         return pair
     else:
         raise NotImplementedError
-

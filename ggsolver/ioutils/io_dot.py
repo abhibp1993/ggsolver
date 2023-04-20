@@ -2,11 +2,13 @@
 API may include more options such as which properties to include in DOT file etc.
 """
 import ggsolver
+import networkx as nx
 import pygraphviz
+import re
 from loguru import logger
 
 
-def from_dot(fpath, graph):
+def from_dot(fpath, graph, backend="rabinizer"):
     """
     Loads the graph from DOT file into given graph object.
 
@@ -16,7 +18,67 @@ def from_dot(fpath, graph):
 
     .. note:: `graph.clear()` is called first.
     """
-    pass
+    if backend == "rabinizer":
+        return from_dot_rabinizer(fpath, graph)
+
+
+def from_dot_rabinizer(fpath, graph):
+    # Use networkx loader to load
+    nx_graph = nx.nx_pydot.read_dot(fpath)
+
+    graph.clear()
+    graph.create_np("state", default="")
+    graph.create_np("acc_set", default=set())
+    graph.create_ep("label", default="")
+    graph.create_gp("init_state")
+    graph.create_gp("final")
+    graph.create_gp("acc_cond")
+
+    # Get label of generated dot file
+    acc_str = nx_graph.graph["graph"]["label"]
+
+    # Get acceptance condition
+    match = re.search("Rabin", acc_str)
+    if match:
+        graph["acc_cond"] = "Rabin"
+
+    # Get acceptance sets
+    condition = r'(Fin\(\d+\) & Inf\(\d+\))'
+    matches = re.findall(condition, acc_str)
+    rabin_pairs = set()
+    for cond in matches:
+        fin_cond = r'Fin\(\d+\)'
+        inf_cond = r'Inf\(\d+\)'
+        fin_match = re.search(fin_cond, cond)
+        inf_match = re.search(inf_cond, cond)
+        fin_acc = re.findall(r'\d+', fin_match.group(0))
+        inf_acc = re.findall(r'\d+', inf_match.group(0))
+        rabin_pairs.add((int(fin_acc[0]), int(inf_acc[0])))
+    graph["final"] = rabin_pairs
+
+    node_mapping = dict()
+    for node, data in nx_graph.nodes(data=True):
+        is_invisible = "invis" == data.get("style", "")
+        if is_invisible:
+            continue
+        uid = graph.add_node()
+        node, node_acc_set = data["label"].replace('"', "").split("\\n")
+        node_mapping[node] = uid
+        graph["state"][uid] = f"q{node}"
+        graph["acc_set"][uid] = node_acc_set
+
+    for u, v, k, data in nx_graph.edges(data=True, keys=True):
+        is_u_invisible = "invis" == nx_graph.nodes[u].get("style", "")
+        if is_u_invisible:
+            graph["init_state"] = graph["state"][node_mapping[v]]
+            continue
+
+        uid = node_mapping[u]
+        vid = node_mapping[v]
+        key = graph.add_edge(uid, vid)
+        graph["label"][uid, vid, key] = data["label"].replace('"', "")
+
+    return graph
 
 
 def to_dot(fpath, graph, formatting="simple", node_props=None, edge_props=None, **kwargs):

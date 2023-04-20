@@ -81,3 +81,14 @@ RUN pip3 install cloud-sptheme
 # Install simplejson library for serialization
 RUN pip3 install simplejson
 
+# Install Java
+RUN apt-get update && \
+    RUNLEVEL=1 DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+    default-jre && \
+    apt-get clean
+
+# Install Rabinizer-4
+RUN wget https://rabinizer.model.in.tum.de/files/rabinizer-4.zip
+RUN unzip rabinizer-4.zip
+ENV PATH="/rabinizer-4/bin/:${PATH}"

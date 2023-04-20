@@ -259,7 +259,7 @@ class RabinizerAutomaton(Automaton):
         super(RabinizerAutomaton, self).__init__()
         self.f_str = f_str
         self._formula = spot.formula(f_str)
-        self._atoms = self._collect_atoms()
+        self._atoms = set(self._collect_atoms()) | kwargs.get("atoms", set())
 
         self.directory = kwargs.get("directory", f"out")
         self.fname = kwargs.get("fname", "tmp_aut.hoa")

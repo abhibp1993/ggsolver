@@ -40,9 +40,18 @@ class LTL(BaseFormula):
     # ==================================================================
     def translate(self, backend="spot"):
         if backend == "rabinizer":
-            pass
+            return DRA().from_automaton(RabinizerAutomaton(f_str=self.f_str, atoms=self.atoms()))
         elif backend == "spot":
-            return SpotAutomaton(f_str=self.f_str, atoms=self.atoms())
+            aut = SpotAutomaton(f_str=self.f_str, atoms=self.atoms())
+            if aut.acc_cond() == Automaton.ACC_PARITY:
+                return DPA().from_automaton(aut)
+            elif aut.acc_cond() == Automaton.ACC_BUCHI:
+                return DBA().from_automaton(aut)
+            elif aut.acc_cond() == Automaton.ACC_REACH:
+                return DFA().from_automaton(aut)
+            else:
+                raise TypeError(f"LTL({self.f_str}) could not be translated using `spot` backend. "
+                                f"Generated SpotAutomaton has {aut.acc_cond()=}.")
         else:
             raise ValueError(f"Unrecognized {backend=} for translation of {self.__class__.__name__} formula.")
 

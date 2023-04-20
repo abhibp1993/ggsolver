@@ -65,6 +65,8 @@ class TestLTLTranslate(unittest.TestCase):
 
     def test_translate_bottom(self):
         dfa = logic.DFA().from_automaton(self.f_bottom.translate())
+        dfa = self.f_bottom.translate()
+        self.assertIsInstance(dfa, logic.DFA)
         self.assertEqual({"q0", "q1", "q2"}, set(dfa.states()))
         self.assertEqual({'p'}, set(dfa.atoms()))
         self.assertEqual("q0", dfa.delta("q1", {'p'}))
@@ -72,6 +74,7 @@ class TestLTLTranslate(unittest.TestCase):
 
     def test_translate_guarantee(self):
         dfa = logic.DFA().from_automaton(self.f_guarantee.translate())
+        dfa = self.f_guarantee.translate()
         self.assertEqual({"q0", "q1"}, set(dfa.states()))
         self.assertEqual({'p'}, set(dfa.atoms()))
         self.assertEqual("q0", dfa.delta("q1", {'p'}))
@@ -82,24 +85,34 @@ class TestLTLTranslate(unittest.TestCase):
         with pytest.raises(TypeError):
             dfa = logic.DFA().from_automaton(self.f_safety.translate())
         dba = logic.DBA().from_automaton(self.f_safety.translate())
+        dba = self.f_safety.translate()
+        self.assertIsInstance(dba, logic.DBA)
 
     def test_translate_obligation(self):
         with pytest.raises(TypeError):
             dfa = logic.DFA().from_automaton(self.f_obligation.translate())
         dba = logic.DBA().from_automaton(self.f_obligation.translate())
+        dba = self.f_obligation.translate()
+        self.assertIsInstance(dba, logic.DBA)
 
     def test_translate_recurrence(self):
         with pytest.raises(TypeError):
             dfa = logic.DFA().from_automaton(self.f_recurrence.translate())
         dba = logic.DBA().from_automaton(self.f_recurrence.translate())
+        dba = self.f_recurrence.translate()
+        self.assertIsInstance(dba, logic.DBA)
 
     def test_translate_persistence(self):
         with pytest.raises(TypeError):
             dfa = logic.DFA().from_automaton(self.f_persistence.translate())
         dpa = logic.DPA().from_automaton(self.f_persistence.translate())
+        dpa = self.f_persistence.translate()
+        self.assertIsInstance(dpa, logic.DPA)
 
     def test_translate_reactivity(self):
         with pytest.raises(TypeError):
             dfa = logic.DFA().from_automaton(self.f_reactivity.translate())
         dpa = logic.DPA().from_automaton(self.f_reactivity.translate())
+        dpa = self.f_reactivity.translate()
+        self.assertIsInstance(dpa, logic.DPA)
 

@@ -10,3 +10,7 @@ ggsolver/ioutils/__pycache__/
 ggsolver/core/__pycache__/
 
 tests/core/__pycache__/
+
+ggsolver/logic/__pycache__/
+
+tests/logic/__pycache__/

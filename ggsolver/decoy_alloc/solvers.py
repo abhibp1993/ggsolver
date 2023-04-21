@@ -207,9 +207,10 @@ class GreedyTrapsAllocator(models.Solver):
         return next_trap_set["result"]
 
     def solve(self):
-        # Based on multiprocessing, solve for each decoy placement.
+        # Check if there is a mapping from arena points to states
         if self.arena2states is not None:
             self.deception_dict = self._arena_game_solve()
+        # Based on multiprocessing, solve for each decoy placement.
         elif self.cpu_count > 1:
             self.deception_dict = self._multicore_solve()
         else:

@@ -9,7 +9,7 @@ logger = loguru.logger
 logger.remove()
 
 
-def run_trap_experiment(num_of_nodes, num_of_traps, topology, allocation_type):
+def run_trap_experiments(num_of_nodes, num_of_traps, topology, allocation_type):
     results = dict()
     # Run all experiments
     for n in num_of_nodes:
@@ -80,7 +80,8 @@ def main():
     num_of_nodes = [10, 20, 30, 40, 50]
     num_of_traps = [1, 2, 3]
     # Run experiment
-    run_trap_experiment(num_of_nodes, num_of_traps, topology="hybrid", allocation_type="enumerative")
+    run_trap_experiments(num_of_nodes, num_of_traps, topology="hybrid", allocation_type="enumerative")
+    run_trap_experiments(num_of_nodes, num_of_traps, topology="hybrid", allocation_type="greedy")
 
 
 if __name__ == '__main__':

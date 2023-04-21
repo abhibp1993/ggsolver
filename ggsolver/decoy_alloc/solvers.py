@@ -108,6 +108,7 @@ class EnumerativeTrapsAllocator(models.Solver):
 class GreedyTrapsAllocator(models.Solver):
     def __init__(self, graph: ggraph.Graph,
                  num_decoys: int,
+                 arena2states: dict = None,
                  max_combinations=MAX_COMBINATIONS,
                  cpu_count=0,
                  directory=None,
@@ -116,6 +117,7 @@ class GreedyTrapsAllocator(models.Solver):
                  ):
         super(GreedyTrapsAllocator, self).__init__(graph)
         self.num_decoys = num_decoys
+        self.arena2states = arena2states
         self.max_combinations = max_combinations
         self.cpu_count = multiprocessing.cpu_count() if cpu_count == "all" else cpu_count
         self.directory = directory
@@ -164,9 +166,51 @@ class GreedyTrapsAllocator(models.Solver):
             covered_states.update(next_trap_set["result"]["solver"].winning_states(1))
         return next_trap_set["result"]
 
+    def _arena_game_solve(self):
+        states = set()
+        arena_points = set()
+        for arena_point, state_list in self.arena2states.items():
+            arena_points.add(arena_point)
+            for state in state_list:
+                states.add(state)
+
+        arena_traps = set()  # set of arena points
+
+        covered_states = set()  # set of states
+        trap_states = set()  # set of states
+
+        iter_count = 0
+        # Allocate traps
+        while len(states - covered_states) > 0 and len(arena_traps) < self.num_decoys:
+            iter_count += 1
+            print(f"Iteration {iter_count}")
+
+            potential_arena_traps = arena_points - arena_traps
+            updated_winning_regions = list()
+
+            for arena_point in potential_arena_traps:
+                # the list of final states if this arena point is made into a trap
+                new_final_states = list(trap_states) + self.arena2states[arena_point]
+
+                sub_graph = remove_out_going_final_edges(self.graph(), new_final_states, self._state2node)
+                args = (sub_graph, new_final_states, iter_count, "winning_states", self.directory, self.fname,
+                        self._save_output)
+                result = get_value_of_deception_pair(args)
+                new_region = {"result": result, "new_arena_trap": arena_point}
+                updated_winning_regions.append(new_region)
+
+            next_trap_set = max(updated_winning_regions,
+                                key=lambda decoy_set: decoy_set["result"]["value_of_deception"])
+            arena_traps.add(next_trap_set["new_arena_trap"])
+            trap_states.update(self.arena2states[next_trap_set["new_arena_trap"]])
+            covered_states.update(next_trap_set["winning_states"])
+        return next_trap_set["result"]
+
     def solve(self):
         # Based on multiprocessing, solve for each decoy placement.
-        if self.cpu_count > 1:
+        if self.arena2states is not None:
+            self.deception_dict = self._arena_game_solve()
+        elif self.cpu_count > 1:
             self.deception_dict = self._multicore_solve()
         else:
             self.deception_dict = self._singlecore_solve()

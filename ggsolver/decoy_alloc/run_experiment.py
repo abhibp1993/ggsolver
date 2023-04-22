@@ -258,7 +258,7 @@ def run_tom_and_jerry_experiment(experiment_cfg_dict: dict, game_cfg_path: str):
 
     # Solve base game
     swin_game = solve_base_game(game_graph, tom_jerry_game, cfg_dict=experiment_cfg_dict)
-
+    logger.info(f"Solved base game {swin_game=} successfully.")
     # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)
     hgame_graph = gen_hypergame(game_graph, swin_game)
     logger.info(f"Constructed hypergame graph {hgame_graph=} successfully.")

@@ -72,21 +72,16 @@ class SWinReach(models.Solver):
 
         # Add node specifications
         for uid in self._solution.nodes():
-            game_graph += "\n"
-            game_graph += f"{uid} "
-            game_graph += f"{2 if uid in self._final else 1} "
+            priority = 2 if uid in self._final else 1
             turn = 0 if self._turn[uid] == 1 else 1
             if self._player == 2:
                 turn = 0 if turn == 1 else 1
-            game_graph += f"{turn} "
-            if len(list(self._graph.successors(uid))) == 0:
-                game_graph += f'{uid}'
+            if len(list(self._graph.successors(uid))) == 0 or priority == 2:
+                successors = f"{uid}"
             else:
-                game_graph += ",".join(list(map(str, self._graph.successors(uid))))
+                successors = ",".join(list(map(str, self._graph.successors(uid))))
 
-            game_graph += f' "{self._graph["state"][uid]}";'
-            # game_graph += "\n" + f"{uid} {2 if uid in self._final else 1} {0 if self._turn[uid] == 1 else 1} " + \
-            #               ",".join(list(map(str, self._graph.successors(uid)))) + f' "{self._graph["state"][uid]}";'
+            game_graph += f'\n{uid} {priority} {turn} {successors} "{self._graph["state"][uid]}";'
 
         return game_graph
 

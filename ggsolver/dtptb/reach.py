@@ -102,6 +102,15 @@ class SWinReach(models.Solver):
             # States not in win_nodes are winning for np.
             for uid in set(self._solution.nodes()) - win_nodes:
                 self._node_winner[uid] = (1 if self._player == 2 else 2)
+                for _, vid, key in self._solution.out_edges(uid):
+                    if self._turn[vid] == self._player:
+                        self._edge_winner[uid, vid, key] = 2 if self._player == 1 else 1
+                    else:
+                        if vid not in win_nodes:
+                            self._edge_winner[uid, vid, key] = 2 if self._player == 1 else 1
+                        else:
+                            self._edge_winner[uid, vid, key] = 1 if self._player == 1 else 2
+
                 progress_bar.update(1)
 
         # Mark the game to be solved

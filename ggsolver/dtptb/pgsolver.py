@@ -32,7 +32,7 @@ class SWinReach(models.Solver):
                                                 f"is_turn_based={graph['is_turn_based']}."))
 
         super(SWinReach, self).__init__(graph, **kwargs)
-        self._player = 1  # For PGSolver, we can only solve for P1's reachability.
+        self._player = kwargs.get("player", 1)
         self._final = {self.state2node(st) for st in final} if final is not None else self.get_final_states()
         if len(self._final) == 0:
             logging.warning(f"dtptb.SWinReach.__init__(): Final state set is empty.")
@@ -75,7 +75,10 @@ class SWinReach(models.Solver):
             game_graph += "\n"
             game_graph += f"{uid} "
             game_graph += f"{2 if uid in self._final else 1} "
-            game_graph += f"{0 if self._turn[uid] == 1 else 1} "
+            turn = 0 if self._turn[uid] == 1 else 1
+            if self._player == 2:
+                turn = 0 if turn == 1 else 1
+            game_graph += f"{turn} "
             if len(list(self._graph.successors(uid))) == 0:
                 game_graph += f'{uid}'
             else:
@@ -149,9 +152,9 @@ class SWinReach(models.Solver):
 
             # Mark node winner
             if data["color"] == 'green':
-                self._node_winner[uid] = 1
+                self._node_winner[uid] = 1 if self._player == 1 else 2
             else:  # if data["color"] == 'red':
-                self._node_winner[uid] = 2
+                self._node_winner[uid] = 2 if self._player == 1 else 1
 
             # Mark edge winners
             for _, vid, key in self._solution.out_edges(uid):
@@ -166,9 +169,9 @@ class SWinReach(models.Solver):
                 # If uid is P1 state, any black edge is losing.
                 if self._solution["turn"][uid] == 1:
                     if data["color"] == "green":
-                        self._edge_winner[uid, vid, key] = 1
+                        self._edge_winner[uid, vid, key] = 1 if self._player == 1 else 2
                     else:
-                        self._edge_winner[uid, vid, key] = 2
+                        self._edge_winner[uid, vid, key] = 2 if self._player == 1 else 1
 
                 # If uid is P2 state, any black edge is losing.
                 # Programmer's Note: PGSolver (as far as I understand) only determines "a" strategy
@@ -176,12 +179,12 @@ class SWinReach(models.Solver):
                 #   then they may be black. In this case, we use permissive strategy to determine their winner.
                 else:  # self._graph["turn"][uid] == 2:
                     if data["color"] == "red":
-                        self._edge_winner[uid, vid, key] = 2
+                        self._edge_winner[uid, vid, key] = 2 if self._player == 1 else 1
                     else:
                         if self._node_winner[vid] == 2:
-                            self._edge_winner[uid, vid, key] = 2
+                            self._edge_winner[uid, vid, key] = 2 if self._player == 1 else 1
                         else:
-                            self._edge_winner[uid, vid, key] = 1
+                            self._edge_winner[uid, vid, key] = 1 if self._player == 1 else 2
 
     def reset(self):
         """ Resets the solver to initial state. """

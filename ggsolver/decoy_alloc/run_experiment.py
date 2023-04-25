@@ -15,6 +15,7 @@ import ggsolver.decoy_alloc.process_config as cfg
 import ggsolver.decoy_alloc.graph_generator as gen
 import ggsolver.decoy_alloc.solvers as solvers
 import ggsolver.decoy_alloc.models as models
+from ggsolver.dtptb import SWinReach
 
 from examples.apps.tom_and_jerry.main import TomJerryGame
 
@@ -31,7 +32,7 @@ logger.remove()
 
 
 # CONFIG_FILE_PATH = "configurations/config1.json"
-CONFIG_FILE_PATH = "configurations/tom_jerry_experiment_config.json"
+CONFIG_FILE_PATH = "configurations/enumerative_exp_n10_hybrid_t3_f0.json"
 
 
 def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
@@ -169,7 +170,7 @@ def gen_hypergame(game_graph, swin_game: dtptb.SWinReach):
 
 
 def solve_base_game(game_graph: ggraph.Graph, game: dtptb.DTPTBGame, cfg_dict: dict):
-    swin_game = dtptb.SWinReach(game_graph, player=2)
+    swin_game = SWinReach(game_graph, player=2)
     swin_game.solve()
     path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_base.solution")
     swin_game.solution().save(path)
@@ -281,15 +282,23 @@ def run_tom_and_jerry_experiment(experiment_cfg_dict: dict, game_cfg_path: str):
 
 def main():
     # Load configuration file
-    config = cfg.process_cfg_file(CONFIG_FILE_PATH)
+    config = cfg.process_cfg_file("configurations/enumerative_exp_n10_mesh_t3_f0.json")
     logger.success("Configuration loaded successfully.")
+    game = gen_game(config)
+    graph = game.graphify()
+    solution = SWinReach(graph)
+    solution.solve()
+    write_dot_file(solution.solution(), "sol_graph", config)
 
-    # cProfile.run(run_experiment(config))
+    # cProfile.run(run_experiment(config), "./out/50_3_hybrid_profile.txt")
+    # prof = cProfile.Profile()
+    # prof.runctx('run_experiment(config)', globals(), {'config': config})
+    # prof.dump_stats('50_3_hybrid_profile.prof')
     # exec_time, ram_used, vod = run_experiment(config)
     # logger.success(f"Finished experiment config:{config['name']} with {exec_time=} sec, {ram_used=} bytes, and {vod=}.")
 
-    game_cfg_path = os.path.join("configurations", "game_2023_03_24_18_14.conf")
-    run_tom_and_jerry_experiment(experiment_cfg_dict=config, game_cfg_path=game_cfg_path)
+    # game_cfg_path = os.path.join("configurations", "game_2023_03_24_18_14.conf")
+    # run_tom_and_jerry_experiment(experiment_cfg_dict=config, game_cfg_path=game_cfg_path)
 
 
 if __name__ == '__main__':

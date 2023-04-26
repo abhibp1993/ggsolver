@@ -1043,12 +1043,12 @@ class Solver:
         """ Abstract method."""
         raise NotImplementedError
 
-    def state_winner(self, state):
+    def winner_of_state(self, state):
         """ Returns the player who wins from the given state. """
         uid = self.state2node(state)
         return self._node_winner[uid]
 
-    def node_winner(self, uid):
+    def winner_of_node(self, uid):
         """ Returns the player who wins from the given state. """
         return self._node_winner[uid]
 
@@ -1073,10 +1073,14 @@ class Solver:
         # Convert to list and return
         return list(win_acts)
 
-    def winning_states(self, player):
+    def winning_region(self, player):
         """ Returns the winning region for the player. """
         # return [self._solution["state"][uid] for uid in self._solution.nodes() if self._node_winner[uid] == player]
         return [self._solution["state"][uid] for uid in self._solution.nodes() if self._node_winner[uid] == player]
+
+    def winning_nodes(self, player):
+        """ Returns the winning region for the player. """
+        return [uid for uid in self._solution.nodes() if self._node_winner[uid] == player]
 
     def winning_edges(self, uid):
         """ Returns the list of winning actions from the given node. """
@@ -1091,10 +1095,6 @@ class Solver:
 
         # Convert to list and return
         return list(win_edges)
-
-    def winning_nodes(self, player):
-        """ Returns the winning region for the player. """
-        return [uid for uid in self._solution.nodes() if self._node_winner[uid] == player]
 
     def reset(self):
         """ Resets the solver. """

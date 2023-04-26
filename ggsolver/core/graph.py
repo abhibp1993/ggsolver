@@ -14,6 +14,7 @@ from functools import reduce
 
 class PMap(dict):
     """ Base class for NodePropertyMap and EdgePropertyMap. """
+
     def __init__(self, graph, pname=None, default=None):
         super(PMap, self).__init__()
         self.pname = pname
@@ -133,6 +134,7 @@ class NodePMap(PMap):
     only the non-default values are stored in the dictionary.
     Raises an error if the node ID is invalid.
     """
+
     def __contains__(self, item):
         # TODO. Can be replaced with `return item in self.graph`.
         return self.graph.has_node(item)
@@ -232,6 +234,28 @@ class Graph:
     Notes:
         - Each graph object is uniquely identified by its name.
     """
+    _OBJECTS = dict()
+
+    def __new__(cls, name=None, **kwargs):
+        if name in Graph._OBJECTS:
+            raise NameError(f"{cls.__name__} object with {name=} already exists. Cannot create duplicate.")
+
+        # If name is not given, assign one. Pattern: Graph0, Graph1, ...
+        if name is None:
+            max_id = -1
+            regex_pattern = r"\d+"
+            for name in cls._OBJECTS.keys():
+                match = re.search(regex_pattern, name)
+                if match and int(match.group()) > max_id:
+                    max_id = int(match.group())
+
+            name = f"{cls.__name__}{max_id + 1}"
+
+        # Create new object
+        obj = super().__new__(cls)
+        cls._OBJECTS[name] = obj
+        return obj
+
     def __init__(self, name=None, **kwargs):
         self.name = name
         self._graph = nx.MultiDiGraph()
@@ -318,6 +342,13 @@ class Graph:
                             f"3-tuple of int (to check `edge` in graph). ")
 
     __hash__ = object.__hash__
+
+    # ============================================================================================================
+    # CLASS METHODS
+    # ============================================================================================================
+    @classmethod
+    def get_instance_by_name(cls, name):
+        return cls._OBJECTS[name]
 
     # ============================================================================================================
     # NODE/EDGE/GRAPH PROPERTY-RELATED METHODS
@@ -660,6 +691,11 @@ class Graph:
         Constructs a graph from a serialized graph object. The format is described in :py:meth:`Graph.serialize`.
         :return: (Graph) A new :class:`Graph` object..
         """
+        name = obj_dict["name"]
+        if name in self.__class__._OBJECTS:
+            logger.error(f"{self.__class__.__name__} with name:{name} exists. Skipped deserialization.")
+            return self.__class__._OBJECTS[name]
+
         # Clear graph
         self.clear()
 
@@ -825,8 +861,8 @@ class SubGraph(Graph):
 
     def __str__(self):
         if self.name is not None:
-            return f"SubGraph({self._parent}, |V|={self.number_of_nodes()}, |E|={self.number_of_edges()})"
-        return f"<SubGraph of {self._parent} with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
+            return f"SubGraph({self._parent})"
+        return self.__repr__()
 
     def __eq__(self, other: 'Graph'):
         # Equality of nodes
@@ -1422,4 +1458,3 @@ class SubGraph(Graph):
             self.graph_properties[pname] = obj_dict["graph_properties." + pname]
 
         return self
-

@@ -6,6 +6,7 @@ import ast
 import itertools
 import pathlib
 import networkx as nx
+import re
 import ggsolver.version as version
 import ggsolver.ioutils as io
 from loguru import logger
@@ -257,7 +258,7 @@ class Graph:
         return obj
 
     def __init__(self, name=None, **kwargs):
-        self.name = name
+        self._name = name
         self._graph = nx.MultiDiGraph()
         self._np = dict()
         self._ep = dict()
@@ -267,8 +268,8 @@ class Graph:
         return f"<Graph with |V|={self.number_of_nodes()}, |E|={self.number_of_edges()}>"
 
     def __str__(self):
-        if self.name is not None:
-            return f"Graph({self.name})"
+        if self._name is not None:
+            return f"Graph({self._name})"
         return self.__repr__()
 
     def __getitem__(self, pname):
@@ -566,7 +567,7 @@ class Graph:
         """
         Clears all nodes, edges and the node, edge and graph properties.
         """
-        self.name = None
+        self._name = None
         self._graph.clear()
         self._np = dict()
         self._ep = dict()
@@ -662,7 +663,7 @@ class Graph:
         # Metadata
         graph["type"] = "Graph"
         graph["ggsolver.version"] = version.ggsolver_version()
-        graph["name"] = self.name
+        graph["name"] = self._name
 
         # Topology
         graph["nodes"] = self.number_of_nodes()
@@ -711,7 +712,7 @@ class Graph:
                            f"ggsolver ver. {version.ggsolver_version()} may lead to unexpected issues.")
 
         # Update name
-        self.name = obj_dict["name"]
+        self._name = obj_dict["name"]
 
         # Add nodes
         self.add_nodes(num_nodes=int(obj_dict["nodes"]))
@@ -805,6 +806,27 @@ class SubGraph(Graph):
     * A subgraph is defined node and edge filters, that include a subset of nodes and edges of its parent.
         - This is stored in special private variable _visible_nodes, _visible_edges in the subgraph SG.
     """
+    _OBJECTS = dict()
+
+    def __new__(cls, name=None, **kwargs):
+        if name in Graph._OBJECTS:
+            raise NameError(f"{cls.__name__} object with {name=} already exists. Cannot create duplicate.")
+
+        # If name is not given, assign one. Pattern: Graph0, Graph1, ...
+        if name is None:
+            max_id = -1
+            regex_pattern = r"\d+"
+            for name in cls._OBJECTS.keys():
+                match = re.search(regex_pattern, name)
+                if match and int(match.group()) > max_id:
+                    max_id = int(match.group())
+
+            name = f"{cls.__name__}{max_id + 1}"
+
+        # Create new object
+        obj = super().__new__(cls)
+        cls._OBJECTS[name] = obj
+        return obj
 
     def __init__(self, parent, hidden_nodes=None, hidden_edges=None, name=None, **kwargs):
         """
@@ -861,7 +883,7 @@ class SubGraph(Graph):
 
     def __str__(self):
         if self.name is not None:
-            return f"SubGraph({self._parent})"
+            return f"SubGraph(name={self._name})"
         return self.__repr__()
 
     def __eq__(self, other: 'Graph'):

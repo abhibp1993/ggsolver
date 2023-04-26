@@ -27,6 +27,8 @@ def from_json(fpath):
 def custom_encoder(py_obj):
     if isinstance(py_obj, tuple):
         py_obj = {"__type__": "tuple", "__value__": list(py_obj)}
+    elif isinstance(py_obj, set):
+        py_obj = {"__type__": "set", "__value__": list(py_obj)}
     else:
         raise TypeError(f"{py_obj} of type:{type(py_obj)} could not be encoded by JSON.")
 
@@ -36,4 +38,6 @@ def custom_encoder(py_obj):
 def custom_decoder(json_obj):
     if "__type__" in json_obj and json_obj["__type__"] == "tuple":
         return tuple(json_obj["__value__"])
+    if "__type__" in json_obj and json_obj["__type__"] == "set":
+        return set(json_obj["__value__"])
     return json_obj

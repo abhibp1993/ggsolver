@@ -944,7 +944,7 @@ class SubGraph(Graph):
         return {
                    "type": "SubGraph",
                    "ggsolver.version": version.ggsolver_version(),
-                   "name": self.name,
+                   "name": self._name,
                    "parent": parent,
                    "hidden_nodes": list(self._hidden_nodes),
                    "visible_nodes": list(self.nodes()),
@@ -1119,6 +1119,13 @@ class SubGraph(Graph):
 
         else:
             logger.warning(f"{self}.make_property_local({pname}) had no effect.")
+
+    def flatten(self):
+        """
+        Constructs a graph with visible nodes and edges and their properties.
+        :return: (Graph)
+        """
+        raise NotImplementedError
 
     # =====================================================================================
     # ACCESSING AND COUNTING NODES, EDGES
@@ -1410,7 +1417,7 @@ class SubGraph(Graph):
         return {
             "type": "SubGraph",
             "ggsolver.version": version.ggsolver_version(),
-            "name": self.name,
+            "name": self._name,
             "parent": parent,
             "hidden_nodes": list(self._hidden_nodes),
             "hidden_edges": list(self._hidden_edges),

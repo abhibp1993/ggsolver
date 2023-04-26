@@ -2,11 +2,14 @@ import inspect
 import itertools
 import pathlib
 import pickle
+import time
+
 import pytest
 import unittest
 import shutil
 
 import ggsolver
+from loguru import logger
 
 
 class TestGraphTopology(unittest.TestCase):
@@ -78,15 +81,15 @@ class TestGraphTopology(unittest.TestCase):
         self.assertEqual(self.graph.number_of_edges(), 3)
 
         # Check repr without name
-        self.assertEqual(self.graph.name, None)
+        self.assertEqual(self.graph._name, None)
         val = f"<Graph with |V|=3, |E|=3>"
         self.assertEqual(self.graph.__repr__(), val)
         self.assertEqual(self.graph.__str__(), val)
 
         # Check repr with name
-        self.graph.name = "MyGraph"
+        self.graph._name = "MyGraph"
 
-        self.assertEqual(self.graph.name, "MyGraph")
+        self.assertEqual(self.graph._name, "MyGraph")
         val = f"<Graph with |V|=3, |E|=3>"
         self.assertEqual(self.graph.__repr__(), val)
         val = f"Graph(MyGraph)"
@@ -341,7 +344,7 @@ class TestSubGraphTopology(unittest.TestCase):
         self.edges = itertools.product(self.edges_uv, self.edge_keys)
 
         # Create subgraph
-        self.subgraph = ggsolver.SubGraph(self.graph)
+        self.subgraph = ggsolver.SubGraph(parent=self.graph)
 
     def test_add_nodes_no_hidden(self):
         # Check the state of subgraph
@@ -462,6 +465,16 @@ class TestSubGraphTopology(unittest.TestCase):
             self.subgraph.successors(1)
         self.assertIsInstance(context.exception, KeyError)
 
+    def test_successor_timing(self):
+        # Run a 100k successor queries, record time
+        start = time.perf_counter()
+        for i in range(int(1e6)):
+            self.subgraph.successors(3)
+        end = time.perf_counter()
+        print("\n\n==============================================")
+        print(f"Time for 100k successor queries: {end - start} sec")
+        print("\n\n==============================================")
+
 
 class TestSubGraphBranching(unittest.TestCase):
     def setUp(self):
@@ -488,12 +501,12 @@ class TestSubGraphBranching(unittest.TestCase):
         p[0, 1, 0] = "e2"
 
         # Create subgraph `sg1` of `graph`.
-        self.subgraph1 = ggsolver.SubGraph(self.graph)
+        self.subgraph1 = ggsolver.SubGraph(parent=self.graph)
         self.subgraph1.hide_nodes([0, 1])
         self.subgraph1.hide_edges([(7, 0, 0), (6, 7, 0)])
 
         # Create subgraph `sg2` of subgraph `graph`.
-        self.subgraph2 = ggsolver.SubGraph(self.graph)
+        self.subgraph2 = ggsolver.SubGraph(parent=self.graph)
         self.subgraph2.hide_nodes([2, 3])
         self.subgraph2.hide_edges([(5, 6, 0)])
 
@@ -563,12 +576,12 @@ class TestSubGraphHierarchy(unittest.TestCase):
         p[0, 1, 0] = "e2"
 
         # Create subgraph `sg1` of `graph`.
-        self.subgraph1 = ggsolver.SubGraph(self.graph)
+        self.subgraph1 = ggsolver.SubGraph(parent=self.graph)
         self.subgraph1.hide_nodes([0, 1])
         self.subgraph1.hide_edges([(7, 0, 0), (6, 7, 0)])
 
         # Create subgraph `sg2` of subgraph `graph`.
-        self.subgraph2 = ggsolver.SubGraph(self.subgraph1)
+        self.subgraph2 = ggsolver.SubGraph(parent=self.subgraph1)
         self.subgraph2.hide_nodes([2, 3])
         self.subgraph2.hide_edges([(5, 6, 0)])
 

@@ -14,3 +14,9 @@ tests/core/__pycache__/
 ggsolver/logic/__pycache__/
 
 tests/logic/__pycache__/
+
+ggsolver/dtptb/__pycache__/
+
+examples/opacity/out/
+
+examples/out/

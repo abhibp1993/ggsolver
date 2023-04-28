@@ -639,7 +639,7 @@ class Graph(IGraph):
             graph["ep." + pname] = pmap.serialize()
 
         for pname, pmap in self.graph_properties.items():
-            graph["gp." + pname] = pmap.serialize()
+            graph["gp." + pname] = pmap
 
         # Return serialized object
         return graph

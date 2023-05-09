@@ -135,29 +135,38 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict, arena2state: dict = None) 
     return solution
 
 
-def place_traps_and_fakes(graph: ggraph.Graph, num_fakes, num_traps, cfg_dict: dict,
-                          arena2state: dict = None) -> gmodels.Solver:
+def place_traps_and_fakes_greedy(graph: ggraph.Graph, cfg_dict: dict,
+                                 arena2state: dict = None) -> gmodels.Solver:
+    num_traps = cfg_dict['max_traps']
+    num_fakes = cfg_dict['max_fakes']
+    cpu_count = cfg_dict['use_multiprocessing']
+
     # Allocate fakes
     fakes_solution = solvers.GreedyFakesAllocator(graph=graph,
                                                   arena2states=arena2state,
                                                   num_fakes=num_fakes,
-                                                  cpu_count=1,
+                                                  cpu_count=cpu_count,
                                                   directory=cfg_dict['directory'],
                                                   fname=cfg_dict['name'],
                                                   save_output=cfg_dict["save_intermediate_solutions"]
                                                   )
     fakes_solution.solve()
+    logger.info(f"Selected fakes {fakes_solution.set_of_fakes=}")
     hypergame = fakes_solution.hypergame
+    write_dot_file(hypergame, "hgame", cfg_dict)
     # Use the hypergame from fake allocation to allocate traps
-    traps_solution = solvers.GreedyTrapsAllocator(graph=graph,
+    traps_solution = solvers.GreedyTrapsAllocator(graph=hypergame,
                                                   arena2states=arena2state,
                                                   num_decoys=num_traps,
-                                                  cpu_count=1,
+                                                  cpu_count=cpu_count,
                                                   directory=cfg_dict['directory'],
                                                   fname=cfg_dict['name'],
                                                   save_output=cfg_dict["save_intermediate_solutions"]
                                                   )
+    traps_solution.solve()
+    logger.info(f"Selected traps {traps_solution.deception_dict['decoys']}")
     return traps_solution
+
 
 def gen_reports(config):
     """
@@ -269,10 +278,11 @@ def run_mixed_experiment(config):
         game_graph.save(os.path.join(directory, f'{exp_name}_base.ggraph'))
     if config['graph']['save_png']:
         game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'), nlabel=["state"], elabel=["input"])
+    write_dot_file(game_graph, "base", config)
     logger.success(f"Saved {game_graph=} successfully.")
 
     start = time.perf_counter()
-    solution = place_traps_and_fakes(game_graph, config)
+    solution = place_traps_and_fakes_greedy(game_graph, config)
     end = time.perf_counter()
     logger.success(f"Decoy placement completed.")
     logger.info(f"Time required to place decoys: {end - start} seconds.")
@@ -345,18 +355,19 @@ def run_tom_and_jerry_experiment(experiment_cfg_dict: dict, game_cfg_path: str):
 
 def main():
     # Load configuration file
-    config = cfg.process_cfg_file("configurations/enumerative_exp_n10_mesh_t3_f0.json")
+    config = cfg.process_cfg_file("configurations/config1.json")
     logger.success("Configuration loaded successfully.")
 
     # cProfile.run(run_experiment(config), "./out/50_3_hybrid_profile.txt")
     # prof = cProfile.Profile()
     # prof.runctx('run_experiment(config)', globals(), {'config': config})
     # prof.dump_stats('50_3_hybrid_profile.prof')
-    # exec_time, ram_used, vod = run_experiment(config)
+    exec_time, ram_used, vod = run_mixed_experiment(config)
+    print(exec_time, ram_used, vod)
     # logger.success(f"Finished experiment config:{config['name']} with {exec_time=} sec, {ram_used=} bytes, and {vod=}.")
 
-    game_cfg_path = os.path.join("configurations", "game_2023_03_24_18_14.conf")
-    run_tom_and_jerry_experiment(experiment_cfg_dict=config, game_cfg_path=game_cfg_path)
+    # game_cfg_path = os.path.join("configurations", "game_2023_03_24_18_14.conf")
+    # run_tom_and_jerry_experiment(experiment_cfg_dict=config, game_cfg_path=game_cfg_path)
 
 
 if __name__ == '__main__':

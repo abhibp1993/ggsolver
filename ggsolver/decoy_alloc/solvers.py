@@ -9,6 +9,7 @@ import math
 from itertools import combinations
 from ggsolver.dtptb.pgsolver import SWinReach
 import loguru
+import pygraphviz
 
 logger = loguru.logger
 
@@ -93,7 +94,7 @@ class EnumerativeTrapsAllocator(models.Solver):
             possible_decoy_states = [self._graph["state"][uid] for uid in possible_decoys]
             sub_graph = remove_out_going_final_edges(self.graph(), possible_decoy_states, self._state2node)
             args = (
-            sub_graph, possible_decoy_states, 0, "winning_states", self.directory, self.fname, self._save_output)
+                sub_graph, possible_decoy_states, 0, "winning_states", self.directory, self.fname, self._save_output)
             self.deception_dict = get_value_of_deception_pair(args)
         # Based on multiprocessing, solve for each decoy placement.
         elif self.cpu_count > 1:
@@ -162,6 +163,7 @@ class GreedyTrapsAllocator(models.Solver):
                 result = get_value_of_deception_pair(args)
                 new_region = {"result": result, "new_trap": potential_trap}
                 updated_winning_regions.append(new_region)
+                logger.info(f"Solved for {potential_trap=} in {self.graph()=}")
             next_trap_set = max(updated_winning_regions,
                                 key=lambda decoy_set: decoy_set["result"]["value_of_deception"])
             trap_states.add(next_trap_set["new_trap"])
@@ -249,6 +251,7 @@ class GreedyFakesAllocator(models.Solver):
         self.set_of_fakes = None
 
         self.num_fakes = num_fakes
+        self.arena2states = arena2states
         # self.arena2states = arena2states
         self.max_combinations = max_combinations
         self.cpu_count = multiprocessing.cpu_count() if cpu_count == "all" else cpu_count
@@ -262,12 +265,23 @@ class GreedyFakesAllocator(models.Solver):
         self._value_of_deception = self._solution["value_of_deception"] = dict()
 
     def _singlecore_solve(self):
+        if self.num_fakes == 0:
+            # Solve base
+            fakes_solver = SWinReach(self.graph(), player=2)
+            fakes_solver.solve()
+
+            set_of_fakes = set()
+            vod = 0
+            solver = fakes_solver
+            hypergame = gen_hypergame(self.graph(), fakes_solver)
+            return set_of_fakes, vod, hypergame, solver
+
         states = set(self._graph["state"][uid] for uid in self._graph.nodes())
         final_states = set(self.graph()["state"][uid] for uid in self.graph().nodes() if self.graph()["final"][uid])
         fake_states = set()
         covered_states = set()
         iter_count = 0
-        while len(states - covered_states) > 0 and len(fake_states) < self.num_decoys:
+        while len(states - covered_states) > 0 and len(fake_states) < self.num_fakes:
             iter_count += 1
             potential_fakes = states - fake_states - final_states
             updated_winning_regions = list()
@@ -286,22 +300,23 @@ class GreedyFakesAllocator(models.Solver):
 
             for potential_fake in potential_fakes:
                 iter_count += 1
-                p1_final_states = fake_states.union(set([potential_fake]))
+                p2_final_states = fake_states.union({potential_fake}).union(final_states)
                 # Construct G(y) (Remove out going edges from decoy states)
-                sub_graph = remove_out_going_final_edges(self.graph(), p1_final_states, self._state2node)
+                sub_graph = remove_out_going_final_edges(self.graph(), p2_final_states, self._state2node)
                 # Solve G(Y) for P2
-                fakes_solver = SWinReach(sub_graph, final=p1_final_states, path=self.directory,
-                                         save_output=self.save_output,
-                                         filename=f"{self.filename}_fake_game_{iter_count}", player=2)
+                fakes_solver = SWinReach(sub_graph, final=p2_final_states, path=self.directory,
+                                         save_output=self._save_output,
+                                         filename=f"{self.fname}_fake_game_{iter_count}", player=2)
                 fakes_solver.solve()
                 # Generate hypergame based on subjectively rationalizable actions of P2
                 fakes_hypergame = gen_hypergame(sub_graph, fakes_solver)
                 # Solve hypergame for P1 with final states Y
-                args = (fakes_hypergame, p1_final_states, iter_count, "winning_states", self.directory, self.fname,
+                args = (fakes_hypergame, fake_states | {potential_fake}, iter_count, "winning_states", self.directory, self.fname,
                         self._save_output)
                 result = get_value_of_deception_pair(args)
                 new_region = {"result": result, "new_fake": potential_fake, "hypergame": fakes_hypergame}
                 updated_winning_regions.append(new_region)
+                logger.info(f"Solved for {potential_fake=} in {self.graph()=}")
             next_fake_set = max(updated_winning_regions,
                                 key=lambda decoy_set: decoy_set["result"]["value_of_deception"])
             fake_states.add(next_fake_set["new_fake"])
@@ -311,6 +326,8 @@ class GreedyFakesAllocator(models.Solver):
         vod = next_fake_set["result"]["value_of_deception"]
         solver = next_fake_set["result"]["solver"]
         hypergame = next_fake_set["hypergame"]
+        for fake in set_of_fakes:
+            hypergame["final"][self._state2node[fake]] = True
         return set_of_fakes, vod, hypergame, solver
 
     def solve(self):
@@ -362,7 +379,7 @@ def get_value_of_deception_pair(args):
     solver = SWinReach(graph, final=decoys, path=directory, save_output=save_output,
                        filename=f"pgzlk_{'_'.join(decoys)}")
     solver.solve()
-    logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
+    # logger.info(f"Solved game {f_name}_{solution_count} with {decoys}.")
 
     if directory is not None and f_name is not None:
         solver.solution().save(os.path.join(directory, f"{f_name}_{solution_count}.solution"), overwrite=True)
@@ -374,6 +391,46 @@ def get_value_of_deception_pair(args):
         return pair
     else:
         raise NotImplementedError
+
+
+def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
+    path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_{game_name}.dot")
+    with open(path, 'w') as file:
+        contents = list()
+        contents.append("digraph G {\n")
+
+        for node in graph.nodes():
+            node_properties = {
+                "shape": 'circle' if graph['turn'][node] == 1 else 'box',
+                "label": graph['state'][node],
+                "peripheries": '2' if graph['final'][node] else '1',
+            }
+            if "node_winner" in graph.node_properties:
+                node_properties |= {"color": 'blue' if graph['node_winner'][node] == 1 else 'red'}
+
+            contents.append(
+                f"N{node} [" + ", ".join(f'{k}="{v}"' for k, v in node_properties.items()) + "];\n"
+            )
+
+            for uid, vid, key in graph.out_edges(node):
+                edge_properties = {
+                    "label": graph["input"][uid, vid, key] if kwargs.get("no_actions", False) else ""
+                }
+                if "edge_winner" in graph.edge_properties:
+                    edge_properties |= {"color": 'blue' if graph['edge_winner'][uid, vid, key] == 1 else 'red'}
+
+                contents.append(
+                    f"N{uid} -> N{vid} [" + ", ".join(f'{k}="{v}"' for k, v in edge_properties.items()) + "];\n"
+                )
+
+        contents.append("}")
+        file.writelines(contents)
+
+    # Generate SVG
+    g = pygraphviz.AGraph(path)
+    g.layout('dot')
+    path = os.path.join(cfg_dict['directory'], f"{cfg_dict['name']}_{game_name}.svg")
+    g.draw(path=path, format='svg')
 
 
 def gen_hypergame(game_graph, swin_game: dtptb.SWinReach):

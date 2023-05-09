@@ -3,7 +3,7 @@ import random
 import ggsolver.graph as ggraph
 import ggsolver.dtptb as dtptb
 
-random.seed(42)
+random.seed(24)
 
 
 class Mesh(dtptb.DTPTBGame):

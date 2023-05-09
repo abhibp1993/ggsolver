@@ -326,6 +326,7 @@ class GreedyFakesAllocator(models.Solver):
         vod = next_fake_set["result"]["value_of_deception"]
         solver = next_fake_set["result"]["solver"]
         hypergame = next_fake_set["hypergame"]
+        hypergame.make_property_local("final")
         for fake in set_of_fakes:
             hypergame["final"][self._state2node[fake]] = True
         return set_of_fakes, vod, hypergame, solver

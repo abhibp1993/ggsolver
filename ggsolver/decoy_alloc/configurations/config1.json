@@ -9,7 +9,7 @@
   "max_fakes": 1,
   "graph": {
     "topology": "hybrid",
-    "nodes": 30,
+    "nodes": 20,
     "max_out_degree": 10,
     "hubs": null,
     "save": true,

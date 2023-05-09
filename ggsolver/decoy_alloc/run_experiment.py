@@ -15,7 +15,7 @@ import ggsolver.decoy_alloc.process_config as cfg
 import ggsolver.decoy_alloc.graph_generator as gen
 import ggsolver.decoy_alloc.solvers as solvers
 import ggsolver.decoy_alloc.models as models
-from ggsolver.dtptb import SWinReach
+from ggsolver.dtptb.pgsolver import SWinReach
 
 from examples.apps.tom_and_jerry.main import TomJerryGame
 
@@ -29,7 +29,6 @@ import loguru
 
 logger = loguru.logger
 logger.remove()
-
 
 # CONFIG_FILE_PATH = "configurations/config1.json"
 CONFIG_FILE_PATH = "configurations/enumerative_exp_n10_hybrid_t3_f0.json"
@@ -108,7 +107,7 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict, arena2state: dict = None) 
                                                 directory=cfg_dict['directory'],
                                                 fname=cfg_dict['name'],
                                                 save_output=cfg_dict["save_intermediate_solutions"]
-                                                 )
+                                                )
 
     elif type_ == "enumerative" and num_traps == 0 and num_fakes > 0:
         solution = solvers.EnumerativeFakesAllocator(graph=graph,
@@ -135,6 +134,30 @@ def place_decoys(graph: ggraph.Graph, cfg_dict: dict, arena2state: dict = None) 
     solution.solve()
     return solution
 
+
+def place_traps_and_fakes(graph: ggraph.Graph, num_fakes, num_traps, cfg_dict: dict,
+                          arena2state: dict = None) -> gmodels.Solver:
+    # Allocate fakes
+    fakes_solution = solvers.GreedyFakesAllocator(graph=graph,
+                                                  arena2states=arena2state,
+                                                  num_fakes=num_fakes,
+                                                  cpu_count=1,
+                                                  directory=cfg_dict['directory'],
+                                                  fname=cfg_dict['name'],
+                                                  save_output=cfg_dict["save_intermediate_solutions"]
+                                                  )
+    fakes_solution.solve()
+    hypergame = fakes_solution.hypergame
+    # Use the hypergame from fake allocation to allocate traps
+    traps_solution = solvers.GreedyTrapsAllocator(graph=graph,
+                                                  arena2states=arena2state,
+                                                  num_decoys=num_traps,
+                                                  cpu_count=1,
+                                                  directory=cfg_dict['directory'],
+                                                  fname=cfg_dict['name'],
+                                                  save_output=cfg_dict["save_intermediate_solutions"]
+                                                  )
+    return traps_solution
 
 def gen_reports(config):
     """
@@ -180,6 +203,7 @@ def solve_base_game(game_graph: ggraph.Graph, game: dtptb.DTPTBGame, cfg_dict: d
     write_dot_file(swin_game.solution(), "base_game", cfg_dict)
     logger.success(f"Solved {game_graph=} successfully.")
     return swin_game
+
 
 def run_experiment(config):
     # Generate base game
@@ -233,6 +257,43 @@ def run_experiment(config):
     return exec_time, ram_used, vod
 
 
+def run_mixed_experiment(config):
+    # Generate base game
+    game = gen_game(config)
+    game_graph = game.graphify()
+    logger.success(f"Generated {game_graph=} successfully.")
+    # Logging and saving graph
+    directory = config['directory']
+    exp_name = config['name']
+    if config['graph']['save']:
+        game_graph.save(os.path.join(directory, f'{exp_name}_base.ggraph'))
+    if config['graph']['save_png']:
+        game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'), nlabel=["state"], elabel=["input"])
+    logger.success(f"Saved {game_graph=} successfully.")
+
+    start = time.perf_counter()
+    solution = place_traps_and_fakes(game_graph, config)
+    end = time.perf_counter()
+    logger.success(f"Decoy placement completed.")
+    logger.info(f"Time required to place decoys: {end - start} seconds.")
+
+    # Extract solution graph. Save it, log it.
+    sol_graph = solution.solution()
+    sol_graph.save(os.path.join(directory, f'{exp_name}_solution.ggraph'))
+    write_dot_file(sol_graph, "sol_graph", config)
+
+    if config['graph']['save_png']:
+        game_graph.to_png(os.path.join(directory, f'{exp_name}_base.png'),
+                          nlabel=["state", "node_winner"],
+                          elabel=["input", "edge_winner"])
+
+    # Return variables of interest
+    exec_time = end - start
+    ram_used = None
+    vod = sol_graph["vod"]
+    return exec_time, ram_used, vod
+
+
 def run_tom_and_jerry_experiment(experiment_cfg_dict: dict, game_cfg_path: str):
     # Create base graph
     tom_jerry_game = TomJerryGame(game_config=game_cfg_path)
@@ -258,6 +319,7 @@ def run_tom_and_jerry_experiment(experiment_cfg_dict: dict, game_cfg_path: str):
         arena2state[cell_jerry].append(node)
 
     # Solve base game
+    logger.info(f"Solving base game...")
     swin_game = solve_base_game(game_graph, tom_jerry_game, cfg_dict=experiment_cfg_dict)
     logger.info(f"Solved base game {swin_game=} successfully.")
     # Construct hypergame graph (Def. 6, in draft as of 4 Apr. 2023)
@@ -280,15 +342,11 @@ def run_tom_and_jerry_experiment(experiment_cfg_dict: dict, game_cfg_path: str):
     decoys = solution.deception_dict["decoys"]
     print(f"{decoys=}")
 
+
 def main():
     # Load configuration file
     config = cfg.process_cfg_file("configurations/enumerative_exp_n10_mesh_t3_f0.json")
     logger.success("Configuration loaded successfully.")
-    game = gen_game(config)
-    graph = game.graphify()
-    solution = SWinReach(graph)
-    solution.solve()
-    write_dot_file(solution.solution(), "sol_graph", config)
 
     # cProfile.run(run_experiment(config), "./out/50_3_hybrid_profile.txt")
     # prof = cProfile.Profile()
@@ -297,8 +355,8 @@ def main():
     # exec_time, ram_used, vod = run_experiment(config)
     # logger.success(f"Finished experiment config:{config['name']} with {exec_time=} sec, {ram_used=} bytes, and {vod=}.")
 
-    # game_cfg_path = os.path.join("configurations", "game_2023_03_24_18_14.conf")
-    # run_tom_and_jerry_experiment(experiment_cfg_dict=config, game_cfg_path=game_cfg_path)
+    game_cfg_path = os.path.join("configurations", "game_2023_03_24_18_14.conf")
+    run_tom_and_jerry_experiment(experiment_cfg_dict=config, game_cfg_path=game_cfg_path)
 
 
 if __name__ == '__main__':

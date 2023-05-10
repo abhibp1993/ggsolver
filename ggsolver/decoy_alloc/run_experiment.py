@@ -154,6 +154,8 @@ def place_traps_and_fakes_greedy(graph: ggraph.Graph, cfg_dict: dict,
     logger.info(f"Selected fakes {fakes_solution.set_of_fakes=}")
     hypergame = fakes_solution.hypergame
     write_dot_file(hypergame, "hgame", cfg_dict)
+    if num_traps == 0:
+        return fakes_solution
     # Use the hypergame from fake allocation to allocate traps
     traps_solution = solvers.GreedyTrapsAllocator(graph=hypergame,
                                                   arena2states=arena2state,

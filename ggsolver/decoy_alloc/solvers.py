@@ -370,7 +370,6 @@ def remove_out_going_final_edges(graph: ggraph.Graph, final_states: set, state2n
     return sub_graph
 
 
-# TODO (Note.). The following function is only for traps.
 def get_value_of_deception_pair(args):
     """ Returns the (decoy,vod) pair for a given decoy combination"""
     logger.debug(f"{args}")

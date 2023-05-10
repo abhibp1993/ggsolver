@@ -211,18 +211,22 @@ class GreedyTrapsAllocator(models.Solver):
         return next_trap_set["result"]
 
     def solve(self):
-        # Check if there is a mapping from arena points to states
-        if self.arena2states is not None:
-            self.deception_dict = self._arena_game_solve()
-        # Based on multiprocessing, solve for each decoy placement.
-        elif self.cpu_count > 1:
-            self.deception_dict = self._multicore_solve()
+        if self.num_decoys == 0:
+            self.deception_dict = {"decoys": set(), "value_of_deception": 0, "solver": None}
+            self._solution["vod"] = self.deception_dict["value_of_deception"]
         else:
-            self.deception_dict = self._singlecore_solve()
+            # Check if there is a mapping from arena points to states
+            if self.arena2states is not None:
+                self.deception_dict = self._arena_game_solve()
+            # Based on multiprocessing, solve for each decoy placement.
+            elif self.cpu_count > 1:
+                self.deception_dict = self._multicore_solve()
+            else:
+                self.deception_dict = self._singlecore_solve()
 
-        self._edge_winner.update(self.deception_dict["solver"]._edge_winner)
-        self._node_winner.update(self.deception_dict["solver"]._node_winner)
-        self._solution["vod"] = self.deception_dict["value_of_deception"]
+            self._edge_winner.update(self.deception_dict["solver"]._edge_winner)
+            self._node_winner.update(self.deception_dict["solver"]._node_winner)
+            self._solution["vod"] = self.deception_dict["value_of_deception"]
         self._is_solved = True
 
 
@@ -242,7 +246,8 @@ class GreedyFakesAllocator(models.Solver):
                  cpu_count=0,
                  directory=None,
                  fname=None,
-                 save_output=False
+                 save_output=False,
+                 cfg_dict=None,
                  ):
         super(GreedyFakesAllocator, self).__init__(graph)
         self.solver = None
@@ -258,6 +263,7 @@ class GreedyFakesAllocator(models.Solver):
         self.directory = directory
         self.fname = fname
         self._save_output = save_output
+        self._cfg_dict = cfg_dict
 
         # dict with the decoys, VOD, and solver for the best decoy allocation
         self.deception_dict = None
@@ -309,7 +315,7 @@ class GreedyFakesAllocator(models.Solver):
                                          filename=f"{self.fname}_fake_game_{iter_count}", player=2)
                 fakes_solver.solve()
                 # Generate hypergame based on subjectively rationalizable actions of P2
-                fakes_hypergame = gen_hypergame(sub_graph, fakes_solver)
+                fakes_hypergame = gen_hypergame(sub_graph, fakes_solver, p2_final_states, self._cfg_dict)
                 # Solve hypergame for P1 with final states Y
                 args = (fakes_hypergame, fake_states | {potential_fake}, iter_count, "winning_states", self.directory, self.fname,
                         self._save_output)
@@ -433,7 +439,7 @@ def write_dot_file(graph: ggraph.Graph, game_name, cfg_dict: dict, **kwargs):
     g.draw(path=path, format='svg')
 
 
-def gen_hypergame(game_graph, swin_game: dtptb.SWinReach):
+def gen_hypergame(game_graph, swin_game: dtptb.SWinReach, final_states, cfg_dict: dict):
     """
     :param game_graph: base game graph
     :param swin_game: solution to base game
@@ -451,4 +457,7 @@ def gen_hypergame(game_graph, swin_game: dtptb.SWinReach):
     out_going_final_edges = [game_graph.out_edges(state) for state in swin_game.get_final_states()]
     hidden_edges.update(out_going_final_edges[0])
     hgame_graph = ggraph.SubGraph(game_graph, hidden_nodes=hidden_nodes, hidden_edges=hidden_edges)
+
+    set_string = "_".join(str(state) for state in final_states)
+    write_dot_file(hgame_graph, f"{set_string}_hgame", cfg_dict)
     return hgame_graph

@@ -272,6 +272,7 @@ def run_mixed_experiment(config):
     game = gen_game(config)
     game_graph = game.graphify()
     logger.success(f"Generated {game_graph=} successfully.")
+
     # Logging and saving graph
     directory = config['directory']
     exp_name = config['name']

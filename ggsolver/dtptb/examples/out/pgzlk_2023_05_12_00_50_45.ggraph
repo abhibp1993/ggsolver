@@ -1,7 +1,7 @@
 {
   "type": "Graph",
   "ggsolver.version": "0.1.6",
-  "serialization_time": "2023-05-10 22:39:07.554559+00:00",
+  "serialization_time": "2023-05-12 00:50:45.825177+00:00",
   "nodes": 8,
   "edges": [
     "(0, 1, 0)",
@@ -25,8 +25,8 @@
   ],
   "node_properties": [
     "state",
-    "turn",
-    "final"
+    "final",
+    "turn"
   ],
   "edge_properties": [
     "input",
@@ -35,10 +35,10 @@
   "graph_properties": [
     "input_domain",
     "init_state",
-    "is_deterministic",
-    "is_probabilistic",
+    "is_turn_based",
     "actions",
-    "is_turn_based"
+    "is_deterministic",
+    "is_probabilistic"
   ],
   "np.state": {
     "type": "NodePropertyMap",
@@ -54,20 +54,6 @@
       "7": "s7"
     }
   },
-  "np.turn": {
-    "type": "NodePropertyMap",
-    "default": null,
-    "map": {
-      "0": 1,
-      "1": 2,
-      "2": 2,
-      "3": 2,
-      "4": 1,
-      "5": 2,
-      "6": 1,
-      "7": 2
-    }
-  },
   "np.final": {
     "type": "NodePropertyMap",
     "default": null,
@@ -80,6 +66,20 @@
       "5": false,
       "6": false,
       "7": false
+    }
+  },
+  "np.turn": {
+    "type": "NodePropertyMap",
+    "default": null,
+    "map": {
+      "0": 1,
+      "1": 2,
+      "2": 2,
+      "3": 2,
+      "4": 1,
+      "5": 2,
+      "6": 1,
+      "7": 2
     }
   },
   "ep.input": {
@@ -167,8 +167,7 @@
   },
   "gp.input_domain": "actions",
   "gp.init_state": null,
-  "gp.is_deterministic": true,
-  "gp.is_probabilistic": false,
+  "gp.is_turn_based": true,
   "gp.actions": [
     [
       0,
@@ -243,5 +242,6 @@
       3
     ]
   ],
-  "gp.is_turn_based": true
+  "gp.is_deterministic": true,
+  "gp.is_probabilistic": false
 }

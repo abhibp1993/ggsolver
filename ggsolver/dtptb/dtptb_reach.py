@@ -121,8 +121,19 @@ class SWinReach(models.Solver):
                 win2.add(int(obj[0]))
         return win1, win2
 
-    def _process_pgsolver_dot(self):
-        pass
+    def _process_dtptb_reach_solution(self):
+        with open(os.path.join(self._path, f"{self._filename}.solution"), "r") as file:
+            json_sol = json.load(file)
+
+        # Mark node winner
+        for node, winner in json_sol["node_winner"].items():
+            uid = int(node)
+            self._solution["node_winner"][uid] = winner
+
+        # Mark edge winner
+        for eid, edge in json_sol["edges"].items():
+            for u, v, k in self._solution.out_edges(edge[0]):
+                self._solution["edge_winner"][u, v, k] = json_sol["edge_winner"][eid]
 
     def reset(self):
         """ Resets the solver to initial state. """
@@ -150,10 +161,10 @@ class SWinReach(models.Solver):
 
             # Process dtptb-reach utility output to mark node, edge winners
             #   (dtptb-reach utility generates json file and console output. The following code uses json)
-            self._process_pgsolver_dot()
+            self._process_dtptb_reach_solution()
 
         except Exception as err:
-            logger.error(f"{err}")
+            logger.exception(f"{err}")
 
         # If user has not requested to save data, remove it.
         if not self._save_output:

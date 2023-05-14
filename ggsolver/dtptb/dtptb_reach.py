@@ -28,7 +28,7 @@ class SWinReach(models.Solver):
         super(SWinReach, self).__init__(graph, **kwargs)
         self._player = kwargs.get("player", 1)
         if final is None:
-            self._final = self.get_final_states()
+            self._final = self._get_final_states()
         else:
             self._solution.create_node_property("final", default=False, overwrite=True)
             for node in final:
@@ -124,7 +124,7 @@ class SWinReach(models.Solver):
         self._rank = self._solution.create_node_property("rank", float("inf"), overwrite=True)
         self._is_solved = False
 
-    def get_final_states(self):
+    def _get_final_states(self):
         """ Determines the final states using "final" property of the input graph. """
         return {uid for uid in self.graph().nodes() if self.graph()["final"][uid]}
 
@@ -185,3 +185,6 @@ class SWinReach(models.Solver):
         # Mark edge winner
         for edge in self._solution.edges():
             self._solution["edge_winner"][edge] = opponent
+
+    def final(self):
+        return self._final

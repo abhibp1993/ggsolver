@@ -247,18 +247,185 @@ class DSWinReach(models.Solver):
         path = os.path.join(path, f"{filename}.svg")
         g.draw(path=path, format='svg')
 
+    def vod(self):
+        return self._vod
+
+
+class DecoyAllocator(models.Solver):
+    def __init__(self,
+                 game_graph: ggraph.Graph,
+                 num_traps: int,
+                 num_fakes: int,
+                 node_equiv: typing.Dict[int, set] = None,
+                 algo="greedy",
+                 debug=False):
+        super(DecoyAllocator, self).__init__(game_graph)
+        # Assertions
+        assert algo.lower() in ["greedy", "enumerative"], "algo can be either 'greedy' or 'enumerative'."
+        assert num_fakes >= 0 and num_traps >= 0, "num_traps and num_fakes should be non-negative integers."
+
+        # Game parameters
+        self._num_traps = num_traps
+        self._num_fakes = num_fakes
+        self._debug = debug
+        self._algorithm = algo
+        if node_equiv is None:
+            node_equiv = dict()
+            for node in self._solution.nodes():
+                node_equiv[node] = {node}
+        self._node_equiv = node_equiv
+
+        # Output parameters
+        self._hgame = None
+        self._hgame_sol = None
+        self._dswin = None
+        self._vod = 0
+
+        self._base_game_solution = None
+
+    def solve_base_game(self, save_svg=False, path=None, filename=None):
+        base_game_solution = SWinReach(self._solution, player=2, filename="base_game")
+        base_game_solution.solve()
+        self._base_game_solution = base_game_solution
+
+        if save_svg:
+            assert path is not None and filename is not None
+            util.write_dot_file(self._base_game_solution.solution(), path=path, filename=filename)
+
+        return self._base_game_solution
+
+    def solve(self):
+        # Solve base game
+        self.solve_base_game()
+
+        # Place decoys
+        if self._algorithm == "greedy":
+            self._solve_greedy()
+        else:
+            self._solve_enumerative()
+
+    def _solve_enumerative(self):
+        pass
+
+    def _solve_greedy(self):
+        # Terminate if no decoys are to be placed
+        if self._num_fakes + self._num_traps == 0:
+            self._hgame = self._solution
+            self._hgame_sol = DSWinReach(
+                game_graph=self._graph,
+                traps=set(),
+                fakes=set(),
+                debug=self._debug
+            )
+            self._hgame_sol.solve()
+            self._is_solved = True
+            return
+
+        # Initialize traps and fakes as empty set
+        traps = set()
+        fakes = set()
+
+        # 1. ALLOCATE FAKES
+        win2 = set(self._base_game_solution.winning_nodes(player=2))
+        final = set(self._base_game_solution.final())
+        solutions_fakes = dict()
+        while self._num_fakes - len(fakes) > 0:
+            # Collect potential states that can be allocated as next fake
+            potential_fakes = {node for node in win2 if node not in final | fakes}
+            if len(potential_fakes) == 0:
+                break
+
+            best_vod = 0.0
+            best_fake = None
+            best_fake_sol = None
+            while len(potential_fakes) > 0:
+                # Select next fake to explore
+                fake = potential_fakes.pop()
+
+                # Mark all equivalent nodes as fakes for this iteration and remove them from potential_fakes
+                equiv_fakes = self._node_equiv[fake]
+                potential_fakes -= equiv_fakes
+
+                # Compute VoD
+                dswin = DSWinReach(self._solution, traps=set(), fakes=fakes | equiv_fakes, debug=self._debug)
+                dswin.solve()
+                if dswin.vod() > best_vod:
+                    best_vod = dswin.vod()
+                    best_fake = fake
+                    best_fake_sol = dswin
+
+                # When debugging, update the solution register
+                if self._debug:
+                    solutions_fakes[tuple(fakes | equiv_fakes)] = dswin
+                    logger.debug(f"Explored Allocation: fakes={fakes | equiv_fakes} and traps={traps}. Resulting VoD: {dswin.vod()}")
+
+            # Add next fake to fakes-set
+            fakes.update(self._node_equiv[best_fake])
+
+        # 2. ALLOCATE TRAPS
+        solutions_traps = dict()
+        while self._num_traps - len(traps) > 0:
+            # Collect potential states that can be allocated as next trap
+            potential_traps = {node for node in win2 if node not in final | fakes | traps}
+            if len(potential_traps) == 0:
+                break
+
+            best_vod = 0.0
+            best_trap = None
+            best_trap_sol = None
+            while len(potential_traps) > 0:
+                # Select next trap to explore
+                trap = potential_traps.pop()
+
+                # Mark all equivalent nodes as traps for this iteration and remove them from potential_traps
+                equiv_traps = self._node_equiv[trap]
+                potential_traps -= equiv_traps
+
+                # Compute VoD
+                dswin = DSWinReach(self._solution, traps=traps | equiv_traps, fakes=fakes, debug=self._debug)
+                dswin.solve()
+                if dswin.vod() > best_vod:
+                    best_vod = dswin.vod()
+                    best_trap = trap
+                    best_trap_sol = dswin
+
+                # When debugging, update the solution register
+                if self._debug:
+                    solutions_traps[tuple(traps | equiv_traps)] = dswin
+                    logger.debug(f"Explored Allocation: fakes={fakes} and traps={traps | equiv_traps}. Resulting VoD: {dswin.vod()}")
+
+            # Add next trap and its equivalent nodes to traps set
+            traps.update(self._node_equiv[best_trap])
+
+        # Mark node and edge winners
+        self._dswin = DSWinReach(game_graph=self._solution, traps=traps, fakes=fakes, debug=self._debug)
+        self._dswin.solve()
+        self._vod = dswin.vod()
+        self._solution["node_winner"].update(dswin._solution["node_winner"])
+        self._solution["edge_winner"].update(dswin._solution["edge_winner"])
+        self._is_solved = True
+
+    def save_svg(self, path, filename, **kwargs):
+        self._dswin.save_svg(path, filename, **kwargs)
+
 
 if __name__ == '__main__':
     with logger.catch():
         # Construct game
         import ggsolver.honeypot_allocation.game_generator as gen
         import random
+
         random.seed(50)
         game = gen.Hybrid(num_nodes=10, max_out_degree=3)
         game_graph = game.graphify()
 
-        # Allocate traps, fakes and solve for DSWinReach
-        win = DSWinReach(game_graph, traps={5}, fakes=set(), debug=True)
-        win.solve()
-        win.save_svg("out/", filename="colored_graph")
-        logger.info(f"VOD: {win._vod}")
+        # # Manually set traps, fakes and solve for DSWinReach
+        # win = DSWinReach(game_graph, traps=set(), fakes=set(), debug=True)
+        # win.solve()
+        # win.save_svg("out/", filename="colored_graph")
+        # logger.info(f"VOD: {win._vod}")
+
+        # Allocate greedy traps and fakes
+        alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=1, debug=True)
+        alloc.solve()
+        alloc.save_svg("out/", filename="colored_graph")

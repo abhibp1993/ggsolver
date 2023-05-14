@@ -1,4 +1,5 @@
 import os
+import typing
 
 import pygraphviz
 
@@ -62,8 +63,10 @@ class DSWinReach(models.Solver):
 
         # 6. Fix P1 and P2 strategies. Mark node and edge winners
         sources = {base2hg_nodes[node] for node in self._fakes | self._traps}
-        hg_reachable_nodes = hgame_graph.reverse_bfs(sources=sources)
-        reachable_nodes = {hg2base_nodes[node] for node in hg_reachable_nodes}
+        reachable_nodes = set()
+        if len(sources) > 0:
+            hg_reachable_nodes = hgame_graph.reverse_bfs(sources=sources)
+            reachable_nodes = {hg2base_nodes[node] for node in hg_reachable_nodes}
 
         for node in self._solution.nodes():
             # P1 wins a node if it is winning for P1 in base-game or is deceptively winning in hypergame.

@@ -91,7 +91,7 @@ class SWinReach(models.Solver):
             json.dump(game_input, file, indent=2)
 
         # Run dtptb_reach
-        pgsolver_output = \
+        dtptb_reach_output = \
             subprocess.run(['dtptb-reach',  # command
                             '-p', f'{self._player}',  # player
                             '-o', os.path.join(self._path, f"{self._filename}.solution"),  # generate json form of solution
@@ -101,7 +101,7 @@ class SWinReach(models.Solver):
 
         # Save output of dtptb_reach
         with open(os.path.join(self._path, f"{self._filename}.out"), "w") as file:
-            file.write(pgsolver_output.stdout.decode())
+            file.write(dtptb_reach_output.stdout.decode())
 
     def _process_dtptb_reach_solution(self):
         with open(os.path.join(self._path, f"{self._filename}.solution"), "r") as file:
@@ -138,6 +138,13 @@ class SWinReach(models.Solver):
         if self._save_output:
             self._graph.save(os.path.join(self._path, f"{self._filename}.ggraph"))
 
+        # If no final states, do not run CLI utility. Declare all states are winning for opponent.
+        if len(self._final) == 0:
+            self._no_final_solution()
+            self._is_solved = True
+            return
+
+        # Invoke dtptb-reach CLI utility to generate solution.
         try:
             # Invoke dtptb-reach utility using command-line tool to solve the game.
             self._run_dtptb_reach()
@@ -166,3 +173,15 @@ class SWinReach(models.Solver):
 
         # Mark the game to be solved.
         self._is_solved = True
+
+    def _no_final_solution(self):
+        player = self._player
+        opponent = 2 if player == 1 else 1
+
+        # Mark node winner
+        for node in self._solution.nodes():
+            self._solution["node_winner"][node] = opponent
+
+        # Mark edge winner
+        for edge in self._solution.edges():
+            self._solution["edge_winner"][edge] = opponent

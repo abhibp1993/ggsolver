@@ -34,14 +34,10 @@ class DSWinReach(models.Solver):
 
     def solve(self):
         # 1. Solve game. (V, E, F)
-        base_game_solution = SWinReach(self._solution, player=2, filename="base_game")
-        base_game_solution.solve()
+        base_game_solution = self.solve_base_game()
 
         # 2. Construct and solve G2. (V, E, F U Y)
-        true_final = {uid for uid in self._solution.nodes() if self.graph()["final"][uid]}
-        p2_final = true_final | self._fakes
-        p2_game_solution = SWinReach(self._solution, player=2, final=p2_final, filename="p2_game")
-        p2_game_solution.solve()
+        p2_game_solution, true_final = self.solve_p2_game()
 
         # 3. SR_E = {e \in E | e is subjectively rationalizable in G2}
         sr_edges = {
@@ -108,6 +104,45 @@ class DSWinReach(models.Solver):
         self._hg2base_edges = hg2base_edges
         if self._debug:
             self._save_debug_output()
+
+    def solve_base_game(self, save_svg=False, path=None, filename=None):
+        base_game_solution = SWinReach(self._solution, player=2, filename="base_game")
+        base_game_solution.solve()
+        self._base_game_solution = base_game_solution
+
+        if save_svg:
+            assert path is not None and filename is not None
+            util.write_dot_file(self._base_game_solution.solution(), path=path, filename=filename)
+
+        return self._base_game_solution
+
+    def solve_p2_game(self, save_svg=False, path=None, filename=None):
+        true_final = {uid for uid in self._solution.nodes() if self.graph()["final"][uid]}
+        p2_final = true_final | self._fakes
+        p2_game_solution = SWinReach(self._solution, player=2, final=p2_final, filename="p2_game")
+        p2_game_solution.solve()
+        self._p2_game_solution = p2_game_solution
+
+        if save_svg:
+            assert path is not None and filename is not None
+            util.write_dot_file(self._p2_game_solution.solution(), path=path, filename=filename)
+
+        return p2_game_solution, true_final
+
+    def sr_edges(self):
+        # SR_E = {e \in E | e.source is in Win2(G, F) AND e is SR(G2)} | {e \in E | e.source is in Win1(G, F)}
+        sr_edges = {
+                       (u, v, k) for u, v, k in self._solution.edges()
+                       if self._base_game_solution.node_winner(u) == 2 and (
+                    (self._solution["turn"][u] == 1) or
+                    (self._solution["turn"][u] == 2 and self._p2_game_solution.edge_winner(u, v, k) == 2)
+            )
+                   } | {
+                       (u, v, k) for u, v, k in self._solution.edges()
+                       if self._base_game_solution.node_winner(u) == 1
+                   }
+
+        return sr_edges
 
     def _construct_hypergame(self, base_game_solution, sr_edges):
         hypergame_graph = ggraph.Graph()

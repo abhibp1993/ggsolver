@@ -12,6 +12,7 @@ import subprocess
 import ggsolver.models as models
 from loguru import logger
 from datetime import datetime
+from tqdm import tqdm
 
 
 class SWinReach(models.Solver):
@@ -108,15 +109,28 @@ class SWinReach(models.Solver):
             json_sol = json.load(file)
 
         # Mark node winner
-        for node, winner in json_sol["node_winner"].items():
+        tqdm_disable = True
+        if len(json_sol["node_winner"]) > 5000 or len(json_sol["edge_winner"]) > 5000:
+            tqdm_disable = False
+
+        for node, winner in tqdm(json_sol["node_winner"].items(),
+                                 desc="dtptb-reach:: Processing nodes from solution.",
+                                 disable=tqdm_disable):
             uid = int(node)
             self._solution["node_winner"][uid] = winner
 
         # Mark edge winner
-        for eid, edge in json_sol["edges"].items():
-            for u, v, k in self._solution.out_edges(edge[0]):
-                if v == edge[1]:
-                    self._solution["edge_winner"][u, v, k] = json_sol["edge_winner"][eid]
+        json_edges = {tuple((u, v)): eid for eid, (u, v) in json_sol["edges"].items()}
+        for u, v, k in tqdm(self._solution.edges(),
+                            desc="dtptb-reach:: Processing edges from solution.",
+                            disable=tqdm_disable):
+            if (u, v) in json_edges:
+                eid = json_edges[u, v]
+                self._solution["edge_winner"][u, v, k] = json_sol["edge_winner"][eid]
+        # for eid, edge in tqdm(json_sol["edges"].items()):
+        #     for u, v, k in self._solution.out_edges(edge[0]):
+        #         if v == edge[1]:
+        #             self._solution["edge_winner"][u, v, k] = json_sol["edge_winner"][eid]
 
     def reset(self):
         """ Resets the solver to initial state. """

@@ -1,7 +1,7 @@
 import os
 import typing
-
 import pygraphviz
+import pickle
 
 import ggsolver.graph as ggraph
 import ggsolver.models as models
@@ -14,7 +14,7 @@ MAX_COMBINATIONS = 100000
 
 
 class DSWinReach(models.Solver):
-    def __init__(self, game_graph: ggraph.Graph, traps: Union[list, set, tuple], fakes: Union[list, set, tuple], debug=False):
+    def __init__(self, game_graph: ggraph.Graph, traps: Union[list, set, tuple], fakes: Union[list, set, tuple], debug=False, **kwargs):
         super(DSWinReach, self).__init__(game_graph)
 
         # Game parameters
@@ -33,33 +33,43 @@ class DSWinReach(models.Solver):
         self._hg2base_nodes = None
         self._hg2base_edges = None
 
+        # Directory setup
+        self._path = kwargs.get("path", "out/")
+        self._filename = kwargs.get("filename", "dswin")
+
     def solve(self):
         # 1. Solve game. (V, E, F)
         base_game_solution = self.solve_base_game()
+        # logger.info("Base game solved.")
 
         # 2. Construct and solve G2. (V, E, F U Y)
         p2_game_solution, true_final = self.solve_p2_game()
+        # logger.info("P2 game solved.")
 
         # 3. SR_E = {e \in E | e is subjectively rationalizable in G2}
-        sr_edges = {
-            (u, v, k) for u, v, k in self._solution.edges()
-            if base_game_solution.node_winner(u) == 2 and (
-                    (self._solution["turn"][u] == 1) or
-                    (self._solution["turn"][u] == 2 and p2_game_solution.edge_winner(u, v, k) == 2)
-            )
-        }
+        sr_edges = self.sr_edges()
+        # sr_edges = {
+        #     (u, v, k) for u, v, k in self._solution.edges()
+        #     if base_game_solution.node_winner(u) == 2 and (
+        #             (self._solution["turn"][u] == 1) or
+        #             (self._solution["turn"][u] == 2 and p2_game_solution.edge_winner(u, v, k) == 2)
+        #     )
+        # }
+        # logger.info("SREdges identified.")
 
         # 4. Construct H. (Win2, SR_E, X U Y)
         hgame_graph, base2hg_nodes, hg2base_nodes, base2hg_edges, hg2base_edges = \
             self._construct_hypergame(base_game_solution, sr_edges)
-        hgame_solution = SWinReach(hgame_graph, player=1, filename="hgame")
+        hgame_solution = SWinReach(hgame_graph, player=1, path=self._path, filename=f"{self._filename}_hgame")
         hgame_solution.solve()
         self._hypergame_graph = hgame_graph
+        # logger.info("Hypergame solved.")
 
         # 5. Compute VoD
         dswin1 = set(hgame_solution.winning_nodes(player=1))
         win2 = set(base_game_solution.winning_nodes(player=2))
         self._vod = len(set.intersection({hg2base_nodes[node] for node in dswin1}, win2)) / len(win2 - true_final)
+        # logger.info(f"VoD: {self._vod}.")
 
         # 6. Fix P1 and P2 strategies. Mark node and edge winners
         sources = {base2hg_nodes[node] for node in self._fakes | self._traps}
@@ -109,7 +119,7 @@ class DSWinReach(models.Solver):
             self._save_debug_output()
 
     def solve_base_game(self, save_svg=False, path=None, filename=None):
-        base_game_solution = SWinReach(self._solution, player=2, filename="base_game")
+        base_game_solution = SWinReach(self._solution, player=2, path=self._path, filename=f"{self._filename}_base_game")
         base_game_solution.solve()
         self._base_game_solution = base_game_solution
 
@@ -122,7 +132,7 @@ class DSWinReach(models.Solver):
     def solve_p2_game(self, save_svg=False, path=None, filename=None):
         true_final = {uid for uid in self._solution.nodes() if self.graph()["final"][uid]}
         p2_final = true_final | self._fakes
-        p2_game_solution = SWinReach(self._solution, player=2, final=p2_final, filename="p2_game")
+        p2_game_solution = SWinReach(self._solution, player=2, final=p2_final, path=self._path, filename=f"{self._filename}_p2_game")
         p2_game_solution.solve()
         self._p2_game_solution = p2_game_solution
 
@@ -134,16 +144,25 @@ class DSWinReach(models.Solver):
 
     def sr_edges(self):
         # SR_E = {e \in E | e.source is in Win2(G, F) AND e is SR(G2)} | {e \in E | e.source is in Win1(G, F)}
-        sr_edges = {
-                       (u, v, k) for u, v, k in self._solution.edges()
-                       if self._base_game_solution.node_winner(u) == 2 and (
-                    (self._solution["turn"][u] == 1) or
-                    (self._solution["turn"][u] == 2 and self._p2_game_solution.edge_winner(u, v, k) == 2)
-            )
-                   } | {
-                       (u, v, k) for u, v, k in self._solution.edges()
-                       if self._base_game_solution.node_winner(u) == 1
-                   }
+        sr_edges = set()
+        for u, v, k in self._solution.edges():
+            if self._base_game_solution.node_winner(u) == 2:
+                if ((self._solution["turn"][u] == 1) or (
+                        self._solution["turn"][u] == 2 and self._p2_game_solution.edge_winner(u, v, k) == 2)):
+                    sr_edges.add((u, v, k))
+
+                #     sr_edges = {
+                #     (u, v, k)
+                #     for u, v, k in self._solution.edges()
+                #         if self._base_game_solution.node_winner(u) == 2 and (
+                #                 (self._solution["turn"][u] == 1) or
+                #                 (self._solution["turn"][u] == 2 and self._p2_game_solution.edge_winner(u, v, k) == 2)
+                #         )
+                # }
+                # | {
+                #     (u, v, k) for u, v, k in self._solution.edges()
+                #     if self._base_game_solution.node_winner(u) == 1
+                # }
 
         return sr_edges
 
@@ -162,11 +181,21 @@ class DSWinReach(models.Solver):
         hg_base_edge_map = dict()
         base_hg_edge_map = dict()
         for u, v, k in sr_edges:
-            hg_uid = base_hg_node_map[u]
-            hg_vid = base_hg_node_map[v]
-            hg_key = hypergame_graph.add_edge(hg_uid, hg_vid)
-            base_hg_edge_map[u, v, k] = (hg_uid, hg_vid, hg_key)
-            hg_base_edge_map[hg_uid, hg_vid, hg_key] = (u, v, k)
+            if u in base_game_solution.final():
+                hg_uid = base_hg_node_map[u]
+                hg_key = hypergame_graph.add_edge(hg_uid, hg_uid)
+                base_hg_edge_map[u, v, k] = (hg_uid, hg_uid, hg_key)
+                hg_base_edge_map[hg_uid, hg_uid, hg_key] = (u, v, k)
+            else:
+                hg_uid = base_hg_node_map[u]
+                hg_vid = base_hg_node_map[v]
+                hg_key = hypergame_graph.add_edge(hg_uid, hg_vid)
+                base_hg_edge_map[u, v, k] = (hg_uid, hg_vid, hg_key)
+                hg_base_edge_map[hg_uid, hg_vid, hg_key] = (u, v, k)
+
+        # Ensure no spurious state was added while adding edges
+        if hypergame_graph.number_of_nodes() != num_nodes:
+            raise RuntimeError("Number of nodes changed while adding edges.")
 
         # Add state property
         hypergame_graph.create_node_property("state", None)
@@ -195,11 +224,14 @@ class DSWinReach(models.Solver):
         fpath = os.path.join(path, f"{filename}.dot")
         with open(fpath, 'w') as file:
             contents = list()
-            contents.append("digraph G {\n")
+            contents.append("digraph G {\noverlap=scale;\n")
 
             for node in self._solution.nodes():
                 node_properties = {
                     # "shape": 'circle' if self._solution['turn'][node] == 1 else 'box',
+                    "width": 2,
+                    "height": 2,
+                    "style": "filled",
                     "label": self._solution['state'][node],
                     "peripheries": '2' if self._solution['final'][node] else '1',
                 }
@@ -216,7 +248,7 @@ class DSWinReach(models.Solver):
                     elif self._hgame_solution.node_winner(self._base2hg_nodes[node]) == 1:
                         node_properties |= {"color": 'green'}
                     else:
-                        node_properties |= {"color": 'orange'}
+                        node_properties |= {"color": 'red'}
 
                 contents.append(
                     f"N{node} [" + ", ".join(f'{k}="{v}"' for k, v in node_properties.items()) + "];\n"
@@ -243,9 +275,15 @@ class DSWinReach(models.Solver):
 
         # Generate SVG
         g = pygraphviz.AGraph(fpath)
-        g.layout('dot')
-        path = os.path.join(path, f"{filename}.svg")
-        g.draw(path=path, format='svg')
+        if self._solution.number_of_nodes() + self._solution.number_of_edges() > 200:
+            logger.warning(f"Graph size is larger than 200, using Force-Directed Layout. Generating PNG instead of SVG.")
+            g.layout('sfdp')
+            path = os.path.join(path, f"{filename}.png")
+            g.draw(path=path, format='png')
+        else:
+            g.layout('dot')
+            path = os.path.join(path, f"{filename}.svg")
+            g.draw(path=path, format='svg')
 
     def vod(self):
         return self._vod
@@ -258,7 +296,8 @@ class DecoyAllocator(models.Solver):
                  num_fakes: int,
                  node_equiv: typing.Dict[int, set] = None,
                  algo="greedy",
-                 debug=False):
+                 debug=False,
+                 **kwargs):
         super(DecoyAllocator, self).__init__(game_graph)
         # Assertions
         assert algo.lower() in ["greedy", "enumerative"], "algo can be either 'greedy' or 'enumerative'."
@@ -282,8 +321,12 @@ class DecoyAllocator(models.Solver):
         self._fakes = set()
         self._base_game_solution = None
 
+        # Directory setup
+        self._path = kwargs.get("path", "out/")
+        self._filename = kwargs.get("filename", "dswin")
+
     def solve_base_game(self, save_svg=False, path=None, filename=None):
-        base_game_solution = SWinReach(self._solution, player=2, filename="base_game")
+        base_game_solution = SWinReach(self._solution, player=2, path=self._path, filename=f"{self._filename}_base_game")
         base_game_solution.solve()
         self._base_game_solution = base_game_solution
 
@@ -296,6 +339,7 @@ class DecoyAllocator(models.Solver):
     def solve(self):
         # Solve base game
         self.solve_base_game()
+        logger.info("Base game solved.")
 
         # Place decoys
         if self._algorithm == "greedy":
@@ -328,9 +372,11 @@ class DecoyAllocator(models.Solver):
         win2 = set(self._base_game_solution.winning_nodes(player=2))
         final = set(self._base_game_solution.final())
         solutions_fakes = dict()
+
         while self._num_fakes - len(fakes) > 0:
             # Collect potential states that can be allocated as next fake
             potential_fakes = {node for node in win2 if node not in final | fakes}
+            logger.info(f"Potential fakes: {len(potential_fakes)}")
             if len(potential_fakes) == 0:
                 break
 
@@ -346,7 +392,7 @@ class DecoyAllocator(models.Solver):
                 potential_fakes -= equiv_fakes
 
                 # Compute VoD
-                dswin = DSWinReach(self._solution, traps=set(), fakes=fakes | equiv_fakes, debug=self._debug)
+                dswin = DSWinReach(self._solution, traps=set(), fakes=fakes | equiv_fakes, path=self._path)
                 dswin.solve()
                 if dswin.vod() > best_vod:
                     best_vod = dswin.vod()
@@ -381,7 +427,7 @@ class DecoyAllocator(models.Solver):
                 potential_traps -= equiv_traps
 
                 # Compute VoD
-                dswin = DSWinReach(self._solution, traps=traps | equiv_traps, fakes=fakes, debug=self._debug)
+                dswin = DSWinReach(self._solution, traps=traps | equiv_traps, fakes=fakes, path=self._path)
                 dswin.solve()
                 if dswin.vod() > best_vod:
                     best_vod = dswin.vod()
@@ -408,6 +454,62 @@ class DecoyAllocator(models.Solver):
     def save_svg(self, path, filename, **kwargs):
         self._dswin.save_svg(path, filename, **kwargs)
 
+    def save_dot(self, path, filename, **kwargs):
+        # Generate DOT file.
+        fpath = os.path.join(path, f"{filename}.dot")
+        with open(fpath, 'w') as file:
+            contents = list()
+            contents.append("digraph G {\n")
+
+            for node in self._solution.nodes():
+                node_properties = {
+                    # "shape": 'circle' if self._solution['turn'][node] == 1 else 'box',
+                    "style": "filled",
+                    "label": self._solution['state'][node],
+                    "peripheries": '2' if self._solution['final'][node] else '1',
+                }
+
+                if node in self._traps | self._fakes:
+                    node_properties["shape"] = "diamond"
+                else:
+                    node_properties["shape"] = 'circle' if self._solution['turn'][node] == 1 else 'box'
+
+                if "node_winner" in self._solution.node_properties:
+                    if self._base_game_solution.node_winner(node) == 1:
+                        node_properties |= {"color": 'blue'}
+                    # elif self._solution['node_winner'][self._base2hg_nodes[node]] == 1:
+                    elif self._dswin.solution().node_winner(node) == 1:
+                        node_properties |= {"color": 'green'}
+                    else:
+                        node_properties |= {"color": 'red'}
+
+                contents.append(
+                    f"N{node} [" + ", ".join(f'{k}="{v}"' for k, v in node_properties.items()) + "];\n"
+                )
+
+                for uid, vid, key in self._solution.out_edges(node):
+                    edge_properties = {
+                        "label": self._solution["input"][uid, vid, key] if kwargs.get("no_actions", False) else ""
+                    }
+                    # if "edge_winner" in self._solution.edge_properties:
+                    #     if self._solution['edge_winner'][uid, vid, key] == 1:
+                    #         edge_properties |= {"color": 'blue'}
+                    #     elif self._solution['edge_winner'][uid, vid, key] == 2:
+                    #         edge_properties |= {"color": 'red'}
+                    #     else:
+                    #         edge_properties |= {"color": 'black'}
+
+                    contents.append(
+                        f"N{uid} -> N{vid} [" + ", ".join(f'{k}="{v}"' for k, v in edge_properties.items()) + "];\n"
+                    )
+
+            contents.append("}")
+            file.writelines(contents)
+
+    def save_pickle(self, path, filename):
+        with open(os.path.join(path, f"{filename}.pkl"), "w") as file:
+            pickle.dump(self.solution(), file)
+
 
 if __name__ == '__main__':
     with logger.catch():
@@ -415,17 +517,20 @@ if __name__ == '__main__':
         import ggsolver.honeypot_allocation.game_generator as gen
         import random
 
-        random.seed(50)
-        game = gen.Hybrid(num_nodes=20, max_out_degree=4)
+        random.seed(40)
+        game = gen.Hybrid(num_nodes=240, max_out_degree=5)
         game_graph = game.graphify()
 
-        # # Manually set traps, fakes and solve for DSWinReach
-        # win = DSWinReach(game_graph, traps=set(), fakes=set(), debug=True)
-        # win.solve()
-        # win.save_svg("out/", filename="colored_graph")
-        # logger.info(f"VOD: {win._vod}")
+        # Manually set traps, fakes and solve for DSWinReach
+        fdir = "out_t4_f0"
+        win = DSWinReach(game_graph, traps={197, 72, 29, 54}, fakes=set(), debug=True)
+        win.solve()
+        win.save_svg(fdir, filename="colored_graph")
+        logger.info(f"VOD: {win._vod}")
 
-        # Allocate greedy traps and fakes
-        alloc = DecoyAllocator(game_graph, num_traps=1, num_fakes=1, debug=True)
-        alloc.solve()
-        alloc.save_svg("out/", filename="colored_graph")
+        # # Allocate greedy traps and fakes
+        # fdir = "out_t0_f4"
+        # alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=4, debug=True, path=fdir)
+        # alloc.solve()
+        # alloc.save_pickle(fdir, filename="dswin_sol_graph")
+        # alloc.save_dot(fdir, filename="colored_graph")

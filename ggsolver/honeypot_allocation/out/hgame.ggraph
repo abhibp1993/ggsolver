@@ -1,0 +1,49 @@
+{
+  "type": "Graph",
+  "ggsolver.version": "0.1.6",
+  "serialization_time": "2023-05-14 15:16:53.123587+00:00",
+  "nodes": 4,
+  "edges": [
+    "(1, 2, 0)",
+    "(1, 0, 0)",
+    "(2, 3, 0)",
+    "(3, 0, 0)"
+  ],
+  "node_properties": [
+    "state",
+    "turn",
+    "final"
+  ],
+  "edge_properties": [],
+  "graph_properties": [
+    "is_deterministic",
+    "is_turn_based"
+  ],
+  "np.state": {
+    "type": "NodePropertyMap",
+    "default": null,
+    "map": {
+      "0": "s0",
+      "1": "s2",
+      "2": "s3",
+      "3": "s5"
+    }
+  },
+  "np.turn": {
+    "type": "NodePropertyMap",
+    "default": null,
+    "map": {
+      "0": 2,
+      "1": 1,
+      "2": 2,
+      "3": 2
+    }
+  },
+  "np.final": {
+    "type": "NodePropertyMap",
+    "default": false,
+    "map": {}
+  },
+  "gp.is_deterministic": true,
+  "gp.is_turn_based": true
+}

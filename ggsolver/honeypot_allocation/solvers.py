@@ -276,11 +276,10 @@ class DecoyAllocator(models.Solver):
         self._node_equiv = node_equiv
 
         # Output parameters
-        self._hgame = None
-        self._hgame_sol = None
-        self._dswin = None
         self._vod = 0
-
+        self._dswin = None
+        self._traps = set()
+        self._fakes = set()
         self._base_game_solution = None
 
     def solve_base_game(self, save_svg=False, path=None, filename=None):
@@ -400,9 +399,10 @@ class DecoyAllocator(models.Solver):
         # Mark node and edge winners
         self._dswin = DSWinReach(game_graph=self._solution, traps=traps, fakes=fakes, debug=self._debug)
         self._dswin.solve()
-        self._vod = dswin.vod()
-        self._solution["node_winner"].update(dswin._solution["node_winner"])
-        self._solution["edge_winner"].update(dswin._solution["edge_winner"])
+        self._vod = self._dswin.vod()
+        self._solution["node_winner"].update(self._dswin._solution["node_winner"])
+        self._solution["edge_winner"].update(self._dswin._solution["edge_winner"])
+        logger.info(f"Best decoy allocation configuration: {traps=}, {fakes=} with VoD={self._dswin.vod()}")
         self._is_solved = True
 
     def save_svg(self, path, filename, **kwargs):
@@ -416,7 +416,7 @@ if __name__ == '__main__':
         import random
 
         random.seed(50)
-        game = gen.Hybrid(num_nodes=10, max_out_degree=3)
+        game = gen.Hybrid(num_nodes=20, max_out_degree=4)
         game_graph = game.graphify()
 
         # # Manually set traps, fakes and solve for DSWinReach
@@ -426,6 +426,6 @@ if __name__ == '__main__':
         # logger.info(f"VOD: {win._vod}")
 
         # Allocate greedy traps and fakes
-        alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=1, debug=True)
+        alloc = DecoyAllocator(game_graph, num_traps=1, num_fakes=1, debug=True)
         alloc.solve()
         alloc.save_svg("out/", filename="colored_graph")

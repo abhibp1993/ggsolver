@@ -1,0 +1,30 @@
+digraph G {
+N0 [shape="box", label="s0", peripheries="2", color="red"];
+N0 -> N8 [label="", color="black"];
+N0 -> N3 [label="", color="black"];
+N1 [shape="circle", label="s1", peripheries="1", color="blue"];
+N1 -> N6 [label="", color="blue"];
+N2 [shape="circle", label="s2", peripheries="1", color="red"];
+N2 -> N0 [label="", color="black"];
+N2 -> N3 [label="", color="black"];
+N3 [shape="box", label="s3", peripheries="1", color="red"];
+N3 -> N5 [label="", color="red"];
+N3 -> N9 [label="", color="black"];
+N3 -> N3 [label="", color="black"];
+N4 [shape="box", label="s4", peripheries="1", color="blue"];
+N4 -> N9 [label="", color="black"];
+N5 [shape="box", label="s5", peripheries="1", color="red"];
+N5 -> N2 [label="", color="black"];
+N5 -> N0 [label="", color="red"];
+N6 [shape="circle", label="s6", peripheries="1", color="blue"];
+N6 -> N9 [label="", color="blue"];
+N6 -> N8 [label="", color="blue"];
+N7 [shape="circle", label="s7", peripheries="1", color="blue"];
+N7 -> N6 [label="", color="blue"];
+N7 -> N9 [label="", color="blue"];
+N8 [shape="box", label="s8", peripheries="1", color="blue"];
+N8 -> N6 [label="", color="black"];
+N9 [shape="box", label="s9", peripheries="1", color="blue"];
+N9 -> N7 [label="", color="black"];
+N9 -> N6 [label="", color="black"];
+}

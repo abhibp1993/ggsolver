@@ -27,7 +27,14 @@ class SWinReach(models.Solver):
 
         super(SWinReach, self).__init__(graph, **kwargs)
         self._player = kwargs.get("player", 1)
-        self._final = {self.state2node(st) for st in final} if final is not None else self.get_final_states()
+        if final is None:
+            self._final = self.get_final_states()
+        else:
+            self._solution.create_node_property("final", default=False, overwrite=True)
+            for node in final:
+                self._solution["final"][node] = True
+            self._final = final
+
         if len(self._final) == 0:
             logger.critical(f"dtptb.SWinReach.__init__(): Final state set is empty.")
 
@@ -96,31 +103,6 @@ class SWinReach(models.Solver):
         with open(os.path.join(self._path, f"{self._filename}.out"), "w") as file:
             file.write(pgsolver_output.stdout.decode())
 
-    def _parse_pgsolver_output(self):
-
-        with open(os.path.join(self._path, f"{self._filename}.out"), "r") as file:
-            pgsolver_output = file.readlines()
-
-        # Parse solution
-        # # 1. Decode from byte string
-        # solution_str = pgsolver_output.stdout.decode()
-        # # 2. Create list of lines
-        # solution_str = solution_str.split("\n")
-        # 3. Ignore first and last lines as they do not contain information about solution
-        # solution_str = solution_str[1:-1]
-        solution = pgsolver_output[1:-1]
-        # 4. Remove any line termination symbols
-        solution = map(lambda x: x.replace(";", "").split(" "), solution)
-        # 5. Extract winning nodes.
-        win1 = set()
-        win2 = set()
-        for obj in solution:
-            if int(obj[1]) == 0:  # P1 wins if node winner=0.
-                win1.add(int(obj[0]))
-            else:  # P2 wins if node winner=1.
-                win2.add(int(obj[0]))
-        return win1, win2
-
     def _process_dtptb_reach_solution(self):
         with open(os.path.join(self._path, f"{self._filename}.solution"), "r") as file:
             json_sol = json.load(file)
@@ -133,7 +115,8 @@ class SWinReach(models.Solver):
         # Mark edge winner
         for eid, edge in json_sol["edges"].items():
             for u, v, k in self._solution.out_edges(edge[0]):
-                self._solution["edge_winner"][u, v, k] = json_sol["edge_winner"][eid]
+                if v == edge[1]:
+                    self._solution["edge_winner"][u, v, k] = json_sol["edge_winner"][eid]
 
     def reset(self):
         """ Resets the solver to initial state. """

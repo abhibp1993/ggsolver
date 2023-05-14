@@ -1,0 +1,10 @@
+digraph G {
+N0 [shape="box", label="s0", peripheries="1", color="red"];
+N1 [shape="circle", label="s2", peripheries="1", color="blue"];
+N1 -> N2 [label="", color="blue"];
+N1 -> N0 [label="", color="black"];
+N2 [shape="box", label="s3", peripheries="1", color="blue"];
+N2 -> N3 [label="", color="black"];
+N3 [shape="box", label="s5", peripheries="2", color="blue"];
+N3 -> N0 [label="", color="black"];
+}

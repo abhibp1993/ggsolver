@@ -1165,6 +1165,10 @@ class Solver:
         """ Returns the player who wins from the given state. """
         return self._node_winner[uid]
 
+    def edge_winner(self, uid, vid, key):
+        """ Returns the player who wins from the given state. """
+        return self._edge_winner[uid, vid, key]
+
     def winning_edges(self, uid):
         """ Returns the list of winning actions from the given node. """
         # Determine which player has a winning strategy at the node

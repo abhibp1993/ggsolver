@@ -1,0 +1,26 @@
+digraph G {
+overlap=scale;
+N0 [shape="box", style="solid", width="2", height="2", label="s0", peripheries="1", color="red"];
+N1 [shape="circle", style="solid", width="2", height="2", label="s1", peripheries="1", color="red"];
+N1 -> N1 [label="", color="black"];
+N1 -> N1 [label="", color="black"];
+N2 [shape="box", style="solid", width="2", height="2", label="s2", peripheries="2", color="blue"];
+N3 [shape="circle", style="solid", width="2", height="2", label="s3", peripheries="2", color="blue"];
+N3 -> N0 [label="", color="black"];
+N3 -> N1 [label="", color="black"];
+N4 [shape="circle", style="solid", width="2", height="2", label="s4", peripheries="1", color="red"];
+N4 -> N1 [label="", color="black"];
+N4 -> N1 [label="", color="black"];
+N5 [shape="box", style="solid", width="2", height="2", label="s5", peripheries="1", color="blue"];
+N5 -> N2 [label="", color="black"];
+N6 [shape="box", style="solid", width="2", height="2", label="s6", peripheries="1", color="blue"];
+N6 -> N3 [label="", color="black"];
+N7 [shape="circle", style="solid", width="2", height="2", label="s7", peripheries="1", color="blue"];
+N7 -> N5 [label="", color="blue"];
+N7 -> N6 [label="", color="blue"];
+N8 [shape="box", style="solid", width="2", height="2", label="s8", peripheries="1", color="blue"];
+N8 -> N7 [label="", color="black"];
+N9 [shape="circle", style="solid", width="2", height="2", label="s9", peripheries="1", color="blue"];
+N9 -> N6 [label="", color="blue"];
+N9 -> N8 [label="", color="black"];
+}

@@ -49,12 +49,12 @@ class Mesh(dtptb.DTPTBGame):
 
 
 class Hybrid(dtptb.DTPTBGame):
-    def __init__(self, num_nodes, max_out_degree):
+    def __init__(self, num_nodes, max_out_degree, num_final=None):
         assert isinstance(max_out_degree, int), f"{max_out_degree=}. Expected an integer > 0."
         super(Hybrid, self).__init__()
         self.num_nodes = num_nodes
         self.max_out_degree = max_out_degree
-        self.num_final = num_nodes // 10  # Arbitrary choice
+        self.num_final = num_nodes // 10 if num_final is None else num_final
         self._turn_cache = dict()
         self._trans_dict = dict()
 
@@ -90,7 +90,7 @@ class Hybrid(dtptb.DTPTBGame):
 
     def final(self, state):
         i = int(state[1:])
-        if i < self.num_nodes // 10:
+        if i < self.num_final:
             return True
         return False
 

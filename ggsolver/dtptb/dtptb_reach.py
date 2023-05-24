@@ -46,7 +46,7 @@ class SWinReach(models.Solver):
         if not path.exists():
             path.mkdir()
         self._filename = filename if filename is not None else \
-            f'pgzlk_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}'
+            f'ggzlk_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}'
         self._save_output = save_output
 
     def _gen_dtptb_reach_input(self):
@@ -175,6 +175,7 @@ class SWinReach(models.Solver):
             game_file = os.path.join(self._path, f"{self._filename}.gm")
             out_file = os.path.join(self._path, f"{self._filename}.out")
             dot_file = os.path.join(self._path, f"{self._filename}.dot")
+            dot_file = os.path.join(self._path, f"{self._filename}.solution")
 
             if os.path.exists(game_file):
                 os.remove(game_file)

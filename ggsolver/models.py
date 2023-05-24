@@ -125,7 +125,7 @@ class GraphicalModel:
 
         return edges
 
-    def _gen_underlying_graph_unpointed(self, graph):
+    def _gen_underlying_graph_unpointed(self, graph, progress_bar=False):
         """
         Programmer's notes:
         1. Caches states (returned by `self.states()`) in self.__states variable.
@@ -178,7 +178,7 @@ class GraphicalModel:
         # If enabled_acts is defined and implemented, then define and store the property.
         if enabled_acts is not None:
             np_enabled_acts = NodePropertyMap(graph=graph, default=inputs)
-            for state in tqdm(self.__states.keys(), desc="Generating state: enabled actions map"):
+            for state in tqdm(self.__states.keys(), desc="Generating state: enabled actions map", disable=not progress_bar):
                 np_enabled_acts[self.__states[state]] = enabled_acts(state)
             graph["enabled_acts"] = np_enabled_acts
             logger.debug(f"Processed node property: enabled_acts. [OK]")
@@ -190,7 +190,7 @@ class GraphicalModel:
         #                        total=len(self.__states) * len(inputs),
         #                        desc="Unpointed graphify adding edges"):
 
-        for state in tqdm(self.__states.keys(), desc="Unpointed graphify adding edges"):
+        for state in tqdm(self.__states.keys(), desc="Unpointed graphify adding edges", disable=not progress_bar):
             # Get the enabled inputs at the state. If enabled_acts is not defined, then use entire inputs set.
             if enabled_acts is not None:
                 inputs_at_state = np_enabled_acts[self.__states[state]]
@@ -1082,10 +1082,12 @@ class Solver:
         # Associate node and edge properties with solution
         #   When input `graph` is a SubGraph, the following statements will overwrite
         #   the node/edge_winners of input `graph`.
-        self._node_winner = NodePropertyMap(self._solution, default=-1)  # Values denote which player wins from node.
-        self._edge_winner = EdgePropertyMap(self._solution, default=-1)  # Values denote which player wins from edge.
-        self._solution["node_winner"] = self._node_winner
-        self._solution["edge_winner"] = self._edge_winner
+        # self._node_winner = NodePropertyMap(self._solution, default=-1)  # Values denote which player wins from node.
+        # self._edge_winner = EdgePropertyMap(self._solution, default=-1)  # Values denote which player wins from edge.
+        # self._solution["node_winner"] = self._node_winner
+        # self._solution["edge_winner"] = self._edge_winner
+        self._node_winner = self._solution.create_node_property("node_winner", default=-1, overwrite=True)
+        self._edge_winner = self._solution.create_edge_property("edge_winner", default=-1, overwrite=True)
 
         # Status variables
         self._is_solved = False

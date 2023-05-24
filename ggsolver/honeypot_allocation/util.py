@@ -11,10 +11,10 @@ def write_dot_file(graph: ggraph.Graph, path, filename, **kwargs):
         contents = list()
         contents.append("digraph G {\noverlap=scale;\n")
 
-        for node in tqdm(graph.nodes(), desc=f"Generating DOT file: {fpath}."):
+        for node in tqdm(graph.nodes(), desc=f"Generating DOT file: {fpath}.", disable=not kwargs.get("debug", False)):
             node_properties = {
                 "shape": 'circle' if graph['turn'][node] == 1 else 'box',
-                "style": 'filled',
+                "style": kwargs.get("node_style", "solid"),
                 "width": 2,
                 "height": 2,
                 "label": graph['state'][node],
@@ -29,7 +29,7 @@ def write_dot_file(graph: ggraph.Graph, path, filename, **kwargs):
 
             for uid, vid, key in graph.out_edges(node):
                 edge_properties = {
-                    "label": graph["input"][uid, vid, key] if kwargs.get("no_actions", False) else ""
+                    "label": graph["input"][uid, vid, key] if kwargs.get("show_actions", False) else ""
                 }
                 if "edge_winner" in graph.edge_properties:
                     if graph['edge_winner'][uid, vid, key] == 1:

@@ -2,6 +2,7 @@ import os
 import typing
 import pygraphviz
 import pickle
+import sys
 
 import ggsolver.graph as ggraph
 import ggsolver.models as models
@@ -14,7 +15,8 @@ MAX_COMBINATIONS = 100000
 
 
 class DSWinReach(models.Solver):
-    def __init__(self, game_graph: ggraph.Graph, traps: Union[list, set, tuple], fakes: Union[list, set, tuple], debug=False, **kwargs):
+    def __init__(self, game_graph: ggraph.Graph, traps: Union[list, set, tuple], fakes: Union[list, set, tuple], debug=False,
+                 **kwargs):
         super(DSWinReach, self).__init__(game_graph)
 
         # Game parameters
@@ -118,6 +120,8 @@ class DSWinReach(models.Solver):
         if self._debug:
             self._save_debug_output()
 
+        self._is_solved = True
+
     def solve_base_game(self, save_svg=False, path=None, filename=None):
         base_game_solution = SWinReach(self._solution, player=2, path=self._path, filename=f"{self._filename}_base_game")
         base_game_solution.solve()
@@ -215,9 +219,9 @@ class DSWinReach(models.Solver):
         return hypergame_graph, base_hg_node_map, hg_base_node_map, base_hg_edge_map, hg_base_edge_map
 
     def _save_debug_output(self):
-        util.write_dot_file(self._base_game_solution.solution(), path="out/", filename="base_game")
-        util.write_dot_file(self._p2_game_solution.solution(), path="out/", filename="p2_game")
-        util.write_dot_file(self._hgame_solution.solution(), path="out/", filename="hgame")
+        util.write_dot_file(self._base_game_solution.solution(), path=self._path, filename=f"{self._filename}_base_game")
+        util.write_dot_file(self._p2_game_solution.solution(), path=self._path, filename=f"{self._filename}_p2_game")
+        util.write_dot_file(self._hgame_solution.solution(), path=self._path, filename=f"{self._filename}_hgame")
 
     def save_svg(self, path, filename, **kwargs):
         # Generate DOT file.
@@ -231,7 +235,7 @@ class DSWinReach(models.Solver):
                     # "shape": 'circle' if self._solution['turn'][node] == 1 else 'box',
                     "width": 2,
                     "height": 2,
-                    "style": "filled",
+                    "style": kwargs.get("node_style", "solid"),
                     "label": self._solution['state'][node],
                     "peripheries": '2' if self._solution['final'][node] else '1',
                 }
@@ -256,7 +260,7 @@ class DSWinReach(models.Solver):
 
                 for uid, vid, key in self._solution.out_edges(node):
                     edge_properties = {
-                        "label": self._solution["input"][uid, vid, key] if kwargs.get("no_actions", False) else ""
+                        "label": self._solution["input"][uid, vid, key] if kwargs.get("show_actions", False) else ""
                     }
                     # if "edge_winner" in self._solution.edge_properties:
                     #     if self._solution['edge_winner'][uid, vid, key] == 1:
@@ -358,7 +362,9 @@ class DecoyAllocator(models.Solver):
                 game_graph=self._graph,
                 traps=set(),
                 fakes=set(),
-                debug=self._debug
+                debug=self._debug,
+                path=self._path,
+                filename=self._filename
             )
             self._hgame_sol.solve()
             self._is_solved = True
@@ -443,12 +449,14 @@ class DecoyAllocator(models.Solver):
             traps.update(self._node_equiv[best_trap])
 
         # Mark node and edge winners
-        self._dswin = DSWinReach(game_graph=self._solution, traps=traps, fakes=fakes, debug=self._debug)
+        self._dswin = DSWinReach(game_graph=self._solution, traps=traps, fakes=fakes,
+                                 debug=self._debug, path=self._path, filename=f"{self._filename}_optimal")
         self._dswin.solve()
         self._vod = self._dswin.vod()
         self._solution["node_winner"].update(self._dswin._solution["node_winner"])
         self._solution["edge_winner"].update(self._dswin._solution["edge_winner"])
         logger.info(f"Best decoy allocation configuration: {traps=}, {fakes=} with VoD={self._dswin.vod()}")
+
         self._is_solved = True
 
     def save_svg(self, path, filename, **kwargs):
@@ -478,7 +486,7 @@ class DecoyAllocator(models.Solver):
                     if self._base_game_solution.node_winner(node) == 1:
                         node_properties |= {"color": 'blue'}
                     # elif self._solution['node_winner'][self._base2hg_nodes[node]] == 1:
-                    elif self._dswin.solution().node_winner(node) == 1:
+                    elif self._dswin.node_winner(node) == 1:
                         node_properties |= {"color": 'green'}
                     else:
                         node_properties |= {"color": 'red'}
@@ -509,6 +517,9 @@ class DecoyAllocator(models.Solver):
     def save_pickle(self, path, filename):
         with open(os.path.join(path, f"{filename}.pkl"), "w") as file:
             pickle.dump(self.solution(), file)
+
+    def vod(self):
+        return self._vod
 
 
 if __name__ == '__main__':

@@ -2,6 +2,7 @@ import ggsolver.graph as ggraph
 import ggsolver.dtptb as dtptb
 from ggsolver.gridworld.util import *
 from ggsolver.honeypot_allocation.solvers import DecoyAllocator
+from loguru import logger
 
 
 class Gridworld(dtptb.DTPTBGame):
@@ -38,6 +39,9 @@ class Gridworld(dtptb.DTPTBGame):
 
     def delta(self, state, act):
         turn = self.turn(state)
+
+        if state[0:2] == state[2:4]:
+            return state[0:4] + ((1,) if turn == 2 else (2,))
 
         if turn == 1:
             r, c = state[0:2]

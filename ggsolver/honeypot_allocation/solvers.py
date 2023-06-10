@@ -44,8 +44,9 @@ class DSWinReach(models.Solver):
         base_game_solution = self.solve_base_game()
         # logger.info("Base game solved.")
 
-        # 2. Construct and solve G2. (V, E, F U Y)
-        p2_game_solution, true_final = self.solve_p2_game()
+        # 2. Construct and solve G2.
+        true_final = {uid for uid in self._solution.nodes() if self.graph()["final"][uid]}
+        p2_game_solution = self.solve_p2_game(true_final)
         # logger.info("P2 game solved.")
 
         # 3. SR_E = {e \in E | e is subjectively rationalizable in G2}
@@ -133,8 +134,7 @@ class DSWinReach(models.Solver):
 
         return self._base_game_solution
 
-    def solve_p2_game(self, save_svg=False, path=None, filename=None):
-        true_final = {uid for uid in self._solution.nodes() if self.graph()["final"][uid]}
+    def solve_p2_game(self, true_final, save_svg=False, path=None, filename=None):
         p2_final = true_final | self._fakes
         p2_game_solution = SWinReach(self._solution, player=2, final=p2_final, path=self._path, filename=f"{self._filename}_p2_game")
         p2_game_solution.solve()
@@ -144,7 +144,7 @@ class DSWinReach(models.Solver):
             assert path is not None and filename is not None
             util.write_dot_file(self._p2_game_solution.solution(), path=path, filename=filename)
 
-        return p2_game_solution, true_final
+        return p2_game_solution
 
     def sr_edges(self):
         # SR_E = {e \in E | e.source is in Win2(G, F) AND e is SR(G2)} | {e \in E | e.source is in Win1(G, F)}
@@ -515,7 +515,7 @@ class DecoyAllocator(models.Solver):
             file.writelines(contents)
 
     def save_pickle(self, path, filename):
-        with open(os.path.join(path, f"{filename}.pkl"), "w") as file:
+        with open(os.path.join(path, f"{filename}.pkl"), "wb") as file:
             pickle.dump(self.solution(), file)
 
     def vod(self):

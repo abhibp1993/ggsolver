@@ -528,20 +528,20 @@ if __name__ == '__main__':
         import ggsolver.honeypot_allocation.game_generator as gen
         import random
 
-        random.seed(40)
-        game = gen.Hybrid(num_nodes=240, max_out_degree=5)
+        random.seed(0)
+        game = gen.Hybrid(num_nodes=12, max_out_degree=3)
         game_graph = game.graphify()
 
-        # Manually set traps, fakes and solve for DSWinReach
-        fdir = "out_t4_f0"
-        win = DSWinReach(game_graph, traps={197, 72, 29, 54}, fakes=set(), debug=True)
-        win.solve()
-        win.save_svg(fdir, filename="colored_graph")
-        logger.info(f"VOD: {win._vod}")
+        # # Manually set traps, fakes and solve for DSWinReach
+        # fdir = "out_t4_f0"
+        # win = DSWinReach(game_graph, traps={197, 72, 29, 54}, fakes=set(), debug=True)
+        # win.solve()
+        # win.save_svg(fdir, filename="colored_graph")
+        # logger.info(f"VOD: {win._vod}")
 
-        # # Allocate greedy traps and fakes
-        # fdir = "out_t0_f4"
-        # alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=4, debug=True, path=fdir)
-        # alloc.solve()
-        # alloc.save_pickle(fdir, filename="dswin_sol_graph")
-        # alloc.save_dot(fdir, filename="colored_graph")
+        # Allocate greedy traps and fakes
+        fdir = "out_t0_f2"
+        alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=2, debug=True, path=fdir)
+        alloc.solve()
+        alloc.save_pickle(fdir, filename="dswin_sol_graph")
+        alloc.save_dot(fdir, filename="colored_graph")

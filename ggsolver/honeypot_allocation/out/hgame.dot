@@ -1,0 +1,7 @@
+digraph G {
+overlap=scale;
+N0 [shape="circle", style="filled", width="2", height="2", label="s0", peripheries="1", color="red"];
+N0 -> N0 [label="", color="black"];
+N0 -> N0 [label="", color="black"];
+N1 [shape="box", style="filled", width="2", height="2", label="s7", peripheries="2", color="blue"];
+}

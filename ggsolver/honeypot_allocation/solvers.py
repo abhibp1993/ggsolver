@@ -82,36 +82,35 @@ class DSWinReach(models.Solver):
             hg_reachable_nodes = hgame_graph.reverse_bfs(sources=sources)
             reachable_nodes = {hg2base_nodes[node] for node in hg_reachable_nodes}
 
-        for node in tqdm(list(self._solution.nodes()), desc="Processing nodes for DSWin solution"):
-        if skip_solution:
-            for node in self._solution.nodes():
-            # P1 wins a node if it is winning for P1 in base-game or is deceptively winning in hypergame.
-            if base_game_solution.node_winner(node) == 1:
-                self._solution["node_winner"][node] = 1
-                for u, v, k in self._solution.out_edges(node):
-                    self._solution["edge_winner"][u, v, k] = base_game_solution.edge_winner(u, v, k)
+        if not skip_solution:
+            for node in tqdm(list(self._solution.nodes()), desc="Processing nodes for DSWin solution"):
+                # P1 wins a node if it is winning for P1 in base-game or is deceptively winning in hypergame.
+                if base_game_solution.node_winner(node) == 1:
+                    self._solution["node_winner"][node] = 1
+                    for u, v, k in self._solution.out_edges(node):
+                        self._solution["edge_winner"][u, v, k] = base_game_solution.edge_winner(u, v, k)
 
-            elif hgame_graph.has_node(node) and hgame_solution.node_winner(node) == 1:
-                self._solution["node_winner"][node] = 1
-                for u, v, k in self._solution.out_edges(node):
-                    try:
-                        self._solution["edge_winner"][u, v, k] = hgame_solution.edge_winner(u, v, k)
-                    except KeyError:
-                        # Case 1. Edge leaves Win2.
-                        if v not in win2:
-                            self._solution["edge_winner"][u, v, k] = 1
-                        # Case 2. Edge is not rank-decreasing, therefore, not subjectively rationalizable.
-                        else:
-                            self._solution["edge_winner"][u, v, k] = 0
+                elif hgame_graph.has_node(node) and hgame_solution.node_winner(node) == 1:
+                    self._solution["node_winner"][node] = 1
+                    for u, v, k in self._solution.out_edges(node):
+                        try:
+                            self._solution["edge_winner"][u, v, k] = hgame_solution.edge_winner(u, v, k)
+                        except KeyError:
+                            # Case 1. Edge leaves Win2.
+                            if v not in win2:
+                                self._solution["edge_winner"][u, v, k] = 1
+                            # Case 2. Edge is not rank-decreasing, therefore, not subjectively rationalizable.
+                            else:
+                                self._solution["edge_winner"][u, v, k] = 0
 
-            else:  # When P1 is not winning...
-                # If node is connected with traps or fakes, winner is undetermined.
-                self._solution["node_winner"][node] = 3  # PATCH. Temporry for coloring.
+                else:  # When P1 is not winning...
+                    # If node is connected with traps or fakes, winner is undetermined.
+                    self._solution["node_winner"][node] = 3  # PATCH. Temporry for coloring.
 
-                # if node in reachable_nodes:
-                #     self._solution["node_winner"][node] = 0
-                # else:
-                #     self._solution["node_winner"][node] = 2
+                    # if node in reachable_nodes:
+                    #     self._solution["node_winner"][node] = 0
+                    # else:
+                    #     self._solution["node_winner"][node] = 2
 
         # Save intermediate solutions for debugging
         self._base_game_solution = base_game_solution

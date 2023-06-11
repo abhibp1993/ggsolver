@@ -10,6 +10,7 @@ from ggsolver.dtptb.dtptb_reach import SWinReach
 from ggsolver.honeypot_allocation import util
 from typing import Union
 from loguru import logger
+from tqdm import tqdm
 
 MAX_COMBINATIONS = 100000
 
@@ -81,7 +82,7 @@ class DSWinReach(models.Solver):
             hg_reachable_nodes = hgame_graph.reverse_bfs(sources=sources)
             reachable_nodes = {hg2base_nodes[node] for node in hg_reachable_nodes}
 
-        for node in self._solution.nodes():
+        for node in tqdm(list(self._solution.nodes()), desc="Processing nodes for DSWin solution"):
             # P1 wins a node if it is winning for P1 in base-game or is deceptively winning in hypergame.
             if base_game_solution.node_winner(node) == 1:
                 self._solution["node_winner"][node] = 1

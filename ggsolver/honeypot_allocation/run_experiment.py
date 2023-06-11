@@ -58,29 +58,29 @@ class Gridworld(dtptb.DTPTBGame):
             return state[0:2] + (next_r, next_c) + (1,)
 
     def final(self, state):
-        return [(r1, c2, r2, c2, t)
-                for r1, y1 in self.real_cheese
-                for r2 in range(self.rows)
-                for c2 in range(self.cols)
-                for t in range(1, 3)
-                if (r2, c2) not in self.obs
-                ]
+        return state in [(r1, c2, r2, c2, t)
+                         for r1, y1 in self.real_cheese
+                         for r2 in range(self.rows)
+                         for c2 in range(self.cols)
+                         for t in range(1, 3)
+                         if (r2, c2) not in self.obs
+                         ]
 
     def equiv(self, cell):
         """ Returns states in which either P1 or P2 is at given cell """
         return {
-            cell + (r2, c2, t)
-            for r2 in range(self.rows)
-            for c2 in range(self.cols)
-            for t in range(1, 3)
-            if (r2, c2) not in self.obs
-        } | {
-            (r1, c1) + cell + (t,)
-            for r1 in range(self.rows)
-            for c1 in range(self.cols)
-            for t in range(1, 3)
-            if (r1, c1) not in self.obs
-        }
+                   cell + (r2, c2, t)
+                   for r2 in range(self.rows)
+                   for c2 in range(self.cols)
+                   for t in range(1, 3)
+                   if (r2, c2) not in self.obs
+               } | {
+                   (r1, c1) + cell + (t,)
+                   for r1 in range(self.rows)
+                   for c1 in range(self.cols)
+                   for t in range(1, 3)
+                   if (r1, c1) not in self.obs
+               }
 
 
 def gw1():

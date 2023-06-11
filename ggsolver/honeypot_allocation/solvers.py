@@ -40,7 +40,7 @@ class DSWinReach(models.Solver):
         self._path = kwargs.get("path", "out/")
         self._filename = kwargs.get("filename", "dswin")
 
-    def solve(self):
+    def solve(self, skip_solution=False):
         # 1. Solve game. (V, E, F)
         base_game_solution = self.solve_base_game()
         # logger.info("Base game solved.")
@@ -83,6 +83,8 @@ class DSWinReach(models.Solver):
             reachable_nodes = {hg2base_nodes[node] for node in hg_reachable_nodes}
 
         for node in tqdm(list(self._solution.nodes()), desc="Processing nodes for DSWin solution"):
+        if skip_solution:
+            for node in self._solution.nodes():
             # P1 wins a node if it is winning for P1 in base-game or is deceptively winning in hypergame.
             if base_game_solution.node_winner(node) == 1:
                 self._solution["node_winner"][node] = 1
@@ -435,7 +437,7 @@ class DecoyAllocator(models.Solver):
 
                 # Compute VoD
                 dswin = DSWinReach(self._solution, traps=traps | equiv_traps, fakes=fakes, path=self._path)
-                dswin.solve()
+                dswin.solve(skip_solution=True)
                 if dswin.vod() > best_vod:
                     best_vod = dswin.vod()
                     best_trap = trap

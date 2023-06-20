@@ -1,0 +1,34 @@
+20:34:59.818 | INFO     | ggsolver.decoy_alloc.process_config | configure_log_file:153 | Starting experiment tom_and_jerry at 2023-04-23 20:34:59.
+20:34:59.818 | INFO     | ggsolver.decoy_alloc.process_config | configure_log_file:154 | File logger initialized to 'DEBUG'.
+20:34:59.819 | INFO     | ggsolver.decoy_alloc.process_config | process_type:65 | Solver type set to greedy.
+20:34:59.819 | INFO     | ggsolver.decoy_alloc.process_config | process_graph_params:95 | Network topology set to mesh.
+20:34:59.820 | INFO     | ggsolver.decoy_alloc.process_config | process_graph_params:108 | Graph properties set: topology:mesh, max_out_degree:None, hubs:None
+20:34:59.822 | INFO     | ggsolver.decoy_alloc.process_config | process_multiprocessing:81 | Multiprocessing enabled. Using 1 CPUs.
+20:34:59.830 | WARNING  | ggsolver.decoy_alloc.process_config | process_cfg_file:195 | Report generation not processed. Code to be added.
+20:34:59.831 | SUCCESS  | __main__ | main:285 | Configuration loaded successfully.
+20:34:59.858 | DEBUG    | ggsolver.models | graphify:462 | Collected node properties: {'enabled_acts', 'final', 'label', 'turn'}
+20:34:59.858 | DEBUG    | ggsolver.models | graphify:463 | Collected edge properties: set()
+20:34:59.859 | DEBUG    | ggsolver.models | graphify:464 | Collected graph properties: {'win_cond', 'formula', 'p2_acts', 'p1_acts', 'is_probabilistic', 'is_deterministic', 'atoms', 'init_state', 'is_turn_based', 'actions'}
+20:34:59.859 | DEBUG    | ggsolver.models | graphify:465 | Duplicate node, edge properties: set()
+20:34:59.859 | DEBUG    | ggsolver.models | graphify:466 | Duplicate edge, graph properties: set()
+20:34:59.859 | DEBUG    | ggsolver.models | graphify:467 | Duplicate graph, node properties: set()
+20:34:59.875 | DEBUG    | ggsolver.models | _gen_underlying_graph_unpointed:151 | Processed node property: states. Added 5930 states. [OK]
+20:34:59.876 | DEBUG    | ggsolver.models | _gen_underlying_graph_unpointed:155 | Input domain function detected as 'actions'. [OK]
+20:34:59.877 | DEBUG    | ggsolver.models | _gen_underlying_graph_unpointed:159 | Processed graph property: input_domain. [OK]
+20:35:00.250 | DEBUG    | ggsolver.models | _gen_underlying_graph_unpointed:216 | Processed edge property: input. [OK]
+20:35:00.251 | DEBUG    | ggsolver.models | _gen_underlying_graph_unpointed:217 | Processed graph property: prob. [OK]
+20:35:00.251 | WARNING  | ggsolver.models | _add_node_prop_to_graph:347 | Node property function not implemented: enabled_acts. [IGNORED]
+20:35:00.299 | DEBUG    | ggsolver.models | _add_node_prop_to_graph:345 | Processed node property: final. [OK]
+20:35:00.300 | WARNING  | ggsolver.models | _add_node_prop_to_graph:347 | Node property function not implemented: label. [IGNORED]
+20:35:00.328 | DEBUG    | ggsolver.models | _add_node_prop_to_graph:345 | Processed node property: turn. [OK]
+20:35:00.329 | WARNING  | ggsolver.models | _add_graph_prop_to_graph:407 | [WARN] Graph property is not implemented: win_cond. [IGNORED]
+20:35:00.330 | WARNING  | ggsolver.models | _add_graph_prop_to_graph:407 | [WARN] Graph property is not implemented: formula. [IGNORED]
+20:35:00.330 | WARNING  | ggsolver.models | _add_graph_prop_to_graph:407 | [WARN] Graph property is not implemented: p2_acts. [IGNORED]
+20:35:00.332 | WARNING  | ggsolver.models | _add_graph_prop_to_graph:407 | [WARN] Graph property is not implemented: p1_acts. [IGNORED]
+20:35:00.334 | DEBUG    | ggsolver.models | _add_graph_prop_to_graph:394 | Processed graph property: is_probabilistic. [OK]
+20:35:00.334 | DEBUG    | ggsolver.models | _add_graph_prop_to_graph:394 | Processed graph property: is_deterministic. [OK]
+20:35:00.334 | WARNING  | ggsolver.models | _add_graph_prop_to_graph:407 | [WARN] Graph property is not implemented: atoms. [IGNORED]
+20:35:00.335 | DEBUG    | ggsolver.models | _add_graph_prop_to_graph:394 | Processed graph property: init_state. [OK]
+20:35:00.335 | DEBUG    | ggsolver.models | _add_graph_prop_to_graph:394 | Processed graph property: is_turn_based. [OK]
+20:35:00.335 | DEBUG    | ggsolver.models | _add_graph_prop_to_graph:394 | Processed graph property: actions. [OK]
+20:35:00.673 | SUCCESS  | __main__ | run_tom_and_jerry_experiment:249 | Saved base game graph game_graph=<Graph with |V|=5930, |E|=23720> successfully.

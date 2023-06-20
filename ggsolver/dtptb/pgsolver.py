@@ -20,6 +20,8 @@ import ggsolver.models as models
 logger = logging.getLogger(__name__)
 
 
+# TODO. (1) In gen_pgsolver_input, add if-condition to swap `turn`.
+# TODO. (2) While reading PGSolver output, swap the `turn` back.
 class SWinReach(models.Solver):
     def __init__(self, graph, final=None, path="out/", filename=None, save_output=False, **kwargs):
         if not graph["is_deterministic"]:

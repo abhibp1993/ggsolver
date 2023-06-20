@@ -27,7 +27,7 @@ class Gridworld(dtptb.DTPTBGame):
                 for c1 in range(self.cols)
                 for r2 in range(self.rows)
                 for c2 in range(self.cols)
-                for t in range(1, 3)
+                for t in [1, 2]
                 if (r1, c1) not in self.obs and (r2, c2) not in self.obs
                 ]
 
@@ -58,23 +58,24 @@ class Gridworld(dtptb.DTPTBGame):
             return state[0:2] + (next_r, next_c) + (1,)
 
     def final(self, state):
-        return state in [(r1, c2, r2, c2, t)
-                         for r1, y1 in self.real_cheese
-                         for r2 in range(self.rows)
-                         for c2 in range(self.cols)
+        return state in [(r1, c1, r2, c2, t)
+                         for r2, c2 in self.real_cheese
+                         for r1 in range(self.rows)
+                         for c1 in range(self.cols)
                          for t in range(1, 3)
-                         if (r2, c2) not in self.obs
+                         if (r2, c2) not in self.obs and (r1, c1) not in self.obs
                          ]
 
-    def equiv(self, cell):
-        """ Returns states in which either P1 or P2 is at given cell """
+    def jerry_equiv(self, cell):
+        """ Returns states in which Jerry is at given cell """
+        # return {
+        #            cell + (r2, c2, t)
+        #            for r2 in range(self.rows)
+        #            for c2 in range(self.cols)
+        #            for t in range(1, 3)
+        #            if (r2, c2) not in self.obs
+        #        } | \
         return {
-                   cell + (r2, c2, t)
-                   for r2 in range(self.rows)
-                   for c2 in range(self.cols)
-                   for t in range(1, 3)
-                   if (r2, c2) not in self.obs
-               } | {
                    (r1, c1) + cell + (t,)
                    for r1 in range(self.rows)
                    for c1 in range(self.cols)
@@ -84,27 +85,35 @@ class Gridworld(dtptb.DTPTBGame):
 
 
 def gw1():
-    obs = [(0, 2), (2, 2), (4, 2)]
-    real_cheese = [(2, 4)]
+    obs = [(0, 4), (2, 4), (4, 4), (6, 4)]
+    real_cheese = [(2, 5)]
     game = Gridworld(rows=7, cols=7, obs=obs, real_cheese=real_cheese)
     graph = game.graphify()
+    state2node = {graph['state'][node]: node for node in graph.nodes()}
+    candidates = dict()
+    for cell in {(r, c) for r in range(7) for c in range(7) if (r, c) not in set(obs) | set(real_cheese)}:
+        candidates[cell] = {state2node[state] for state in game.jerry_equiv(cell)}
 
-    # lines = []
-    # for u, v, k in graph.edges():
-    #     lines.append(f"{graph['state'][u]} -- {graph['input'][u, v, k]} --> {graph['state'][v]}")
-    #
-    # with open("out/trans.gm", "w") as file:
-    #     for line in lines:
-    #         file.write(line + "\n")
+    return game, graph, candidates
 
-    return game, graph
+
+def gw2():
+    obs = [(0, 4), (2, 4), (4, 4), (6, 4)]
+    real_cheese = [(1, 6), (4, 6)]
+    game = Gridworld(rows=7, cols=7, obs=obs, real_cheese=real_cheese)
+    graph = game.graphify()
+    state2node = {graph['state'][node]: node for node in graph.nodes()}
+    candidates = dict()
+    for cell in {(r, c) for r in range(7) for c in range(7) if (r, c) not in set(obs) | set(real_cheese)}:
+        candidates[cell] = {state2node[state] for state in game.jerry_equiv(cell)}
+
+    return game, graph, candidates
 
 
 if __name__ == '__main__':
-    game, game_graph = gw1()
-
-    fdir = "out/gw1_t2_f0"
-    alloc = DecoyAllocator(game_graph, num_traps=2, num_fakes=0, debug=True, path=fdir)
+    game, game_graph, candidates = gw2()
+    fdir = "out/gw2_t0_f2"
+    alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=2, candidates=candidates, debug=True, path=fdir)
     alloc.solve()
     alloc.save_pickle(fdir, filename="dswin_sol_graph")
-    alloc.save_dot(fdir, filename="colored_graph")
+    # alloc.save_dot(fdir, filename="colored_graph")

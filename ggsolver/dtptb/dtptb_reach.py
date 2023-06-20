@@ -48,6 +48,7 @@ class SWinReach(models.Solver):
         self._filename = filename if filename is not None else \
             f'ggzlk_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}'
         self._save_output = save_output
+        self._tqdm_disable = kwargs.get("tqdm_disable", False)
 
     def _gen_dtptb_reach_input(self):
         """
@@ -109,13 +110,9 @@ class SWinReach(models.Solver):
             json_sol = json.load(file)
 
         # Mark node winner
-        tqdm_disable = True
-        if len(json_sol["node_winner"]) > 5000 or len(json_sol["edge_winner"]) > 5000:
-            tqdm_disable = False
-
         for node, winner in tqdm(json_sol["node_winner"].items(),
                                  desc="dtptb-reach:: Processing nodes from solution.",
-                                 disable=tqdm_disable):
+                                 disable=self._tqdm_disable):
             uid = int(node)
             self._solution["node_winner"][uid] = winner
 
@@ -123,7 +120,7 @@ class SWinReach(models.Solver):
         json_edges = {tuple((u, v)): eid for eid, (u, v) in json_sol["edges"].items()}
         for u, v, k in tqdm(self._solution.edges(),
                             desc="dtptb-reach:: Processing edges from solution.",
-                            disable=tqdm_disable):
+                            disable=self._tqdm_disable):
             if (u, v) in json_edges:
                 eid = json_edges[u, v]
                 self._solution["edge_winner"][u, v, k] = json_sol["edge_winner"][eid]

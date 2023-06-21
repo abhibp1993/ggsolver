@@ -112,8 +112,13 @@ def gw2():
 
 if __name__ == '__main__':
     game, game_graph, candidates = gw2()
-    fdir = "out/gw2_t0_f2"
-    alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=2, candidates=candidates, debug=True, path=fdir)
+    fdir = "out/gw2_t2_f0_enum"
+
+    # # Greedy approach
+    # alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=2, candidates=candidates, debug=True, path=fdir)
+    # alloc.solve()
+    # alloc.save_pickle(fdir, filename="dswin_sol_graph")
+
+    # Enumerative approach
+    alloc = DecoyAllocator(game_graph, num_traps=2, num_fakes=0, candidates=candidates, debug=True, path=fdir, algo="enumerative")
     alloc.solve()
-    alloc.save_pickle(fdir, filename="dswin_sol_graph")
-    # alloc.save_dot(fdir, filename="colored_graph")

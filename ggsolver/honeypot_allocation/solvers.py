@@ -1,3 +1,4 @@
+import itertools
 import os
 import typing
 import pygraphviz
@@ -10,6 +11,9 @@ from ggsolver.honeypot_allocation import util
 from typing import Union
 from loguru import logger
 from tqdm import tqdm
+
+import multiprocessing
+import concurrent.futures as futures
 
 MAX_COMBINATIONS = 2500
 
@@ -591,6 +595,7 @@ class DecoyAllocator(models.Solver):
                  **kwargs):
         super(DecoyAllocator, self).__init__(game_graph)
         # Assertions
+        self._use_multiprocessing = kwargs.get("use_multiprocessing", False)
         assert algo.lower() in ["greedy", "enumerative"], "algo can be either 'greedy' or 'enumerative'."
         assert num_fakes >= 0 and num_traps >= 0, "num_traps and num_fakes should be non-negative integers."
 
@@ -641,7 +646,59 @@ class DecoyAllocator(models.Solver):
             self._solve_enumerative()
 
     def _solve_enumerative(self):
-        pass
+        # Terminate if no decoys are to be placed
+        if self._num_fakes + self._num_traps == 0:
+            self._hgame = self._solution
+            self._hgame_sol = DSWinReach(
+                game_graph=self._graph,
+                traps=set(),
+                fakes=set(),
+                debug=self._debug,
+                path=self._path,
+                filename=self._filename
+            )
+            self._hgame_sol.solve()
+            self._is_solved = True
+            return
+
+        # TODO. Candidate mapping needs to be take care of.
+        # Identify candidate decoys
+        win2 = set(self._base_game_solution.winning_nodes(player=2))
+        final = set(self._base_game_solution.final())
+        candidate2nodes = dict()
+        for candidate in self._candidates:
+            potential_finals = set.intersection(self._candidates[candidate], win2) - final
+            if len(potential_finals) > 0:
+                candidate2nodes[candidate] = potential_finals
+        logger.info(f"Candidate Decoys: {set(candidate2nodes.keys())} ")
+
+        # Generate all combinations. First select N fake targets and then M traps.
+        combinations = list()
+        fake_candidates = set(self._candidates.keys())
+        fake_combinations = set(itertools.combinations(fake_candidates, self._num_fakes))
+        for fakes in fake_combinations:
+            trap_candidates = set(self._candidates.keys()) - set(fakes)
+            trap_combinations = set(itertools.combinations(trap_candidates, self._num_traps))
+            combinations.extend([list(fakes) + list(traps) for traps in trap_combinations])
+            # combinations.extend(list(itertools.product({fakes}, [tuple(traps) for traps in trap_combinations])))
+        logger.debug(f"Enumerated {len(combinations)} decoy combinations. ")
+
+        # Solve the hypergames for each combination. Use multiprocessing if available.
+        vod_map = dict()
+        if multiprocessing.cpu_count() > 1 and self._use_multiprocessing:
+            logger.debug(f"Using {multiprocessing.cpu_count()} cores for hypergame solving.")
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+                results = pool.map(self._solve_enumerative_helper, combinations)
+            vod_map.update(results)
+        else:
+            for combination in combinations:
+                _, vod = self._solve_enumerative_helper(combination, candidate2nodes)
+                vod_map[tuple(combination)] = vod
+                logger.info(
+                    f"Explored Candidate: fakes={combination[self._num_traps:]} and traps={combination[:self._num_traps]}. VoD: {vod}")
+
+        with open(os.path.join(self._path, f"{self._filename}_enumerative_results.pkl"), "wb") as f:
+            pickle.dump(vod_map, f)
 
     def _solve_greedy(self):
         # Terminate if no decoys are to be placed
@@ -910,6 +967,17 @@ class DecoyAllocator(models.Solver):
 
     def vod(self):
         return self._vod
+
+    def _solve_enumerative_helper(self, combination, candidate2nodes, debug=False):
+        traps = set.union(set(),
+                          *[set(candidate2nodes[candidate]) for candidate in
+                            combination[:self._num_traps]])  # set(combination[:self._num_traps])
+        fakes = set.union(set(),
+                          *[set(candidate2nodes[candidate]) for candidate in
+                            combination[self._num_traps:]])  # set(combination[self._num_traps:])
+        win = DSWinReach(self._solution, traps=traps, fakes=fakes, debug=debug)
+        win.solve(skip_solution=True)
+        return combination, win.vod()
 
 
 if __name__ == '__main__':

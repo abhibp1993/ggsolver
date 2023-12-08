@@ -76,12 +76,12 @@ class Gridworld(dtptb.DTPTBGame):
         #            if (r2, c2) not in self.obs
         #        } | \
         return {
-                   (r1, c1) + cell + (t,)
-                   for r1 in range(self.rows)
-                   for c1 in range(self.cols)
-                   for t in range(1, 3)
-                   if (r1, c1) not in self.obs
-               }
+            (r1, c1) + cell + (t,)
+            for r1 in range(self.rows)
+            for c1 in range(self.cols)
+            for t in range(1, 3)
+            if (r1, c1) not in self.obs
+        }
 
 
 def gw1():
@@ -110,15 +110,34 @@ def gw2():
     return game, graph, candidates
 
 
-if __name__ == '__main__':
-    game, game_graph, candidates = gw2()
-    fdir = "out/gw2_t2_f0_enum"
+def swin_run():
+    obs = [(5, 5), (1, 0), (0, 1), (6, 5), (2, 3)]
+    cheese = [(2, 1), (2, 0)]
+    game = Gridworld(rows=7, cols=7, obs=obs, real_cheese=cheese)
+    graph = game.graphify()
+    state2node = {graph['state'][node]: node for node in graph.nodes()}
+    candidates = dict()
+    for cell in {(r, c) for r in range(7) for c in range(7) if (r, c) not in set(obs) | set(cheese)}:
+        candidates[cell] = {state2node[state] for state in game.jerry_equiv(cell)}
 
-    # # Greedy approach
-    # alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=2, candidates=candidates, debug=True, path=fdir)
-    # alloc.solve()
-    # alloc.save_pickle(fdir, filename="dswin_sol_graph")
-
-    # Enumerative approach
-    alloc = DecoyAllocator(game_graph, num_traps=2, num_fakes=0, candidates=candidates, debug=True, path=fdir, algo="enumerative")
+    logger.info(f"{obs=}")
+    logger.info(f"{cheese=}")
+    logger.info(f"fakes={5}")
+    logger.info(f"traps={0}")
+    alloc = DecoyAllocator(graph, num_traps=0, num_fakes=5, candidates=candidates, debug=True, algo="greedy")
     alloc.solve()
+
+
+if __name__ == '__main__':
+    swin_run()
+    # game, game_graph, candidates = gw2()
+    # fdir = "out/gw2_t2_f0_enum"
+    #
+    # # # Greedy approach
+    # # alloc = DecoyAllocator(game_graph, num_traps=0, num_fakes=2, candidates=candidates, debug=True, path=fdir)
+    # # alloc.solve()
+    # # alloc.save_pickle(fdir, filename="dswin_sol_graph")
+    #
+    # # Enumerative approach
+    # alloc = DecoyAllocator(game_graph, num_traps=2, num_fakes=0, candidates=candidates, debug=True, path=fdir, algo="enumerative")
+    # alloc.solve()

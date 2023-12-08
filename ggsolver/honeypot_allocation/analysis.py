@@ -80,6 +80,7 @@ def main2():
     plt.savefig("6.svg")
     plt.show()
 
+
 if __name__ == '__main__':
     # main1()
     main2()

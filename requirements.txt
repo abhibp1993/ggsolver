@@ -1,0 +1,11 @@
+networkx>=3.1
+scipy>=1.11.4
+gymnasium>=0.29.1
+prefltlf2pdfa>=1.0
+numpy>=1.26.3
+loguru>=0.7.2
+tqdm>=4.65.0
+pytest>=7.4.0
+matplotlib>=3.8.0
+setuptools>=68.2.2
+spot>=2.11.6

@@ -9,8 +9,18 @@ from loguru import logger as default_logger
 
 
 class Simulator(gym.Env):
-    def __init__(self, game, monitors: Dict[str, Callable] = None, logger=default_logger, *args, **kwargs):
-        super().__init__()
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1}
+
+    def __init__(
+            self,
+            game,
+            monitors: Dict[str, Callable] = None,
+            logger=default_logger,
+            render_mode=None,
+            *args,
+            **kwargs
+    ):
+        super(Simulator, self).__init__()
         self.game = game
         self.monitors = monitors or {}
         self.logger = logger
@@ -30,6 +40,13 @@ class Simulator(gym.Env):
 
         # Init state
         self.reset()
+
+        # Pygame window
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.window_size = 512
+        self.render_mode = render_mode
+        self.window = None
+        self.clock = None
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is not None:

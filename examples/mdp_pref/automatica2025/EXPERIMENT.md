@@ -11,8 +11,8 @@ This experiment implements code from Automatica 2025 submission w/ Hazhar, Jie F
     > How? I don't understand Hazhar's implementation. Can we invoke existing MDP solvers?
 7. ✅ Define simulator for bee-robot environment.
 8. ✅ Run synthesized policy to visualize behavior.
-9. Define gym environment for bee-robot environment. 
-10. Run synthesized policy to visualize behavior.
+9. ✅ Define gym environment for bee-robot environment. 
+10. ✅ Run synthesized policy to visualize behavior.
 
 
 > **MDP Solver Interfaces [FAILURE].**

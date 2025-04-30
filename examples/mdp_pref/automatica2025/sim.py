@@ -126,6 +126,10 @@ class BeeRobotEnv(Simulator):
         grid_origin_x = (500 - grid_width) // 2
         grid_origin_y = (500 - grid_height) // 2
 
+        # Draw grid background
+        back_color = (230, 250, 248) if self.state.game_state.raining else (255, 255, 255)
+        pygame.draw.rect(canvas, back_color, (grid_origin_x, grid_origin_y, grid_width, grid_height))
+
         # Draw grid
         self._draw_bird_bounds(canvas, self._cell_size, grid_origin_in_window=(grid_origin_x, grid_origin_y))
         self._draw_grid(canvas, self._cell_size, grid_origin_in_window=(grid_origin_x, grid_origin_y))
@@ -325,7 +329,7 @@ class BeeRobotEnv(Simulator):
                 break
 
         # Convert automaton to DOT
-        sa_dot, pg_dot = prefltlf2pdfa.viz.paut2dot(paut=paut, show_pg_state=True)
+        sa_dot, pg_dot = prefltlf2pdfa.viz.paut2dot(paut=paut, show_pg_state=self._show_pg_state)
         sa_dot.graph_attr.update({"dpi": "300"})
         pg_dot.graph_attr.update({"dpi": "300"})
 
@@ -421,6 +425,7 @@ def main():
     # Create simulator
     sim = BeeRobotEnv(
         game=mdp_graph,
+        config=CONFIG,
         monitors={"no-termination": not_terminated},
     )
 
@@ -445,8 +450,10 @@ def main_viz():
     # Create simulator
     sim = BeeRobotEnv(
         game=mdp_graph,
+        config=CONFIG,
         monitors={"no-termination": not_terminated},
         render_mode="human",
+        show_pg_state=False,
     )
 
     # Step through the simulation and render

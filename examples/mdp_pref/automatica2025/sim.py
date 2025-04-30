@@ -37,11 +37,24 @@ class BeeRobotEnv(Simulator):
     Bee robot environment.
     """
 
-    def __init__(self, game, monitors=None, config=CONFIG, **kwargs):
+    def __init__(self, game: GraphGame, config: dict, monitors: Callable = None, **kwargs):
+        """
+        Initialize the BeeRobotEnv simulator.
+
+        :param game: The game object representing the environment.
+        :param monitors: A dictionary of callable functions to track properties of interest during the simulation.
+            Each monitor should take the current state as input and return nothing.
+        :param config: Configuration dictionary containing environment parameters.
+        :param kwargs: Additional keyword arguments.
+            - show_automaton: Boolean indicating whether to show the automaton in the rendering.
+            - show_pg_state: Boolean indicating whether to show the preference graph class names in the rendering.
+            - render_fps: Frames per second for rendering.
+        """
         super().__init__(game, monitors, **kwargs)
         self.config = config
         self._obstacles = config.get("obstacles", [])
         self._show_automaton = kwargs.get("show_automaton", True)
+        self._show_pg_state = kwargs.get("show_pg_state", True)
         self.metadata["render_fps"] = kwargs.get("render_fps", 0.5)
         self.images = {
             "bee": pygame.image.load(Path().absolute() / "assets" / "bee.png"),

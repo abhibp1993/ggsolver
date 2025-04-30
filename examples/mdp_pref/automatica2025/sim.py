@@ -71,6 +71,13 @@ class BeeRobotEnv(Simulator):
         self._configure_pygame_window()
 
     def delta(self, state, action):
+        """
+        Simulates the environment's state transition based on the given action.
+
+        :param state: The current state of the environment.
+        :param action: The action to be performed.
+        :return: The next state after performing the action.
+        """
         next_states = self.game.delta(state, action)
         states = dict(enumerate(sorted(next_states.keys())))
         probabilities = [next_states[states[st]] for st in states]
@@ -105,38 +112,6 @@ class BeeRobotEnv(Simulator):
             self.clock.tick(self.metadata["render_fps"])
         else:
             return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
-        # # Create a canvas to draw on
-        # canvas = pygame.Surface((self.grid_size, self.grid_size))
-        # canvas.fill((255, 255, 255))  # White background
-        #
-        # # Draw grid
-        # for x in range(self.config["num_columns"] + 1):
-        #     pygame.draw.line(canvas, (0, 0, 0), (x * self.cell_size, 0), (x * self.cell_size, self.grid_size))
-        # for y in range(self.config["num_rows"] + 1):
-        #     pygame.draw.line(canvas, (0, 0, 0), (0, y * self.cell_size), (self.grid_size, y * self.cell_size))
-        #
-        # # Draw flowers
-        # for flower, loc in [("tulip", self.config["tulip_loc"]),
-        #                     ("orchid", self.config["orchid_loc"]),
-        #                     ("daisy", self.config["daisy_loc"])]:
-        #     x, y = loc
-        #     canvas.blit(pygame.transform.scale(self.images[flower], (self.cell_size, self.cell_size)),
-        #                 (x * self.cell_size, y * self.cell_size))
-        #
-        # # Draw bee
-        # bee_x, bee_y = self.state.game_state.bee_loc
-        # canvas.blit(pygame.transform.scale(self.images["bee"], (self.cell_size, self.cell_size)),
-        #             (bee_x * self.cell_size, bee_y * self.cell_size))
-        #
-        # # Draw bird
-        # bird_x, bird_y = self.state.game_state.bird_loc
-        # canvas.blit(pygame.transform.scale(self.images["bird"], (self.cell_size, self.cell_size)),
-        #             (bird_x * self.cell_size, bird_y * self.cell_size))
-        #
-        # # Update the display
-        # self.window.blit(canvas, canvas.get_rect())
-        # pygame.display.update()
-        # self.clock.tick(30)
 
     def _render_frame(self):
         # Create a canvas to draw on
@@ -211,10 +186,6 @@ class BeeRobotEnv(Simulator):
                 (offset_x + grid_width, offset_y + y * cell_size),
                 1,
             )
-
-        # for x in range(self._max_dim + 1):
-        #     pygame.draw.line(canvas, grid_color, (x * cell_size, 0), (x * cell_size, self._window_size[1]), 1)
-        #     pygame.draw.line(canvas, grid_color, (0, x * cell_size), (self._window_size[1], x * cell_size), 1)
 
     def _draw_obstacles(self, canvas, cell_size, grid_origin_in_window=(0, 0)):
         offset_x, offset_y = grid_origin_in_window

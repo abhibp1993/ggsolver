@@ -14,6 +14,43 @@ This experiment implements code from Automatica 2025 submission w/ Hazhar, Jie F
 9. ✅ Define gym environment for bee-robot environment. 
 10. ✅ Run synthesized policy to visualize behavior.
 
+### TODO: Refactoring
+* Move `StochasticOrderType, ProductGame, PrefGraphGame, Solver` classes to `ggsolver` package.
+* Move `stochastic_weak_order, stochastic_weak_star_order, stochastic_strong_order` to `ggsolver` package.
+* Move `spot_eval` and PrefAutomaton patch to `ggsolver` package.
+
+### TODO: Experiment - Scalability
+This experiment should show 
+1. How to synthesize a single strategy in this domain. 
+2. The outcome of the chosen strategy. 
+3. The time taken to solve MDPs for various size parameters.
+
+Like Meilun's paper, let's consider synthesizing with three preference goals.
+The timings should be reported for all three stochastic orders.
+
+* Implement Robot `Navigation` example (adopt from RDDLSim - Meilun Li's paper).
+* Implement Robot `Reconnaissance` example (adopt from RDDLSim - Meilun Li's paper).
+* Implement Robot `Crossing Traffic` example (adopt from RDDLSim - Meilun Li's paper).
+
+Also remark that under a fixed weight, the problem reduces to complete preference.
+Hence, Meilun's solvers will also work. 
+However, due to the stochastic ordering idea, the solution is guaranteed to be Pareto-optimal. 
+
+
+### TODO: Experiment - Ordering comparison
+This experiment should show how outcome probabilities vary when equal 
+weights are assigned to each ordering class.
+
+* Use `Navigation/CrossTraffic/Reconnaissance` example. 
+* Run three orders with equal weights.
+* Plot bar-chart showing probability of satisfying each objective under three orders.
+
+### TODO: Experiment - Effect of stochasticity
+* Plot the same for increased stochasticity case (see current paper/effect of stochasticity).
+
+### TODO: Experiment - Effect of weights
+* Pareto plot from current paper.
+
 
 > **MDP Solver Interfaces [FAILURE].**
 > 

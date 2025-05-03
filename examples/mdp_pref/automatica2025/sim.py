@@ -37,7 +37,7 @@ class BeeRobotEnv(Simulator):
     Bee robot environment.
     """
 
-    def __init__(self, game: GraphGame, config: dict, monitors: Callable = None, **kwargs):
+    def __init__(self, game: GameGraph, config: dict, monitors: Callable = None, **kwargs):
         """
         Initialize the BeeRobotEnv simulator.
 

@@ -1,6 +1,7 @@
 import numpy as np
 
 from automatica2025 import *
+from ggsolver.mdp_prefltlf import *
 from utils import save_pickle, load_pickle
 from pathlib import Path
 
@@ -14,7 +15,7 @@ def solve_for_weights(model, objective, ordering_vector, num_samples=10, corner_
 
     solutions = []
     for wt in tqdm(weights, desc="Solving for different weights"):
-        solver = Solver(model, objective, wt, overwrite=True)
+        solver = QuantitativePrefMDPSolver(model, objective, wt, overwrite=True)
         solver.solve()
         solutions.append(solver)
 

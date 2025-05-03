@@ -114,7 +114,7 @@ class GameModel(ABC):
         pass
 
 
-class GraphGame(GameModel):
+class GameGraph(GameModel):
     def __init__(self, model: nx.MultiDiGraph, **kwargs):
         """
 

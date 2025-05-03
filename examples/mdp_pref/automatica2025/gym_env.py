@@ -14,8 +14,8 @@ class BeeRobotEnv(gym.Env):
     def __init__(
             self,
             config: dict,
-            game: PrefGraphGame,
-            solver: Solver,
+            game: PrefGameGraph,
+            solver: QuantitativePrefMDPSolver,
             render_mode=None,
             **kwargs
     ):

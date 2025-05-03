@@ -54,7 +54,7 @@ def build_product_mdp(config):
     builder = BuildGameGraph(game_def=product_mdp, pointed=True, show_report=True, build_labels=False)
     prod_graph = builder.build()
 
-    model = PrefGraphGame(graph=prod_graph, aut=aut)
+    model = PrefGameGraph(graph=prod_graph, aut=aut)
 
     return model, aut
 

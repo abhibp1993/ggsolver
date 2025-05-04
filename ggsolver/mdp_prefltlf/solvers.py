@@ -1,5 +1,5 @@
 from typing import List, Set
-
+import time
 import networkx as nx
 import numpy as np
 from loguru import logger
@@ -25,6 +25,12 @@ class QuantitativePrefMDPSolver:
         self._value_function = None
         self._policy = None
         self._markov_chain = None
+        self._report = {
+            "time_total": -1.,
+            "time_value_iteration": -1.,
+            "time_validate_policy": -1.,
+            "time_compute_probabilities": -1.,
+        }
 
         # Intermediate variables
         self._actions = list({data["action"] for _, _, data in self._game.edges(data=True)})
@@ -34,7 +40,18 @@ class QuantitativePrefMDPSolver:
         self._probability_vector = []
         self._sat_probability_of_objectives = []
 
+    @property
+    def report(self):
+        return self._report
+
+    @property
+    def run_time(self):
+        return self._report["time_total"]
+
     def solve(self):
+        # Start timer for overall timing
+        solve_start = time.time()
+
         # Process objectives
         objective_nodes = [
             {self._state2id[st] for st in obj_nodes if st.game_state.terminated}
@@ -49,15 +66,20 @@ class QuantitativePrefMDPSolver:
         }
 
         # Run value iteration on MDP
+        vi_timer_start = time.time()
         policy, values = self._value_iteration(rewards)
+        self._report["time_value_iteration"] = time.time() - vi_timer_start
         self._policy = policy
         self._value_function = values
 
         # Run a policy check, if option is enabled.
         if self._option_validate_policy:
+            validate_timer_start = time.time()
             self._validate_policy()
+            self._report["time_validate_policy"] = time.time() - validate_timer_start
 
         # Marginalize MDP with policy
+        prob_timer_start = time.time()
         mc = self._construct_markov_chain()
 
         # Construct probability vector for ordering classes
@@ -80,6 +102,8 @@ class QuantitativePrefMDPSolver:
         self._sat_probability_of_objectives = self._construct_probability_vector(mc, objective_nodes)
         logger.info(f"Pref graph nodes vector: {objective_nodes}")
         logger.info(f"Pr(pi \\models phi): {self._sat_probability_of_objectives}")
+        self._report["time_compute_probabilities"] = time.time() - prob_timer_start
+        self._report["time_total"] = time.time() - solve_start
 
     def _value_iteration(self, rewards):
         """ Using sparse arrays """

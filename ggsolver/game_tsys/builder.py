@@ -30,6 +30,7 @@ class Builder(ABC):
             "multicore": kwargs.get("multicore", False),
             "debug": kwargs.get("debug", False),
         }
+        self._run_time = None
 
         # Class configuration
         if game_def.is_deterministic:
@@ -43,6 +44,10 @@ class Builder(ABC):
                 "Could not determine transition type of transition system. "
                 "The functions `is_deterministic`, `is_probabilistic`, `is_qualitative` all returned `False`."
             )
+
+    @property
+    def run_time(self):
+        return self._run_time
 
     # ----------------------------------------------------------------
     # Builder functionality
@@ -99,6 +104,7 @@ class Builder(ABC):
         end_time = time.time()
 
         # Generate report
+        self._run_time = end_time - start_time
         self.build_report = self.generate_build_report(run_time=end_time - start_time)
         if self.options["show_report"]:
             print(textwrap.dedent(textwrap.dedent(self.build_report)))

@@ -1,6 +1,6 @@
 import numpy as np
 
-from automatica2025 import *
+from beerobot import *
 from ggsolver.mdp_prefltlf import *
 from utils import save_pickle, load_pickle
 from pathlib import Path

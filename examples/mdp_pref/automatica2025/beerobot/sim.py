@@ -6,7 +6,7 @@ import prefltlf2pdfa.viz
 import pygame
 import scipy.stats
 
-from automatica2025 import *
+from beerobot import *
 from ggsolver.simulation.statemachine import *
 from utils import load_pickle
 

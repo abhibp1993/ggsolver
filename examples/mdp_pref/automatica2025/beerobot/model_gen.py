@@ -1,6 +1,6 @@
 from prefltlf2pdfa import PrefLTLf
 
-from automatica2025 import *
+from beerobot import *
 from ggsolver.game_tsys import *
 from utils import save_pickle
 from pathlib import Path
@@ -20,7 +20,7 @@ CONFIG = {
     "daisy_loc": (0, 2),
     "bee_dynamic_stochastic": False,
     "bee_dynamic_stochasticity_prob": 0.1,
-    "spec_file_path": Path().parent.absolute() / "beerobot.prefltlf"
+    "spec_file_path": Path().parent.absolute() / "beerobot" / "beerobot.prefltlf"
 }
 
 

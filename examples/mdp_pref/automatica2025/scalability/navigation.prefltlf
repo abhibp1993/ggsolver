@@ -1,0 +1,10 @@
+prefltlf 3
+
+# Formulas
+F g1
+F g2
+F g3
+
+# Preferences
+>, 0, 1
+>, 0, 2

@@ -56,3 +56,20 @@ def stochastic_strong_order(preference_graph: nx.MultiDiGraph):
 
     # Return ordering
     return ordering
+
+
+def build_stochastic_order_objectives(model, ordering_func):
+    ordering = ordering_func(model.aut.pref_graph)
+
+    ordering_vector = [
+        set(k) for k, v in
+        sorted({tuple(sorted(v)): k for k, v in ordering.items()}.items(), key=lambda x: x[1])
+    ]
+
+    objective = [set() for _ in range(len(ordering_vector))]
+    for state in model.states():
+        for i, aut_obj_i in enumerate(ordering_vector):
+            if state.aut_state in aut_obj_i:
+                objective[i].add(state)
+
+    return objective, ordering_vector

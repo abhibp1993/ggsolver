@@ -57,6 +57,19 @@ class BeeRobotEnv(gym.Env):
         self._tulip_loc = config["tulip_loc"]
         self._orchid_loc = config["orchid_loc"]
         self._daisy_loc = config["daisy_loc"]
+        self.tulip_x, self.tulip_y = self._tulip_loc
+        self.orchid_x, self.orchid_y = self._orchid_loc
+        self.daisy_x, self.daisy_y = self._daisy_loc
+
+        print("tulip loc is ", self._tulip_loc)
+        print("orchid loc is ", self._orchid_loc)
+        print("daisy loc is ", self._daisy_loc)
+        print("bee initial loc is ", self._bee_initial_loc)
+        print("bird initial loc is ", self._bird_initial_loc)
+
+        print(self.tulip_x, self.tulip_y)
+        print(self.orchid_x, self.orchid_y)
+        print(self.daisy_x, self.daisy_y)
 
         self._bee_dynamic_stochastic = config["bee_dynamic_stochastic"]
         self._bee_dynamic_stochasticity_prob = config["bee_dynamic_stochasticity_prob"]
@@ -64,12 +77,22 @@ class BeeRobotEnv(gym.Env):
         # Define action and observation spaces
         self.action_space = gym.spaces.Discrete(len(self._actions))  # Actions are indexed
         self._act2id = {action: act_id for act_id, action in enumerate(self._actions)}
+
+        #[d(bird_x), d(bird_y), d(tulip_x), d(tulip_y), d(daisy_x), d(daisy_y), d(orchid_x), d(orchid_y), battery, raining, rain_prob, aut_state]
+        self.observation_space = gym.spaces.Box(
+            low=np.array([-self._grid_cols, -self._grid_rows, -self._grid_cols, -self._grid_rows, -self._grid_cols, -self._grid_rows, -self._grid_cols, -self._grid_rows, 0, 0, 0, 0], dtype=np.float32),
+            high=np.array([self._grid_cols, self._grid_rows, self._grid_cols, self._grid_rows, self._grid_cols, self._grid_rows, self._grid_cols, self._grid_rows, self._battery_capacity, 1, 1.0, self._game.model.number_of_nodes()], dtype=np.float32),
+        )
         
         #[bee_x, bee_y, bird_x, bird_y, battery, raining, rain_prob, terminated, aut_state]
-        self.observation_space = gym.spaces.Box(
-            low=np.array([0, 0, 0, 0, 0, 0, 0.0, 0, 0], dtype=np.float32),
-            high=np.array([self._grid_cols-1, self._grid_rows-1, self._grid_cols-1, self._grid_rows-1, self._battery_capacity, 1, 1.0, 1, self._game.model.number_of_nodes()], dtype=np.float32),
-        )
+        # self.observation_space = gym.spaces.Box(
+        #     low=np.array([0, 0, 0, 0, 0, 0, 0.0, 0, 0], dtype=np.float32),
+        #     high=np.array([self._grid_cols, self._grid_rows, self._grid_cols, self._grid_rows, self._battery_capacity, 1, 1.0, 1, self._game.model.number_of_nodes()], dtype=np.float32),
+        # )
+        # self.observation_space = gym.spaces.Box(
+        #     low=np.array([0, 0, 0, 0, 0, 0, 0.0, 0, 0], dtype=np.float32),
+        #     high=np.array([self._grid_cols-1, self._grid_rows-1, self._grid_cols-1, self._grid_rows-1, self._battery_capacity, 1, 1.0, 1, self._game.model.number_of_nodes()], dtype=np.float32),
+        # )
         self._obs2id = self._state2id = {data["state"]: node for node, data in self._game.model.nodes(data=True)}
 
         # Initialize pygame params
@@ -96,13 +119,13 @@ class BeeRobotEnv(gym.Env):
         # {node: rank, node: rank, ...}
         current_rank = 0  # Start with rank 0 (highest preference)
 
-        print(remaining_graph.number_of_nodes(), "nodes in the graph")
-        print(remaining_graph.nodes(data=True))
+        #print(remaining_graph.number_of_nodes(), "nodes in the graph")
+        #print(remaining_graph.nodes(data=True))
         #{key is pref_node number, value is semi-aut nodes}
         node_to_partition = {node: data['partition'] for node, data in remaining_graph.nodes(data=True)}
-        print("Node to partition mapping:", node_to_partition)
-        print(remaining_graph.number_of_edges(), "edges in the graph")
-        print(remaining_graph.edges)
+        #print("Node to partition mapping:", node_to_partition)
+        #print(remaining_graph.number_of_edges(), "edges in the graph")
+        #print(remaining_graph.edges)
 
         while remaining_graph.number_of_nodes() > 0:
             # Find nodes without outgoing edges, excluding self-loops
@@ -136,12 +159,18 @@ class BeeRobotEnv(gym.Env):
             and converts to observation_space array
 
         """
+        #[d(bird_x), d(bird_y), d(tulip_x), d(tulip_y), d(daisy_x), d(daisy_y), d(orchid_x), d(orchid_y), battery, raining, rain_prob, aut_state]
         # if terminated, return a zeroed observation space
         if(state.game_state.terminated):
-            return np.array([0, 0, 0, 0, 0, 0, 0.0, 1, state.aut_state], dtype=np.float32)
+            return np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, state.aut_state], dtype=np.float32)
+        
+        bee_x = float(state.game_state.bee_x)
+        bee_y = float(state.game_state.bee_y)
+        bird_x = float(state.game_state.bird_x)
+        bird_y = float(state.game_state.bird_y)
 
-        obs_space = np.array([float(state.game_state.bee_x), float(state.game_state.bee_y), float(state.game_state.bird_x), float(state.game_state.bird_y), float(state.game_state.battery), 
-                    float(state.game_state.raining), float(state.game_state.rain_prob), float(state.game_state.terminated), float(state.aut_state)], dtype=np.float32)
+        obs_space = np.array([bee_x-bird_x, bee_y-bird_y, bee_x-self.tulip_x, bee_y-self.tulip_y, bee_x-self.daisy_x, bee_y-self.daisy_y, bee_x-self.orchid_x, bee_y-self.orchid_y, float(state.game_state.battery), 
+                    float(state.game_state.raining), float(state.game_state.rain_prob), float(state.aut_state)], dtype=np.float32)
 
         return obs_space
 
@@ -153,8 +182,7 @@ class BeeRobotEnv(gym.Env):
         self.state = set(self._game.model.graph["init_states"]).pop() # needed for internal model transition
         obs_state = self._game.model.nodes[self.state]["state"]
         self.obs_space = self.convert(obs_state) # needed for RL algorithm 
-        
-        return self.obs_space, {}
+        return self.obs_space, {obs_state}
     
     def give_reward(self, current_semi_aut_state, next_semi_aut_state):
         """
@@ -165,33 +193,47 @@ class BeeRobotEnv(gym.Env):
         :param next_aut_state: The next automaton state.
         :return: A reward value.
         """
-        print(f"Current semi automaton state: {current_semi_aut_state}, Next semi automaton state: {next_semi_aut_state}")
-        print(type(self.node_partitions))
-        print(self.node_partitions)
+        #print(f"Current semi automaton state: {current_semi_aut_state}, Next semi automaton state: {next_semi_aut_state}")
+        #print(type(self.node_partitions))
+        #print(self.node_partitions)
         current_pref_state = [k for k, v in self.node_partitions.items() if current_semi_aut_state in v][0]
         next_pref_state = [k for k, v in self.node_partitions.items() if next_semi_aut_state in v][0]
 
-        print(f"Current preference state: {current_pref_state}, Next preference state: {next_pref_state}")
+        #print(f"Current preference state: {current_pref_state}, Next preference state: {next_pref_state}")
 
         current_rank = self.ranks.get(current_pref_state, float('inf'))  # Default to infinity if state is not ranked
         next_rank = self.ranks.get(next_pref_state, float('inf'))  # Default to infinity if state is not ranked
 
-        print(f"Current rank: {current_rank}, Next rank: {next_rank}")
+        #print(f"Current rank: {current_rank}, Next rank: {next_rank}")
         self.pref_aut.append(current_pref_state)  # Keep track of the preference automaton states visited
         self.ranks_visited.append(current_rank)  # Keep track of the ranks visited
 
-        if next_rank < current_rank:
-            # Preference improves (rank decreases)
-            reward = (current_rank - next_rank)*100  # Reward is proportional to the rank improvement
-            # print(f"Reward for improving preference: {reward}")
+        # if agent reaches tulips then it gets reward, end the episode 
+        # if(next_semi_aut_state == 0):
+        #     reward = 100
+        # else:
+        #     reward = -1
+
+        if(next_semi_aut_state == 0 or next_semi_aut_state == 4):
+            reward = 100
+        else:
+            reward = -1
+        
+        # if next_rank < current_rank:
+        #     # Preference improves (rank decreases)
+        #     reward = (current_rank - next_rank)*100  # Reward is proportional to the rank improvement
+        #     if(next_rank == 0):
+        #         reward += 100
+        #         print(f"REWARD FOR ZEROTH PREFERENCE {reward}")
+        #         key=input("stop here")
         # elif next_rank == current_rank:
         #     # Preference remains the same
         #     reward = 0
         #     print("No change in preference, reward is 0")
         #     print(f"Reward for no change in preference: {reward}")
-        else:
+        #else:
             # Preference does not improve or worsens
-            reward = -1  # Penalize for worsening or no improvement
+            #reward = -1  # Penalize for worsening or no improvement
             # print("Preference worsens or no improvement, reward is -1")
             # print(f"Reward for worsening preference: {reward}")
 
@@ -242,6 +284,11 @@ class BeeRobotEnv(gym.Env):
         self.obs_space = self.convert(next_state)
         terminated = next_state.game_state.terminated
         truncated = terminated
+
+        if(reward == 100):
+            terminated = True
+            truncated = True
+            print("Episode terminated due to reaching tulips or orchids")
         
         info = {"state": next_state}
         
@@ -276,7 +323,7 @@ if __name__ == '__main__':
         "actions": ["N", "E", "S", "W", "Y", "T"],
         "bee_initial_loc": (1, 0),
         "bird_initial_loc": (3, 1),
-        "battery_capacity": 12,
+        "battery_capacity": 13,
         "bird_bounds": {(2, 0), (2, 1), (3, 0), (3, 1), (4, 0), (4, 1)},
         "tulip_loc": (4, 3),
         "orchid_loc": (1, 1),
@@ -291,34 +338,78 @@ if __name__ == '__main__':
         solver=solver,
         render_mode="human",
     )
-    num_episodes = 2000
     max_timesteps = 500
     aut_states = []
-    for ep in range(num_episodes):
+
+    # --- Manual control with keyboard ---
+    print("\nManual control mode. Use keys N, E, S, W, Y, T to control the agent. Press Q to quit.")
+    action_map = {k.lower(): v for v, k in enumerate(CONFIG["actions"])}
+    while True:
         state, info = env.reset()
-        print(f"\n=== EPISODE {ep+1} ===")
+        print("Environment reset.")
+        print(f"Current state: {state}")
+        print(info)
+
         for t in range(max_timesteps):
-            print(f"=====================Step {t+1} in Episode {ep+1}")
-            act = env.action_space.sample()
-            next_state, reward, terminated, truncated, info = env.step(act)
-            # Extract aut_state from info or next_state
+            #env.render()
+            key = input("Enter action (N/E/S/W/Y/T or Q to quit): ").strip().lower()
+            if key == 'q':
+                print("Exiting manual control.")
+                exit()
+            if key not in action_map:
+                print("Invalid key! Use N, E, S, W, Y, T.")
+                continue
+            action = action_map[key]
+            next_state, reward, terminated, truncated, info = env.step(action)
             aut_state = None
             if "state" in info and info["state"] is not None:
                 aut_state = info["state"].aut_state
                 aut_states.append(aut_state)
-            print(f"Step {t+1}: Action: {act}, aut_state: {aut_state}, Reward: {reward}, Terminated: {terminated}")
+            print(f"Action: {CONFIG['actions'][action]}, aut_state: {aut_state}, Reward: {reward}, Terminated: {terminated}")
+            print(next_state)
             print(info)
+            print("======================")
             state = next_state
             if terminated:
                 print("Episode terminated.")
-                print("uniqiue automaton states encountered in this episode:")
-                print(set(aut_states))  # Print unique automaton states encountered in this episode
-                #aut_states = []  # Reset for the next episode
+                print("All unique automaton states encountered during manual control:")
+                print(set(aut_states))
+                env.close()
                 break
-    print("All unique pref automaton states encountered across all episodes:")
-    print(set(env.pref_aut))  # Print unique automaton states encountered across all episodes
-    print("all ranks visited ")
-    print(set(env.ranks_visited))
+
+    
+
+    # num_episodes = 2000
+    # max_timesteps = 500
+    # aut_states = []
+    # for ep in range(num_episodes):
+    #     state, info = env.reset()
+    #     print(f"\n=== EPISODE {ep+1} ===")
+    #     for t in range(max_timesteps):
+    #         print(f"=====================Step {t+1} in Episode {ep+1}")
+    #         act = env.action_space.sample()
+    #         next_state, reward, terminated, truncated, info = env.step(act)
+    #         # Extract aut_state from info or next_state
+    #         aut_state = None
+    #         if "state" in info and info["state"] is not None:
+    #             aut_state = info["state"].aut_state
+    #             aut_states.append(aut_state)
+    #         print(f"Step {t+1}: Action: {act}, aut_state: {aut_state}, Reward: {reward}, Terminated: {terminated}")
+    #         print(info)
+    #         state = next_state
+    #         if terminated:
+    #             print("Episode terminated.")
+    #             print("uniqiue automaton states encountered in this episode:")
+    #             print(set(aut_states))  # Print unique automaton states encountered in this episode
+    #             #aut_states = []  # Reset for the next episode
+    #             break
+    # print("All unique pref automaton states encountered across all episodes:")
+    # print(set(env.pref_aut))  # Print unique automaton states encountered across all episodes
+    # print("all ranks visited ")
+    # print(set(env.ranks_visited))
+
+
+
     # state, info = env.reset()
     # print(type(state))
     # print("obs space below")
